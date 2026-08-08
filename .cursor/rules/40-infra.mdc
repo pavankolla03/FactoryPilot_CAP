@@ -1,0 +1,11 @@
+---
+description: Infra Terraform and GitHub Actions
+globs: infra/**,deploy/**,.github/workflows/**
+alwaysApply: false
+---
+
+# Infra
+
+- Terraform for long-lived BTP services; scripts/CI for app deploy.
+- Trial profile first; client = new tfvars only.
+- Secrets via GitHub Secrets / Destinations — never commit keys.

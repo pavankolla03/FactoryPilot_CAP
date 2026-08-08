@@ -1,0 +1,17 @@
+---
+description: FactoryPilot hybrid architecture — always apply
+alwaysApply: true
+---
+
+# FactoryPilot architecture
+
+Build the **hybrid** stack only unless the user explicitly asks for the thick-CPI requirements baseline.
+
+- CAP = admin, OData/BO registry, rate/cache config, dashboard
+- FastAPI + LangGraph = insights orchestration
+- CPI = thin S/4/Hub OData adapter only
+- APIs from SAP Business Accelerator Hub (`docs/api/hub/`)
+- LLM via adapters (OpenRouter / AI Core), never hard-coded in graph nodes or CPI
+- No RAG/MCP in runtime; no secrets in git
+- Follow `AGENTS.md` and `docs/architecture/Architecture_Concept.md`
+- Update `CHANGELOG.md` [Unreleased] for structural changes

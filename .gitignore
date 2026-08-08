@@ -1,0 +1,65 @@
+# Git ignore — FactoryPilot
+
+# Dependencies
+node_modules/
+.mta/
+.mta_tmp/
+gen/
+dist/
+build/
+*.mtar
+.python-version
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+credentials.json
+default-env.json
+vcaps*.json
+
+# IDE / OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# CAP / CDS
+*.db
+sqlite.db
+.cdsrc-private.json
+
+# Terraform
+infra/terraform/**/.terraform/
+infra/terraform/**/*.tfstate*
+infra/terraform/**/*.tfvars
+!infra/terraform/**/*.tfvars.example
+crash.log
+override.tf
+
+# Deploy outputs
+.deploy/
+*.log
+
+# Hub API keys must never be committed
+docs/api/hub/**/*secret*
+docs/api/hub/**/*apikey*
+
+# Coverage / test
+coverage/
+htmlcov/
+.coverage
+.nyc_output/

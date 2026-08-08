@@ -1,0 +1,12 @@
+---
+description: FastAPI LangGraph orchestrator conventions
+globs: services/orchestrator/**
+alwaysApply: false
+---
+
+# Orchestrator
+
+- LangGraph gated pipeline: intent → config → rate limit → cache → S/4/Hub → LLM → audit.
+- Call LLM only via `LLMProvider.complete`.
+- Call S/4/Hub via client or thin CPI; support `S4_ACCESS_MODE=hub_direct|cpi`.
+- Never put vendor SDK imports in graph node modules — adapters only.

@@ -1,0 +1,12 @@
+---
+description: CAP admin app conventions
+globs: apps/admin-cap/**
+alwaysApply: false
+---
+
+# CAP Admin
+
+- Own CDS schema and Fiori Elements admin UIs.
+- `BusinessObjectConfig` must store Hub service path, entity set, destination, keywords.
+- Seed DELIVERY from Hub metadata; do not invent OData paths.
+- Scopes: Admin for config write; BusinessUser does not maintain BO/rate/cache.
