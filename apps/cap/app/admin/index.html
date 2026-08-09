@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FactoryPilot — Admin console</title>
+<style>
+  :root {
+    --bg:#f5f6f7; --surface:#fff; --border:#d9d9d9; --text:#1d2d3e; --muted:#5b738b;
+    --accent:#0a6ed1; --accent-dark:#0854a0; --good:#107e3e; --warn:#e9730c; --radius:10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#1c2228; --surface:#23292f; --border:#3a4552; --text:#eaecee;
+            --muted:#a9b4bf; --accent:#4db1ff; --accent-dark:#7cc4ff; --good:#4db678; --warn:#f5a623; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font:15px/1.55 "72",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 20px;
+         display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  header h1{font-size:17px;margin:0;font-weight:600}
+  header .sub{color:var(--muted);font-size:13px}
+  header .spacer{flex:1}
+  header a{color:var(--accent);font-size:13px;text-decoration:none}
+  header a:hover{text-decoration:underline}
+  main{max-width:1000px;margin:0 auto;padding:22px 20px 40px}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+     margin:26px 0 12px;font-weight:600}
+  h2:first-of-type{margin-top:6px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px}
+  .tile{display:block;background:var(--surface);border:1px solid var(--border);
+        border-radius:var(--radius);padding:16px;text-decoration:none;color:inherit;
+        transition:border-color .12s,transform .12s}
+  .tile:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .tile .name{font-weight:600;margin-bottom:4px}
+  .tile .desc{font-size:13px;color:var(--muted)}
+  .tile .path{font-size:12px;color:var(--muted);margin-top:8px;font-family:ui-monospace,Menlo,monospace}
+  .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:6px}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+  .stat .n{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums}
+  .stat .k{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .note{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--warn);
+        border-radius:var(--radius);padding:14px 16px;font-size:14px;color:var(--muted);margin-top:26px}
+  code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:13px}
+</style>
+</head>
+<body>
+<header>
+  <h1>FactoryPilot</h1>
+  <span class="sub">Admin console</span>
+  <span class="spacer"></span>
+  <a href="../insights/">← Insights</a>
+</header>
+
+<main>
+  <h2>At a glance</h2>
+  <div class="stats" id="stats">
+    <div class="stat"><div class="n">—</div><div class="k">loading</div></div>
+  </div>
+
+  <h2>Configuration</h2>
+  <div class="grid">
+    <a class="tile" href="/$fiori-preview/ConfigService/BusinessObjects#preview-app">
+      <div class="name">Business Objects</div>
+      <div class="desc">Register S/4 OData services. Each active row becomes an agent tool.</div>
+      <div class="path">/odata/config</div>
+    </a>
+    <a class="tile" href="/$fiori-preview/ConfigService/Connections#preview-app">
+      <div class="name">Connections</div>
+      <div class="desc">Backends: mock, Hub sandbox or the thin CPI iFlow. Test from the list.</div>
+      <div class="path">/odata/config</div>
+    </a>
+    <a class="tile" href="/$fiori-preview/ConfigService/CachePolicies#preview-app">
+      <div class="name">Cache Policies</div>
+      <div class="desc">TTL and key scope per object or tool.</div>
+      <div class="path">/odata/config</div>
+    </a>
+  </div>
+
+  <h2>Tokenisation</h2>
+  <div class="grid">
+    <a class="tile" href="/$fiori-preview/TokenService/QuotaPolicies#preview-app">
+      <div class="name">Quota Policies</div>
+      <div class="desc">Day, week and month caps per user, role or DEFAULT.</div>
+      <div class="path">/odata/token</div>
+    </a>
+    <a class="tile" href="/$fiori-preview/TokenService/TokenUsages#preview-app">
+      <div class="name">Token Usage</div>
+      <div class="desc">One row per model call. Estimated counts are flagged as such.</div>
+      <div class="path">/odata/token</div>
+    </a>
+    <a class="tile" href="/$fiori-preview/TokenService/ModelRoutes#preview-app">
+      <div class="name">Model Routes</div>
+      <div class="desc">Which model serves light, heavy and intent traffic.</div>
+      <div class="path">/odata/token</div>
+    </a>
+    <a class="tile" href="/$fiori-preview/TokenService/Consumptions#preview-app">
+      <div class="name">Consumption</div>
+      <div class="desc">Durable counters behind the quota decisions.</div>
+      <div class="path">/odata/token</div>
+    </a>
+  </div>
+
+  <h2>Users and governance</h2>
+  <div class="grid">
+    <a class="tile" href="/$fiori-preview/AdminService/Users#preview-app">
+      <div class="name">Users</div>
+      <div class="desc">Identity projection and per-warehouse read/write scopes.</div>
+      <div class="path">/odata/admin</div>
+    </a>
+    <a class="tile" href="/$fiori-preview/AdminService/ApprovalPolicies#preview-app">
+      <div class="name">Approval Policies</div>
+      <div class="desc">When the agent may act unattended. Most restrictive layer wins.</div>
+      <div class="path">/odata/admin</div>
+    </a>
+    <a class="tile" href="/$fiori-preview/AdminService/OrgSettings#preview-app">
+      <div class="name">Org Settings</div>
+      <div class="desc">Autopilot, anomaly factor, digest hour, default warehouse.</div>
+      <div class="path">/odata/admin</div>
+    </a>
+  </div>
+
+  <h2>Audit</h2>
+  <div class="grid">
+    <a class="tile" href="/$fiori-preview/AuditService/SessionLogs#preview-app">
+      <div class="name">Session Log</div>
+      <div class="desc">One row per request, with whether the answer was grounded in data.</div>
+      <div class="path">/odata/audit</div>
+    </a>
+    <a class="tile" href="/$fiori-preview/AuditService/AgentRuns#preview-app">
+      <div class="name">Agent Runs</div>
+      <div class="desc">Tool rounds per turn, drill down to each step.</div>
+      <div class="path">/odata/audit</div>
+    </a>
+    <a class="tile" href="/$fiori-preview/AuditService/PendingActions#preview-app">
+      <div class="name">Approvals</div>
+      <div class="desc">Proposed writes: pending, approved, rejected, expired.</div>
+      <div class="path">/odata/audit</div>
+    </a>
+    <a class="tile" href="/$fiori-preview/AuditService/UsageByObject#preview-app">
+      <div class="name">Usage by Object</div>
+      <div class="desc">Requests, tokens and grounding rate per business object.</div>
+      <div class="path">/odata/audit</div>
+    </a>
+  </div>
+
+  <div class="note">
+    These screens are generated from the CDS annotations — there is no
+    hand-written UI behind them. They are served here by CAP's
+    <code>$fiori-preview</code>, which is a development feature and is disabled
+    in production; a production deployment needs Fiori Elements app descriptors
+    under <code>app/</code>. See the README.
+  </div>
+</main>
+
+<script>
+(async () => {
+  const tiles = [
+    ["/odata/config/BusinessObjects/$count?$filter=isActive eq true", "active objects"],
+    ["/odata/audit/SessionLogs/$count", "requests logged"],
+    ["/odata/audit/PendingActions/$count?$filter=status eq 'PENDING'", "awaiting approval"],
+    ["/odata/token/TokenUsages/$count", "model calls"],
+    ["/odata/admin/Users/$count?$filter=isActive eq true", "active users"],
+  ];
+  const cells = await Promise.all(tiles.map(async ([url, label]) => {
+    try {
+      const res = await fetch(url);
+      return [res.ok ? (await res.text()).trim() : "—", label];
+    } catch { return ["—", label]; }
+  }));
+  document.getElementById("stats").innerHTML = cells
+    .map(([n, k]) => `<div class="stat"><div class="n">${n}</div><div class="k">${k}</div></div>`)
+    .join("");
+})();
+</script>
+</body>
+</html>

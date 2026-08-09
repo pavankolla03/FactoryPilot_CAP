@@ -125,6 +125,27 @@ describe('offline provider tool choice', () => {
     assert.equal(res.toolCalls[0].name, 'move_stock')
   })
 
+  test('calls a tool again on the next turn of the same conversation', async () => {
+    // With history loaded, a tool result from the previous question must not
+    // count as this question being answered — otherwise turn two silently
+    // re-summarises stale data instead of calling a tool.
+    const definitions = tools.buildDefinitions([
+      { objectCode: 'DELIVERY', objectName: 'Outbound Delivery', keywords: 'delivery,deliveries,shipping' },
+    ])
+    const res = await new llm.FakeProvider().complete({
+      messages: [
+        { role: 'user', content: 'How many deliveries today?' },
+        { role: 'assistant', content: null, tool_calls: [{ id: 'c1' }] },
+        { role: 'tool', tool_call_id: 'c1', content: '{"rows":[]}' },
+        { role: 'assistant', content: 'You have 0 records.' },
+        { role: 'user', content: 'Move 250 units of P123 to shipping in warehouse 1000' },
+      ],
+      tools: definitions,
+    })
+    assert.equal(res.toolCalls.length, 1, 'turn two must call a tool of its own')
+    assert.equal(res.toolCalls[0].name, 'move_stock')
+  })
+
   test('picks the read tool for a read question', async () => {
     const definitions = tools.buildDefinitions([
       { objectCode: 'DELIVERY', objectName: 'Outbound Delivery', keywords: 'delivery,deliveries,shipping' },

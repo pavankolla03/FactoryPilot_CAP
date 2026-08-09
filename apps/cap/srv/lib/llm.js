@@ -88,9 +88,15 @@ class FakeProvider {
   }
 
   async complete({ messages, tools, maxTokens = 800 }) {
-    const lastUser = [...messages].reverse().find((m) => m.role === 'user')
-    const question = (lastUser?.content || '').toLowerCase()
-    const alreadyCalled = messages.some((m) => m.role === 'tool')
+    // Scope everything to the current turn. Looking at the whole conversation
+    // makes a tool result from an *earlier* question count as "already
+    // answered", so the second question in a conversation never calls a tool
+    // and silently re-summarises stale data.
+    const lastUserIdx = messages.map((m) => m.role).lastIndexOf('user')
+    const turn = lastUserIdx === -1 ? messages : messages.slice(lastUserIdx)
+
+    const question = (messages[lastUserIdx]?.content || '').toLowerCase()
+    const alreadyCalled = turn.some((m) => m.role === 'tool')
 
     const promptTokens = Math.ceil(messages.reduce((n, m) => n + (m.content?.length || 0), 0) / 4)
 
@@ -110,7 +116,8 @@ class FakeProvider {
       }
     }
 
-    const toolOutput = [...messages].reverse().find((m) => m.role === 'tool')
+    // Summarise only what this turn's tool returned, never an older one.
+    const toolOutput = [...turn].reverse().find((m) => m.role === 'tool')
     const text = toolOutput ? summarise(toolOutput.content) : "I could not match that question to a registered business object."
     const completionTokens = Math.ceil(text.length / 4)
 

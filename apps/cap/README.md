@@ -85,9 +85,11 @@ when none did.
 npm test
 ```
 
-34 tests: quota windows, filter templating, policy merge, history sanitising,
+35 tests: quota windows, filter templating, policy merge, history sanitising,
 tool choice, and the services end to end — including that a replayed
-confirmation is refused and that every request leaves exactly one audit row.
+confirmation is refused, that a second turn in a conversation still calls a
+tool rather than re-summarising the previous one, and that every request leaves
+exactly one audit row.
 
 ## Deploying to PostgreSQL
 
@@ -111,3 +113,29 @@ truth for the schema, replacing `infra/db/schema.sql` from the web app repo.
 - **React frontend serving.** The SPA is not yet copied in or routed.
 - **XSUAA.** Configured for the `production` profile but only tested against
   mocked auth.
+
+## The UI
+
+| Area | URL | What it is |
+| --- | --- | --- |
+| Insights | `/insights/index.html` | Chat, with the write-approval card |
+| Admin console | `/admin/index.html` | Launchpad over the four config domains |
+
+Both are plain HTML served from `app/` — no build step and no CDN dependency,
+so they work offline.
+
+The admin tiles open CAP's `$fiori-preview`, which renders the **CDS
+annotations** as Fiori Elements list reports and object pages. There is no
+hand-written admin UI: adding a field to the model and naming it in
+`srv/annotations/` is the whole change.
+
+`$fiori-preview` is a development feature and is disabled in production. A
+production deployment needs Fiori Elements app descriptors (`app/<name>/webapp/
+manifest.json`) pointing at the same services — the annotations they consume
+are already in place.
+
+### Local auth
+
+CAP's mocked auth expects basic auth, so the browser prompts on first load
+(`admin`/`admin`, or `bob`/`bob` for a business user). In production the
+Approuter handles login and forwards the JWT instead.
