@@ -2,6 +2,17 @@
   "xsappname": "factorypilot",
   "tenant-mode": "dedicated",
   "description": "FactoryPilot — AI-assisted S/4HANA insights on CAP",
+  "oauth2-configuration": {
+    "token-validity": 900,
+    "refresh-token-validity": 1800,
+    "autoapprove": true,
+    "redirect-uris": [
+      "https://*.cfapps.us10-003.hana.ondemand.com/**",
+      "https://*.cfapps.eu10.hana.ondemand.com/**",
+      "https://*.cfapps.us10.hana.ondemand.com/**",
+      "http://localhost:5000/**"
+    ]
+  },
   "scopes": [
     { "name": "$XSAPPNAME.InsightsQuery", "description": "Ask questions and confirm proposed actions" },
     { "name": "$XSAPPNAME.InsightsReadOwnUsage", "description": "See own quota and consumption" },
