@@ -66,6 +66,9 @@ annotate AdminService.OrgSettings with @(
 );
 
 annotate AdminService.ApprovalPolicies with {
-  writeCeiling  @title: 'Quantity above which a human always confirms';
+  writeCeiling @title: 'Quantity above which a human always confirms';
+};
+
+annotate AdminService.OrgSettings with {
   anomalyFactor @title: 'Flag a move this many times the recent average';
 };

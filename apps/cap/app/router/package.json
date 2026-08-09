@@ -2,7 +2,8 @@
   "name": "factorypilot-approuter",
   "version": "0.1.0",
   "private": true,
-  "description": "SSO front door — Insights (business) and Admin console areas",
+  "description": "SSO front door — Insights and Admin behind XSUAA",
+  "engines": { "node": ">=20" },
   "dependencies": {
     "@sap/approuter": "^20"
   },

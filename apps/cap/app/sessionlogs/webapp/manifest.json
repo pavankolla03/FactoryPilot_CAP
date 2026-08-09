@@ -1,0 +1,115 @@
+{
+  "_version": "1.59.0",
+  "sap.app": {
+    "id": "factorypilot.sessionlogs",
+    "type": "application",
+    "title": "Session Log",
+    "description": "One row per request, with whether the answer was grounded in data.",
+    "applicationVersion": {
+      "version": "0.1.0"
+    },
+    "dataSources": {
+      "mainService": {
+        "uri": "/odata/audit/",
+        "type": "OData",
+        "settings": {
+          "odataVersion": "4.0",
+          "localUri": "localService/metadata.xml"
+        }
+      }
+    },
+    "crossNavigation": {
+      "inbounds": {
+        "sessionlogs-manage": {
+          "semanticObject": "SessionLog",
+          "action": "manage",
+          "title": "Session Log",
+          "signature": {
+            "parameters": {},
+            "additionalParameters": "allowed"
+          }
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "dependencies": {
+      "minUI5Version": "1.120.0",
+      "libs": {
+        "sap.fe.templates": {}
+      }
+    },
+    "models": {
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": {
+          "operationMode": "Server",
+          "autoExpandSelect": true,
+          "earlyRequests": true
+        }
+      }
+    },
+    "routing": {
+      "routes": [
+        {
+          "name": "SessionLogsList",
+          "pattern": ":?query:",
+          "target": "SessionLogsList"
+        },
+        {
+          "name": "SessionLogsDetail",
+          "pattern": "SessionLogs({key}):?query:",
+          "target": "SessionLogsDetail"
+        }
+      ],
+      "targets": {
+        "SessionLogsList": {
+          "type": "Component",
+          "id": "SessionLogsList",
+          "name": "sap.fe.templates.ListReport",
+          "options": {
+            "settings": {
+              "entitySet": "SessionLogs",
+              "variantManagement": "Page",
+              "navigation": {
+                "SessionLogs": {
+                  "detail": {
+                    "route": "SessionLogsDetail"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "SessionLogsDetail": {
+          "type": "Component",
+          "id": "SessionLogsDetail",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "entitySet": "SessionLogs",
+              "navigation": {}
+            }
+          }
+        }
+      }
+    },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    }
+  },
+  "sap.fiori": {
+    "registrationIds": [],
+    "archeType": "transactional"
+  }
+}

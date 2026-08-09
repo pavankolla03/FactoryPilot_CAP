@@ -1,0 +1,115 @@
+{
+  "_version": "1.59.0",
+  "sap.app": {
+    "id": "factorypilot.quotapolicies",
+    "type": "application",
+    "title": "Quota Policies",
+    "description": "Day, week and month caps per user, role or DEFAULT.",
+    "applicationVersion": {
+      "version": "0.1.0"
+    },
+    "dataSources": {
+      "mainService": {
+        "uri": "/odata/token/",
+        "type": "OData",
+        "settings": {
+          "odataVersion": "4.0",
+          "localUri": "localService/metadata.xml"
+        }
+      }
+    },
+    "crossNavigation": {
+      "inbounds": {
+        "quotapolicies-manage": {
+          "semanticObject": "QuotaPolicy",
+          "action": "manage",
+          "title": "Quota Policies",
+          "signature": {
+            "parameters": {},
+            "additionalParameters": "allowed"
+          }
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "dependencies": {
+      "minUI5Version": "1.120.0",
+      "libs": {
+        "sap.fe.templates": {}
+      }
+    },
+    "models": {
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": {
+          "operationMode": "Server",
+          "autoExpandSelect": true,
+          "earlyRequests": true
+        }
+      }
+    },
+    "routing": {
+      "routes": [
+        {
+          "name": "QuotaPoliciesList",
+          "pattern": ":?query:",
+          "target": "QuotaPoliciesList"
+        },
+        {
+          "name": "QuotaPoliciesDetail",
+          "pattern": "QuotaPolicies({key}):?query:",
+          "target": "QuotaPoliciesDetail"
+        }
+      ],
+      "targets": {
+        "QuotaPoliciesList": {
+          "type": "Component",
+          "id": "QuotaPoliciesList",
+          "name": "sap.fe.templates.ListReport",
+          "options": {
+            "settings": {
+              "entitySet": "QuotaPolicies",
+              "variantManagement": "Page",
+              "navigation": {
+                "QuotaPolicies": {
+                  "detail": {
+                    "route": "QuotaPoliciesDetail"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "QuotaPoliciesDetail": {
+          "type": "Component",
+          "id": "QuotaPoliciesDetail",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "entitySet": "QuotaPolicies",
+              "navigation": {}
+            }
+          }
+        }
+      }
+    },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    }
+  },
+  "sap.fiori": {
+    "registrationIds": [],
+    "archeType": "transactional"
+  }
+}

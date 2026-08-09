@@ -1,0 +1,115 @@
+_schema-version: '3.1'
+ID: factorypilot
+version: 0.1.0
+description: FactoryPilot — AI-assisted S/4HANA insights on CAP
+
+parameters:
+  enable-parallel-deployments: true
+  deploy_mode: html5-repo
+
+build-parameters:
+  before-all:
+    - builder: custom
+      commands:
+        - npx cds build --production
+        # cds build does not carry app/ into the built module, so the Insights
+        # chat, the admin launchpad and the Fiori apps would 404 in production.
+        # fs.cpSync keeps this working on Windows build agents too.
+        - node -e "require('fs').cpSync('app','gen/srv/app',{recursive:true})"
+
+modules:
+  # ---------------------------------------------------------------------------
+  # The five CAP services. Also serves app/ — the Insights chat, the admin
+  # launchpad and the four Fiori Elements apps — so there is no separate HTML5
+  # repository to provision for this deployment shape.
+  # ---------------------------------------------------------------------------
+  - name: factorypilot-srv
+    type: nodejs
+    path: gen/srv
+    parameters:
+      buildpack: nodejs_buildpack
+      memory: 512M
+      disk-quota: 1024M
+    build-parameters:
+      builder: npm
+    provides:
+      - name: srv-api
+        properties:
+          srv-url: ${default-url}
+    requires:
+      - name: factorypilot-auth
+      - name: factorypilot-db
+
+  # ---------------------------------------------------------------------------
+  # Schema deployer. Runs once per deploy and exits — CAP owns the DDL, which
+  # is why version4's infra/db/schema.sql is not carried over.
+  # ---------------------------------------------------------------------------
+  - name: factorypilot-db-deployer
+    type: nodejs
+    path: gen/pg
+    parameters:
+      buildpack: nodejs_buildpack
+      no-route: true
+      no-start: true
+      memory: 512M
+      tasks:
+        - name: deploy-schema
+          command: npm start
+          memory: 512M
+          disk-quota: 1024M
+    build-parameters:
+      builder: npm
+    requires:
+      - name: factorypilot-db
+
+  # ---------------------------------------------------------------------------
+  # SSO front door. Everything the browser touches goes through here.
+  # ---------------------------------------------------------------------------
+  - name: factorypilot-approuter
+    type: nodejs
+    path: app/router
+    parameters:
+      buildpack: nodejs_buildpack
+      memory: 256M
+      disk-quota: 512M
+    build-parameters:
+      builder: npm
+    requires:
+      - name: factorypilot-auth
+      - name: srv-api
+        group: destinations
+        properties:
+          name: srv-api
+          url: ~{srv-url}
+          forwardAuthToken: true
+
+resources:
+  - name: factorypilot-auth
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: xsuaa
+      service-plan: application
+      path: ./xs-security.json
+      config:
+        xsappname: factorypilot-${org}-${space}
+        tenant-mode: dedicated
+
+  # PostgreSQL, per the chosen db_engine. If this service is not entitled in
+  # the subaccount, either switch to HANA Cloud (see the block below — the CDS
+  # model is portable, only this resource and the deployer path change) or
+  # register an external Postgres as a user-provided service with the same name.
+  - name: factorypilot-db
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: postgresql-db
+      service-plan: trial
+
+  # --- HANA alternative -------------------------------------------------------
+  # Replace factorypilot-db above with this, and point the deployer module at
+  # gen/db instead of gen/pg:
+  #
+  # - name: factorypilot-db
+  #   type: com.sap.xs.hdi-container
+  #   parameters:
+  #     service: hana
+  #     service-plan: hdi-shared
