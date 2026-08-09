@@ -1,0 +1,4 @@
+ID;objectCode;queryPattern;cacheEnabled;ttlValue;ttlUnit;cacheKeyStrategy;midnightClamp;description;isActive
+aa000000-0000-0000-0000-000000000001;DEFAULT;;true;15;MINUTES;PER_USER;true;Fallback for any object without its own policy.;true
+aa000000-0000-0000-0000-000000000002;DELIVERY;;true;10;MINUTES;PER_USER;true;Delivery status moves through the day so keep it short.;true
+aa000000-0000-0000-0000-000000000003;PURCHASING;;true;2;HOURS;PER_USER;true;Purchase orders change far less often than deliveries.;false

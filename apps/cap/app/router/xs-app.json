@@ -2,7 +2,9 @@
   "welcomeFile": "/insights/index.html",
   "authenticationMethod": "route",
   "sessionTimeout": 30,
-  "logout": { "logoutEndpoint": "/do/logout" },
+  "logout": {
+    "logoutEndpoint": "/do/logout"
+  },
   "routes": [
     {
       "source": "^/user-api(.*)$",
@@ -18,14 +20,14 @@
       "csrfProtection": true
     },
     {
-      "source": "^/odata/(config|token|admin|audit)/(.*)$",
+      "source": "^/odata/(config|token|admin|audit|cache)/(.*)$",
       "target": "/odata/$1/$2",
       "destination": "srv-api",
       "authenticationType": "xsuaa",
       "csrfProtection": true
     },
     {
-      "source": "^/(insights|admin|businessobjects|quotapolicies|users|sessionlogs)/(.*)$",
+      "source": "^/(insights|admin|businessobjects|quotapolicies|users|sessionlogs|cachepolicies)/(.*)$",
       "target": "/$1/$2",
       "destination": "srv-api",
       "authenticationType": "xsuaa"

@@ -3,6 +3,7 @@ const agent = require('./lib/agent')
 const quota = require('./lib/quota')
 const tools = require('./lib/tools')
 const policy = require('./lib/policy')
+const cache = require('./lib/cache')
 
 const rolesOf = (req) => Object.keys(req.user?.roles || {}).filter((r) => !r.startsWith('$'))
 const uuid = () => cds.utils.uuid()
@@ -75,7 +76,7 @@ async function persistTurns(conversationID, produced, startSeq) {
   return seq
 }
 
-async function writeAudit({ result, userID, channel, question, conversationID, correlationId, quotaResult, startedAt, objectCode, status, errorDetail }) {
+async function writeAudit({ result, userID, channel, question, conversationID, correlationId, quotaResult, startedAt, objectCode, status, errorDetail, cacheResult = 'NOT_APPLICABLE' }) {
   const { SessionLog, AgentRun, AgentStep } = cds.entities('factorypilot.audit')
   const logID = uuid()
   const runID = uuid()
@@ -92,7 +93,7 @@ async function writeAudit({ result, userID, channel, question, conversationID, c
     toolsCalled: (result?.toolsCalled || []).join(',').slice(0, 500),
     backendUrlCalled: (result?.steps || []).find((s) => s.url)?.url?.slice(0, 500) || '',
     backendTimeMs: (result?.steps || []).reduce((n, s) => n + (s.backendMs || 0), 0),
-    cacheResult: 'NOT_APPLICABLE',
+    cacheResult,
     quotaResult,
     llmProvider: result?.usage?.provider || '',
     llmModel: result?.usage?.model || '',
@@ -206,6 +207,63 @@ module.exports = cds.service.impl(function () {
     if (conversation.error) return req.reject(403, 'That conversation belongs to another user')
     const conversationID = conversation.id
 
+    // Cache lookup happens *after* the quota gate, never before: a cached
+    // answer still consumes the user's quota (ADR-009). Checking the cache
+    // first would let anyone over their limit keep asking for free, which is
+    // the loophole that makes a quota unenforceable.
+    const cachePolicy = await cache.resolvePolicy(null, '')
+    let cacheKey = null
+    let cacheResult = 'NOT_APPLICABLE'
+
+    if (cachePolicy?.cacheEnabled) {
+      cacheKey = cache.buildKey({
+        question,
+        warehouseID,
+        strategy: cachePolicy.cacheKeyStrategy,
+        userID,
+        roles,
+      })
+      const hit = await cache.get(cacheKey)
+      if (hit) {
+        cacheResult = 'HIT'
+        await cache.recordStat(hit.objectCode || '', 'hits', hit.tokensUsed || 0)
+        // Reservation is refunded: a hit spends no model tokens, so a
+        // TOKEN_COUNT quota should not be charged for one.
+        await quota.reconcile(userID, roles, reservation.reserved, 0)
+
+        const { logID } = await writeAudit({
+          result: {
+            answer: hit.answer, toolsCalled: hit.toolsCalled || [], steps: [],
+            usage: {}, grounded: hit.grounded, rounds: 0,
+          },
+          userID, channel, question, conversationID, correlationId,
+          quotaResult: 'ALLOWED', startedAt, objectCode: hit.objectCode || '', status: 'SUCCESS',
+          cacheResult: 'HIT',
+        })
+
+        return {
+          status: 'SUCCESS',
+          answer: hit.answer,
+          metrics: JSON.stringify({ rounds: 0, toolCalls: 0, grounded: hit.grounded, servedFromCache: true }),
+          metadata: {
+            conversationID, logID, correlationId,
+            objectCode: hit.objectCode || '',
+            cacheResult: 'HIT',
+            quotaResult: 'ALLOWED',
+            tokensUsed: 0,
+            totalResponseTimeMs: Date.now() - startedAt,
+            rounds: 0,
+            toolsCalled: (hit.toolsCalled || []).join(','),
+            grounded: hit.grounded,
+            provider: 'cache',
+            model: hit.model || '',
+          },
+        }
+      }
+      cacheResult = 'MISS'
+      await cache.recordStat('', 'misses')
+    }
+
     let result
     let status = 'SUCCESS'
     let errorDetail = ''
@@ -284,9 +342,35 @@ module.exports = cds.service.impl(function () {
       .filter((t) => t.startsWith('query_'))
       .map((t) => t.replace('query_', '').toUpperCase())[0] || ''
 
+    // Cache only a completed read. A proposed write must never be replayed
+    // from cache — the second person to ask would get a confirmation card for
+    // an action that was already approved and executed. Errors and rate-limit
+    // outcomes are not answers and are not cached either.
+    if (cacheKey && result.status === 'SUCCESS' && !result.pendingAction) {
+      const objectPolicy = await cache.resolvePolicy(objectCode, '')
+      if (objectPolicy?.cacheEnabled) {
+        const ttl = cache.effectiveTtl(objectPolicy, question)
+        // Reuse the key the lookup computed. Rebuilding it from the
+        // now-known objectCode would write to a key no lookup ever reads.
+        await cache.set(
+          cacheKey,
+          {
+            answer: result.answer,
+            objectCode,
+            toolsCalled: result.toolsCalled || [],
+            grounded: result.grounded === true,
+            tokensUsed: result.usage?.totalTokens || 0,
+            model: result.usage?.model || '',
+          },
+          ttl
+        )
+        await cache.recordStat(objectCode, 'writes')
+      }
+    }
+
     const { logID, runID } = await writeAudit({
       result, userID, channel, question, conversationID, correlationId,
-      quotaResult: 'ALLOWED', startedAt, objectCode, status,
+      quotaResult: 'ALLOWED', startedAt, objectCode, status, cacheResult,
     })
 
     return {
@@ -300,7 +384,7 @@ module.exports = cds.service.impl(function () {
         runID,
         correlationId,
         objectCode,
-        cacheResult: 'NOT_APPLICABLE',
+        cacheResult,
         quotaResult: 'ALLOWED',
         tokensUsed: result.usage?.totalTokens || 0,
         totalResponseTimeMs: Date.now() - startedAt,

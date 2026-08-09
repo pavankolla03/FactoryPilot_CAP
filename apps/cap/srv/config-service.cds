@@ -43,11 +43,6 @@ service ConfigService {
     action test() returns TestConnectionResult;
   };
 
-  @restrict: [
-    { grant: ['READ'], to: ['ConfigRead', 'ConfigMaintain', 'CacheMaintain'] },
-    { grant: ['*'],    to: ['CacheMaintain', 'ConfigMaintain'] }
-  ]
-  entity CachePolicies as projection on db.CachePolicy;
 
   /** What the agent may call. Derived from the registry, so exposing a new
    *  tool is an `exposedAsTool` flag rather than a code change. */

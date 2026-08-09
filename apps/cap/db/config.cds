@@ -56,8 +56,6 @@ entity BusinessObjectConfig : cuid, managed, ActiveFlag {
 
   @title: 'Exposed as Agent Tool'
   exposedAsTool         : Boolean default true;
-
-  cachePolicies         : Composition of many CachePolicy on cachePolicies.businessObject = $self;
 }
 
 /**
@@ -100,25 +98,7 @@ entity Connection : cuid, managed, ActiveFlag {
   lastTestMessage : String(500);
 }
 
-/** Cache TTL and key scope, per business object or per agent tool. */
-entity CachePolicy : cuid, managed, ActiveFlag {
-  businessObject   : Association to BusinessObjectConfig;
-
-  @title: 'Tool Name'
-  toolName         : String(60);
-
-  @title: 'Query Pattern'
-  queryPattern     : String(200);
-
-  @title: 'Cache Enabled'
-  cacheEnabled     : Boolean default true;
-
-  @title: 'TTL Value'
-  ttlValue         : Integer default 15;
-
-  @title: 'TTL Unit'
-  ttlUnit          : String(10) default 'MINUTES';     // MINUTES | HOURS | DAYS
-
-  @title: 'Key Strategy'
-  cacheKeyStrategy : String(10) default 'PER_USER';    // PER_USER | PER_ROLE | GLOBAL
-}
+// Cache policy moved to db/cache.cds and CacheService: freshness-vs-cost is a
+// different job from registering OData services, and giving it its own scope
+// means a client can hand cache tuning to someone without also handing them
+// the ability to repoint a business object at a different backend.

@@ -10,7 +10,8 @@
     "@cap-js/postgres": "^3.0.1",
     "@sap/cds": "^10.0.5",
     "@sap/xssec": "^4.13.3",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "redis": "^6.2.0"
   },
   "devDependencies": {
     "@cap-js/cds-test": "^1.0.2",
@@ -23,7 +24,7 @@
     "deploy": "cds deploy --to sqlite:db/factorypilot.db",
     "deploy:pg": "cds deploy --to postgres --profile production",
     "build": "node scripts/validate-xs-app.js && cds build --production",
-    "test": "node --test test/",
+    "test": "node --test --test-concurrency=1 test/*.test.js",
     "validate:router": "node scripts/validate-xs-app.js"
   },
   "cds": {

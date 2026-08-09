@@ -1,7 +1,7 @@
 {
   "xsappname": "factorypilot",
   "tenant-mode": "dedicated",
-  "description": "FactoryPilot — AI-assisted S/4HANA insights on CAP",
+  "description": "FactoryPilot \u2014 AI-assisted S/4HANA insights on CAP",
   "oauth2-configuration": {
     "token-validity": 900,
     "refresh-token-validity": 1800,
@@ -14,21 +14,54 @@
     ]
   },
   "scopes": [
-    { "name": "$XSAPPNAME.InsightsQuery", "description": "Ask questions and confirm proposed actions" },
-    { "name": "$XSAPPNAME.InsightsReadOwnUsage", "description": "See own quota and consumption" },
-
-    { "name": "$XSAPPNAME.ConfigRead", "description": "Read the business object registry and connections" },
-    { "name": "$XSAPPNAME.ConfigMaintain", "description": "Maintain the registry, connections and OData metadata" },
-    { "name": "$XSAPPNAME.CacheMaintain", "description": "Maintain cache policies" },
-
-    { "name": "$XSAPPNAME.TokenRead", "description": "Read quota policy and token usage" },
-    { "name": "$XSAPPNAME.TokenMaintain", "description": "Change quotas, model routes and key references" },
-
-    { "name": "$XSAPPNAME.AdminRead", "description": "Read users, scopes and approval policy" },
-    { "name": "$XSAPPNAME.AdminMaintain", "description": "Manage users, warehouse scopes and approval policy" },
-
-    { "name": "$XSAPPNAME.AuditRead", "description": "Read the session log and agent runs" },
-    { "name": "$XSAPPNAME.DashboardAdmin", "description": "Full audit and dashboard access across all users" }
+    {
+      "name": "$XSAPPNAME.InsightsQuery",
+      "description": "Ask questions and confirm proposed actions"
+    },
+    {
+      "name": "$XSAPPNAME.InsightsReadOwnUsage",
+      "description": "See own quota and consumption"
+    },
+    {
+      "name": "$XSAPPNAME.ConfigRead",
+      "description": "Read the business object registry and connections"
+    },
+    {
+      "name": "$XSAPPNAME.ConfigMaintain",
+      "description": "Maintain the registry, connections and OData metadata"
+    },
+    {
+      "name": "$XSAPPNAME.CacheMaintain",
+      "description": "Maintain cache policies"
+    },
+    {
+      "name": "$XSAPPNAME.TokenRead",
+      "description": "Read quota policy and token usage"
+    },
+    {
+      "name": "$XSAPPNAME.TokenMaintain",
+      "description": "Change quotas, model routes and key references"
+    },
+    {
+      "name": "$XSAPPNAME.AdminRead",
+      "description": "Read users, scopes and approval policy"
+    },
+    {
+      "name": "$XSAPPNAME.AdminMaintain",
+      "description": "Manage users, warehouse scopes and approval policy"
+    },
+    {
+      "name": "$XSAPPNAME.AuditRead",
+      "description": "Read the session log and agent runs"
+    },
+    {
+      "name": "$XSAPPNAME.DashboardAdmin",
+      "description": "Full audit and dashboard access across all users"
+    },
+    {
+      "name": "$XSAPPNAME.CacheRead",
+      "description": "Read cache policy and effectiveness"
+    }
   ],
   "attributes": [
     {
@@ -41,8 +74,13 @@
     {
       "name": "BusinessUser",
       "description": "Ask questions, confirm own actions, see own usage",
-      "scope-references": ["$XSAPPNAME.InsightsQuery", "$XSAPPNAME.InsightsReadOwnUsage"],
-      "attribute-references": ["warehouse"]
+      "scope-references": [
+        "$XSAPPNAME.InsightsQuery",
+        "$XSAPPNAME.InsightsReadOwnUsage"
+      ],
+      "attribute-references": [
+        "warehouse"
+      ]
     },
     {
       "name": "Viewer",
@@ -51,16 +89,18 @@
         "$XSAPPNAME.ConfigRead",
         "$XSAPPNAME.TokenRead",
         "$XSAPPNAME.AdminRead",
-        "$XSAPPNAME.AuditRead"
+        "$XSAPPNAME.AuditRead",
+        "$XSAPPNAME.CacheRead"
       ]
     },
     {
       "name": "ConfigAdministrator",
-      "description": "Register OData services and tune caching — no user or quota rights",
+      "description": "Register OData services and tune caching \u2014 no user or quota rights",
       "scope-references": [
         "$XSAPPNAME.ConfigRead",
         "$XSAPPNAME.ConfigMaintain",
-        "$XSAPPNAME.CacheMaintain"
+        "$XSAPPNAME.CacheMaintain",
+        "$XSAPPNAME.CacheRead"
       ]
     },
     {
@@ -77,31 +117,42 @@
         "$XSAPPNAME.AdminRead",
         "$XSAPPNAME.AdminMaintain",
         "$XSAPPNAME.AuditRead",
-        "$XSAPPNAME.DashboardAdmin"
+        "$XSAPPNAME.DashboardAdmin",
+        "$XSAPPNAME.CacheRead"
       ],
-      "attribute-references": ["warehouse"]
+      "attribute-references": [
+        "warehouse"
+      ]
     }
   ],
   "role-collections": [
     {
       "name": "FactoryPilot_BusinessUser",
       "description": "FactoryPilot business user",
-      "role-template-references": ["$XSAPPNAME.BusinessUser"]
+      "role-template-references": [
+        "$XSAPPNAME.BusinessUser"
+      ]
     },
     {
       "name": "FactoryPilot_Viewer",
       "description": "FactoryPilot read-only",
-      "role-template-references": ["$XSAPPNAME.Viewer"]
+      "role-template-references": [
+        "$XSAPPNAME.Viewer"
+      ]
     },
     {
       "name": "FactoryPilot_ConfigAdministrator",
       "description": "FactoryPilot configuration administrator",
-      "role-template-references": ["$XSAPPNAME.ConfigAdministrator"]
+      "role-template-references": [
+        "$XSAPPNAME.ConfigAdministrator"
+      ]
     },
     {
       "name": "FactoryPilot_Administrator",
       "description": "FactoryPilot administrator",
-      "role-template-references": ["$XSAPPNAME.Administrator"]
+      "role-template-references": [
+        "$XSAPPNAME.Administrator"
+      ]
     }
   ]
 }

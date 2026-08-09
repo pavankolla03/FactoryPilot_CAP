@@ -39,6 +39,7 @@ modules:
     requires:
       - name: factorypilot-auth
       - name: factorypilot-db
+      - name: factorypilot-redis
 
   # ---------------------------------------------------------------------------
   # Schema deployer. Runs once per deploy and exits — CAP owns the DDL, which
@@ -102,6 +103,16 @@ resources:
     type: org.cloudfoundry.managed-service
     parameters:
       service: postgresql-db
+      service-plan: trial
+
+  # Answer cache. Optional by design: with no Redis bound the runtime falls back
+  # to an in-process cache, which is correct for a single instance and simply
+  # loses hit-rate across replicas. A client without a Redis entitlement can
+  # still run the product.
+  - name: factorypilot-redis
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: redis-cache
       service-plan: trial
 
   # --- HANA alternative -------------------------------------------------------

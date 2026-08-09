@@ -25,8 +25,7 @@ annotate ConfigService.BusinessObjects with @(
     Facets: [
       { $Type: 'UI.ReferenceFacet', Label: 'General',      Target: '@UI.FieldGroup#General' },
       { $Type: 'UI.ReferenceFacet', Label: 'OData Source', Target: '@UI.FieldGroup#OData' },
-      { $Type: 'UI.ReferenceFacet', Label: 'Agent',        Target: '@UI.FieldGroup#Agent' },
-      { $Type: 'UI.ReferenceFacet', Label: 'Cache',        Target: 'cachePolicies/@UI.LineItem' }
+      { $Type: 'UI.ReferenceFacet', Label: 'Agent',        Target: '@UI.FieldGroup#Agent' }
     ],
     FieldGroup#General: { Data: [
       { Value: objectCode }, { Value: objectName }, { Value: moduleDomain }, { Value: isActive }
@@ -75,17 +74,3 @@ annotate ConfigService.Connections with {
   credentialRef @title: 'Credential env var name (never the secret)';
 };
 
-annotate ConfigService.CachePolicies with @(
-  UI: {
-    HeaderInfo: { TypeName: 'Cache Policy', TypeNamePlural: 'Cache Policies', Title: { Value: toolName } },
-    SelectionFields: [ toolName, cacheEnabled, isActive ],
-    LineItem: [
-      { $Type: 'UI.DataField', Value: toolName,         Label: 'Tool' },
-      { $Type: 'UI.DataField', Value: queryPattern,     Label: 'Pattern' },
-      { $Type: 'UI.DataField', Value: ttlValue,         Label: 'TTL' },
-      { $Type: 'UI.DataField', Value: ttlUnit,          Label: 'Unit' },
-      { $Type: 'UI.DataField', Value: cacheKeyStrategy, Label: 'Key Scope' },
-      { $Type: 'UI.DataField', Value: cacheEnabled,     Label: 'Enabled' }
-    ]
-  }
-);
