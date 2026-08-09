@@ -2,7 +2,7 @@
   "name": "factorypilot-cap",
   "version": "0.1.0",
   "private": true,
-  "description": "FactoryPilot CAP services — config, tokenisation, admin, audit, insights",
+  "description": "FactoryPilot CAP services \u2014 config, tokenisation, admin, audit, insights",
   "engines": {
     "node": ">=20"
   },
@@ -22,8 +22,9 @@
     "watch": "cds watch",
     "deploy": "cds deploy --to sqlite:db/factorypilot.db",
     "deploy:pg": "cds deploy --to postgres --profile production",
-    "build": "cds build --production",
-    "test": "node --test test/"
+    "build": "node scripts/validate-xs-app.js && cds build --production",
+    "test": "node --test test/",
+    "validate:router": "node scripts/validate-xs-app.js"
   },
   "cds": {
     "requires": {

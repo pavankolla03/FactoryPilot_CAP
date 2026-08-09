@@ -5,70 +5,30 @@
   "logout": { "logoutEndpoint": "/do/logout" },
   "routes": [
     {
+      "source": "^/user-api(.*)$",
+      "target": "$1",
+      "service": "sap-approuter-userapi",
+      "authenticationType": "xsuaa"
+    },
+    {
       "source": "^/insights/(ask|confirmAction|health)(.*)$",
       "target": "/insights/$1$2",
       "destination": "srv-api",
       "authenticationType": "xsuaa",
-      "scope": ["$XSAPPNAME.InsightsQuery"],
       "csrfProtection": true
     },
     {
-      "source": "^/odata/config/(.*)$",
-      "target": "/odata/config/$1",
-      "destination": "srv-api",
-      "authenticationType": "xsuaa",
-      "scope": {
-        "GET": ["$XSAPPNAME.ConfigRead", "$XSAPPNAME.ConfigMaintain", "$XSAPPNAME.CacheMaintain"],
-        "default": ["$XSAPPNAME.ConfigMaintain", "$XSAPPNAME.CacheMaintain"]
-      },
-      "csrfProtection": true
-    },
-    {
-      "source": "^/odata/token/(.*)$",
-      "target": "/odata/token/$1",
+      "source": "^/odata/(config|token|admin|audit)/(.*)$",
+      "target": "/odata/$1/$2",
       "destination": "srv-api",
       "authenticationType": "xsuaa",
       "csrfProtection": true
     },
     {
-      "source": "^/odata/admin/(.*)$",
-      "target": "/odata/admin/$1",
-      "destination": "srv-api",
-      "authenticationType": "xsuaa",
-      "scope": {
-        "GET": ["$XSAPPNAME.AdminRead", "$XSAPPNAME.AdminMaintain"],
-        "default": ["$XSAPPNAME.AdminMaintain"]
-      },
-      "csrfProtection": true
-    },
-    {
-      "source": "^/odata/audit/(.*)$",
-      "target": "/odata/audit/$1",
-      "destination": "srv-api",
-      "authenticationType": "xsuaa",
-      "scope": ["$XSAPPNAME.AuditRead", "$XSAPPNAME.DashboardAdmin", "$XSAPPNAME.InsightsQuery"],
-      "csrfProtection": true
-    },
-    {
-      "source": "^/(businessobjects|quotapolicies|users|sessionlogs)/(.*)$",
+      "source": "^/(insights|admin|businessobjects|quotapolicies|users|sessionlogs)/(.*)$",
       "target": "/$1/$2",
       "destination": "srv-api",
-      "authenticationType": "xsuaa",
-      "scope": ["$XSAPPNAME.ConfigRead", "$XSAPPNAME.TokenRead", "$XSAPPNAME.AdminRead", "$XSAPPNAME.AuditRead"]
-    },
-    {
-      "source": "^/admin/(.*)$",
-      "target": "/admin/$1",
-      "destination": "srv-api",
-      "authenticationType": "xsuaa",
-      "scope": ["$XSAPPNAME.ConfigRead", "$XSAPPNAME.AdminRead", "$XSAPPNAME.TokenRead", "$XSAPPNAME.AuditRead"]
-    },
-    {
-      "source": "^/insights/(.*)$",
-      "target": "/insights/$1",
-      "destination": "srv-api",
-      "authenticationType": "xsuaa",
-      "scope": ["$XSAPPNAME.InsightsQuery"]
+      "authenticationType": "xsuaa"
     },
     {
       "source": "^/(.*)$",
