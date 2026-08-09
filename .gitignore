@@ -39,6 +39,8 @@ Thumbs.db
 
 # CAP / CDS
 *.db
+*.db-shm
+*.db-wal
 sqlite.db
 .cdsrc-private.json
 
@@ -53,6 +55,9 @@ override.tf
 # Deploy outputs
 .deploy/
 *.log
+
+# Local dev runtime (logs, pids, scratch)
+.data/
 
 # Hub API keys must never be committed
 docs/api/hub/**/*secret*

@@ -1,0 +1,4 @@
+ID;objectCode;queryPattern;cacheEnabled;ttlValue;ttlUnit;cacheKeyStrategy;isActive
+bbbbbbbb-0000-0000-0000-000000000001;DELIVERY;;true;15;MINUTES;PER_USER;true
+bbbbbbbb-0000-0000-0000-000000000002;DELIVERY;today-count;true;5;MINUTES;PER_USER;true
+bbbbbbbb-0000-0000-0000-000000000003;SALES;;true;30;MINUTES;PER_USER;false

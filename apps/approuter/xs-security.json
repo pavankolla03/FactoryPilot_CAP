@@ -1,0 +1,75 @@
+{
+  "xsappname": "factorypilot",
+  "tenant-mode": "dedicated",
+  "description": "FactoryPilot — AI-assisted S/4HANA business insights",
+  "scopes": [
+    { "name": "$XSAPPNAME.InsightsQuery", "description": "Ask natural-language questions" },
+    { "name": "$XSAPPNAME.InsightsReadOwnUsage", "description": "See own token/request usage" },
+    { "name": "$XSAPPNAME.InsightsReadAll", "description": "See all users' usage" },
+    { "name": "$XSAPPNAME.ConfigRead", "description": "Read business object configuration" },
+    { "name": "$XSAPPNAME.ConfigMaintain", "description": "Maintain business object / OData registry" },
+    { "name": "$XSAPPNAME.RateLimitMaintain", "description": "Maintain user rate limits" },
+    { "name": "$XSAPPNAME.CacheMaintain", "description": "Maintain cache configuration" },
+    { "name": "$XSAPPNAME.DashboardRead", "description": "Read the monitoring dashboard" },
+    { "name": "$XSAPPNAME.DashboardAdmin", "description": "Full dashboard and communication log access" }
+  ],
+  "attributes": [
+    {
+      "name": "warehouse",
+      "description": "Default shipping point / warehouse used when the question does not name one",
+      "valueType": "string"
+    }
+  ],
+  "role-templates": [
+    {
+      "name": "BusinessUser",
+      "description": "Ask questions and see own usage",
+      "scope-references": [
+        "$XSAPPNAME.InsightsQuery",
+        "$XSAPPNAME.InsightsReadOwnUsage"
+      ],
+      "attribute-references": ["warehouse"]
+    },
+    {
+      "name": "Viewer",
+      "description": "Read-only admin",
+      "scope-references": [
+        "$XSAPPNAME.ConfigRead",
+        "$XSAPPNAME.DashboardRead"
+      ]
+    },
+    {
+      "name": "Administrator",
+      "description": "Full configuration and dashboard access",
+      "scope-references": [
+        "$XSAPPNAME.InsightsQuery",
+        "$XSAPPNAME.InsightsReadOwnUsage",
+        "$XSAPPNAME.InsightsReadAll",
+        "$XSAPPNAME.ConfigRead",
+        "$XSAPPNAME.ConfigMaintain",
+        "$XSAPPNAME.RateLimitMaintain",
+        "$XSAPPNAME.CacheMaintain",
+        "$XSAPPNAME.DashboardRead",
+        "$XSAPPNAME.DashboardAdmin"
+      ],
+      "attribute-references": ["warehouse"]
+    }
+  ],
+  "role-collections": [
+    {
+      "name": "FactoryPilot_BusinessUser",
+      "description": "FactoryPilot business user",
+      "role-template-references": ["$XSAPPNAME.BusinessUser"]
+    },
+    {
+      "name": "FactoryPilot_Viewer",
+      "description": "FactoryPilot read-only admin",
+      "role-template-references": ["$XSAPPNAME.Viewer"]
+    },
+    {
+      "name": "FactoryPilot_Administrator",
+      "description": "FactoryPilot administrator",
+      "role-template-references": ["$XSAPPNAME.Administrator"]
+    }
+  ]
+}

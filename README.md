@@ -2,7 +2,26 @@
 
 AI-Assisted S/4HANA Business Insights on SAP BTP (SCM-first, module-reusable).
 
-**Branch (Day 1):** `feature/001-repo-and-hub-workspace`
+## Quickstart — the whole MVP, locally
+
+No SAP account, no BTP, no Docker. Defaults use SQLite, an in-process cache, a
+synthetic S/4 fixture and a deterministic offline LLM.
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r services/orchestrator/requirements-dev.txt
+./scripts/dev_up.sh
+```
+
+| | |
+| --- | --- |
+| Insights chat | <http://localhost:8080/> |
+| Admin console | <http://localhost:4004/> (`admin` / `admin`) |
+| Smoke test | `./scripts/smoke.sh` |
+| Tests | `cd services/orchestrator && ../../.venv/bin/python -m pytest -q` |
+
+To use real data and a real model, set `SAP_HUB_API_KEY` +
+`S4_ACCESS_MODE=hub_direct` and `OPENROUTER_API_KEY` + `LLM_PROVIDER=openrouter`
+in `.env` (see [.env.example](.env.example)).
 
 ## Architecture
 
@@ -17,16 +36,17 @@ Standard APIs from **[SAP Business Accelerator Hub](https://api.sap.com)** — s
 ## Repo layout
 
 ```text
-apps/admin-cap/          # CAP admin + Fiori (Day 3+)
-apps/approuter/          # Approuter (Day 5+)
-services/orchestrator/   # FastAPI + LangGraph (Day 4+)
-integration/cpi/         # Thin CPI iFlow (Day 10+)
-infra/                   # Terraform + scripts
-deploy/cf/               # Cloud Foundry
-deploy/kyma/             # Kyma
+apps/admin-cap/          # CAP admin: BO/OData registry, rate limits, cache, log
+apps/approuter/          # Approuter config + Insights chat UI
+services/orchestrator/   # FastAPI + LangGraph pipeline and adapters
+integration/cpi/         # Thin CPI iFlow (Day 14)
+infra/                   # Terraform + scripts (Day 2+)
+deploy/cf/               # Cloud Foundry (Day 5)
+deploy/kyma/             # Kyma (Day 16)
 docs/api/hub/            # Hub EDMX, catalog, samples
 docs/architecture/       # Design pack
 docs/requirements/       # Source requirements
+scripts/                 # dev_up.sh, smoke.sh
 ```
 
 ## AI coding assistants

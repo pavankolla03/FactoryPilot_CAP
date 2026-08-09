@@ -1,0 +1,69 @@
+{
+  "name": "factorypilot-admin-cap",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FactoryPilot CAP admin: BO/OData registry, rate limits, cache config, communication log",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@sap/cds": "^10.0.5",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@cap-js/sqlite": "^3.0.2",
+    "@sap/cds-dk": "^10.0.6"
+  },
+  "optionalDependencies": {
+    "@cap-js/postgres": "^3.0.1"
+  },
+  "scripts": {
+    "start": "cds-serve",
+    "watch": "cds watch",
+    "deploy": "cds deploy --to sqlite:db/factorypilot.db",
+    "build": "cds build --production"
+  },
+  "cds": {
+    "requires": {
+      "db": {
+        "kind": "sqlite",
+        "credentials": {
+          "url": "db/factorypilot.db"
+        }
+      },
+      "auth": {
+        "kind": "mocked",
+        "users": {
+          "admin": {
+            "password": "admin",
+            "roles": [
+              "ConfigMaintain",
+              "RateLimitMaintain",
+              "CacheMaintain",
+              "DashboardAdmin",
+              "InsightsReadAll",
+              "InsightsQuery"
+            ]
+          },
+          "viewer": {
+            "password": "viewer",
+            "roles": [
+              "ConfigRead",
+              "DashboardRead"
+            ]
+          },
+          "bob": {
+            "password": "bob",
+            "roles": [
+              "InsightsQuery",
+              "InsightsReadOwnUsage"
+            ]
+          }
+        }
+      }
+    },
+    "features": {
+      "assert_integrity": false
+    }
+  }
+}

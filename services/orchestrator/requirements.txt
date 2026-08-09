@@ -1,0 +1,10 @@
+fastapi==0.141.1
+uvicorn[standard]==0.52.1
+langgraph==1.2.10
+httpx==0.28.1
+pydantic==2.13.4
+pydantic-settings==2.15.0
+redis==8.1.0
+
+# Selected only when db_engine=postgres; the SQLite path needs no driver.
+# psycopg[binary,pool]==3.2.*

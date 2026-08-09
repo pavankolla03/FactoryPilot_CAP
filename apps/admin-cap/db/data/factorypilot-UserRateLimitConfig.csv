@@ -1,0 +1,4 @@
+ID;userID;dailyLimit;weeklyLimit;monthlyLimit;limitType;overagePolicy;isActive
+aaaaaaaa-0000-0000-0000-000000000001;DEFAULT;50;200;500;REQUEST_COUNT;BLOCK;true
+aaaaaaaa-0000-0000-0000-000000000002;admin;500;2000;5000;REQUEST_COUNT;BLOCK;true
+aaaaaaaa-0000-0000-0000-000000000003;bob;5;20;50;REQUEST_COUNT;BLOCK;true

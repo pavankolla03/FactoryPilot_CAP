@@ -1,0 +1,12 @@
+{
+  "name": "factorypilot-approuter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SSO front door — Insights (business) and Admin console areas",
+  "dependencies": {
+    "@sap/approuter": "^20"
+  },
+  "scripts": {
+    "start": "node node_modules/@sap/approuter/approuter.js"
+  }
+}
