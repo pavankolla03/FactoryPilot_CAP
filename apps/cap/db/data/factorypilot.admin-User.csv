@@ -1,0 +1,5 @@
+ID;userID;displayName;email;defaultWarehouse;isAdmin;isActive
+e0000000-0000-0000-0000-000000000001;admin;Platform Administrator;admin@example.com;1000;true;true
+e0000000-0000-0000-0000-000000000002;viewer;Read-only Viewer;viewer@example.com;1000;false;true
+e0000000-0000-0000-0000-000000000003;bob;Bob (warehouse supervisor);bob@example.com;1000;false;true
+e0000000-0000-0000-0000-000000000004;sue;Sue (shift lead, second approver);sue@example.com;1000;false;true

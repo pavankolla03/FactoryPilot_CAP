@@ -1,0 +1,219 @@
+const cds = require('@sap/cds')
+const llm = require('./llm')
+const tools = require('./tools')
+const policy = require('./policy')
+
+/**
+ * The tool-calling loop, running inside CAP.
+ *
+ * Shape: ask the model, run whatever read tools it requests, feed the results
+ * back, repeat until it answers or we hit the round cap. A write request ends
+ * the loop immediately with a confirmation card — nothing that mutates a
+ * backend runs on the model's say-so alone.
+ */
+
+const MAX_ROUNDS = 8
+const PENDING_TTL_MS = 15 * 60 * 1000
+
+function systemPrompt(businessObjects) {
+  return [
+    'You are FactoryPilot, an assistant for SAP S/4HANA manufacturing and warehouse operations.',
+    'Use the provided tools to fetch real data. Never invent record counts, material numbers or quantities.',
+    'If the tools return nothing, say so plainly rather than guessing.',
+    'Registered business objects:',
+    ...businessObjects.map((b) => `- ${b.objectCode}: ${b.objectName || ''} (${b.keywords || ''})`),
+  ].join('\n')
+}
+
+/**
+ * Drop assistant turns whose tool calls never got results.
+ *
+ * These appear whenever a write went to the confirm flow instead of executing.
+ * Most providers reject a dangling tool call outright, so a single unconfirmed
+ * write would otherwise poison every later turn in that conversation.
+ */
+function sanitiseHistory(messages) {
+  const out = []
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i]
+    if (msg.role === 'assistant' && msg.tool_calls?.length) {
+      const ids = new Set(msg.tool_calls.map((tc) => tc.id))
+      const answered = messages.slice(i + 1).some((m) => m.role === 'tool' && ids.has(m.tool_call_id))
+      if (!answered) continue
+    }
+    if (msg.role === 'tool') {
+      const requested = out.some((m) => m.role === 'assistant' && m.tool_calls?.some((tc) => tc.id === msg.tool_call_id))
+      if (!requested) continue
+    }
+    out.push(msg)
+  }
+  return out
+}
+
+async function loadHistory(conversationID, limit = 20) {
+  if (!conversationID) return []
+  const { Message } = cds.entities('factorypilot.chat')
+  const rows = await SELECT.from(Message).where({ conversation_ID: conversationID }).orderBy('seq').limit(limit)
+  return sanitiseHistory(
+    rows.map((r) => {
+      const msg = { role: r.role, content: r.content || '' }
+      if (r.toolCalls) {
+        msg.tool_calls = llm.safeParse(r.toolCalls) || undefined
+        msg.content = msg.content || null
+      }
+      if (r.toolCallId) {
+        msg.tool_call_id = r.toolCallId
+        msg.name = r.toolName
+      }
+      return msg
+    })
+  )
+}
+
+/**
+ * @returns {{status, answer, toolsCalled, rounds, grounded, usage, steps, pendingAction}}
+ */
+async function run({ question, userID, roles, warehouseID, conversationID, correlationId, businessObjects, route, orgSettings }) {
+  const provider = llm.getProvider(route || {})
+  const definitions = tools.buildDefinitions(businessObjects)
+  const defaults = { warehouse: warehouseID || orgSettings?.defaultWarehouse || '1000' }
+
+  const messages = [
+    { role: 'system', content: systemPrompt(businessObjects) },
+    ...(await loadHistory(conversationID)),
+    { role: 'user', content: question },
+  ]
+
+  const usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, isEstimated: false }
+  const steps = []
+  const toolsCalled = []
+  let grounded = false
+  let rounds = 0
+
+  while (rounds < MAX_ROUNDS) {
+    rounds++
+    const completion = await provider.complete({
+      messages,
+      tools: definitions,
+      maxTokens: route?.maxTokens || 800,
+      temperature: route?.temperature != null ? Number(route.temperature) : 0.2,
+    })
+
+    usage.promptTokens += completion.promptTokens
+    usage.completionTokens += completion.completionTokens
+    usage.totalTokens += completion.totalTokens
+    usage.isEstimated = usage.isEstimated || completion.isEstimated
+    usage.provider = completion.provider
+    usage.model = completion.model
+
+    if (!completion.toolCalls?.length) {
+      return {
+        status: 'SUCCESS',
+        answer: completion.text || '',
+        toolsCalled,
+        rounds,
+        grounded,
+        usage,
+        steps,
+        messages,
+      }
+    }
+
+    messages.push({
+      role: 'assistant',
+      content: completion.text || null,
+      tool_calls: completion.toolCalls.map((tc) => ({
+        id: tc.id,
+        type: 'function',
+        function: { name: tc.name, arguments: JSON.stringify(tc.arguments || {}) },
+      })),
+    })
+
+    for (const call of completion.toolCalls) {
+      toolsCalled.push(call.name)
+
+      if (tools.isWriteTool(call.name)) {
+        // Stop here. The write is described, costed and audited, but not done.
+        const decision = await policy.shouldAutoApprove({
+          userID,
+          warehouseID: call.arguments?.warehouseID || defaults.warehouse,
+          args: call.arguments,
+          recentQuantities: [],
+          anomalyFactor: Number(orgSettings?.anomalyFactor || 5),
+        })
+        return {
+          status: 'AWAITING_APPROVAL',
+          answer: completion.text || '',
+          toolsCalled,
+          rounds,
+          grounded,
+          usage,
+          steps,
+          messages,
+          pendingAction: {
+            toolName: call.name,
+            arguments: call.arguments || {},
+            warehouseID: call.arguments?.warehouseID || defaults.warehouse,
+            summary: describeWrite(call.arguments),
+            anomalous: decision.anomaly.anomalous === true,
+            anomalyReason: decision.anomaly.reason || '',
+            autoApprovable: decision.autoApprove,
+            policyReason: decision.reason,
+            expiresAt: new Date(Date.now() + PENDING_TTL_MS),
+          },
+        }
+      }
+
+      const startedAt = Date.now()
+      let content
+      try {
+        const result = await tools.executeRead(call.name, call.arguments || {}, {
+          businessObjects,
+          defaults,
+          correlationId,
+        })
+        grounded = true
+        content = JSON.stringify({ rowCount: result.rows.length, rows: result.rows.slice(0, 60), url: result.url })
+        steps.push({
+          toolName: call.name,
+          arguments: JSON.stringify(call.arguments || {}),
+          result: `${result.rows.length} rows`,
+          durationMs: Date.now() - startedAt,
+          url: result.url,
+          backendMs: result.elapsedMs,
+        })
+      } catch (err) {
+        content = JSON.stringify({ error: err.message })
+        steps.push({
+          toolName: call.name,
+          arguments: JSON.stringify(call.arguments || {}),
+          result: '',
+          durationMs: Date.now() - startedAt,
+          error: err.message,
+        })
+      }
+
+      messages.push({ role: 'tool', tool_call_id: call.id, name: call.name, content })
+    }
+  }
+
+  return {
+    status: 'SUCCESS',
+    answer: 'I could not complete that within the allowed number of tool rounds.',
+    toolsCalled,
+    rounds,
+    grounded,
+    usage,
+    steps,
+    messages,
+    exhausted: true,
+  }
+}
+
+function describeWrite(args = {}) {
+  const { quantity, materialID, fromLocation, toLocation, warehouseID } = args
+  const where = [fromLocation && `from ${fromLocation}`, toLocation && `to ${toLocation}`].filter(Boolean).join(' ')
+  return `Move ${quantity ?? '?'} of ${materialID ?? '?'} ${where} in warehouse ${warehouseID ?? '?'}`.replace(/\s+/g, ' ').trim()
+}
+
+module.exports = { run, sanitiseHistory, systemPrompt, describeWrite, MAX_ROUNDS, PENDING_TTL_MS }

@@ -1,0 +1,4 @@
+ID;scopeKind;subject;autoApproveReads;autoApproveWrites;writeCeiling;requireSecondApprover;isActive
+b0000000-0000-0000-0000-000000000001;ORG;ORG;true;false;500;false;true
+b0000000-0000-0000-0000-000000000002;WAREHOUSE;1000;true;true;100;false;true
+b0000000-0000-0000-0000-000000000003;WAREHOUSE;1010;true;false;;true;true

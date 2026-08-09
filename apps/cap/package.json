@@ -1,0 +1,85 @@
+{
+  "name": "factorypilot-cap",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FactoryPilot CAP services — config, tokenisation, admin, audit, insights",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@cap-js/postgres": "^3.0.1",
+    "@sap/cds": "^10.0.5",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@cap-js/cds-test": "^1.0.2",
+    "@cap-js/sqlite": "^3.0.2",
+    "@sap/cds-dk": "^10.0.6"
+  },
+  "scripts": {
+    "start": "cds-serve",
+    "watch": "cds watch",
+    "deploy": "cds deploy --to sqlite:db/factorypilot.db",
+    "deploy:pg": "cds deploy --to postgres --profile production",
+    "build": "cds build --production",
+    "test": "node --test test/"
+  },
+  "cds": {
+    "requires": {
+      "db": {
+        "kind": "sqlite",
+        "credentials": {
+          "url": "db/factorypilot.db"
+        },
+        "[production]": {
+          "kind": "postgres"
+        }
+      },
+      "auth": {
+        "kind": "mocked",
+        "users": {
+          "admin": {
+            "password": "admin",
+            "roles": [
+              "ConfigRead",
+              "ConfigMaintain",
+              "CacheMaintain",
+              "TokenRead",
+              "TokenMaintain",
+              "AdminRead",
+              "AdminMaintain",
+              "AuditRead",
+              "DashboardAdmin",
+              "InsightsQuery",
+              "InsightsReadOwnUsage"
+            ]
+          },
+          "viewer": {
+            "password": "viewer",
+            "roles": [
+              "ConfigRead",
+              "TokenRead",
+              "AdminRead",
+              "AuditRead"
+            ]
+          },
+          "bob": {
+            "password": "bob",
+            "roles": [
+              "InsightsQuery",
+              "InsightsReadOwnUsage"
+            ]
+          }
+        }
+      },
+      "[production]": {
+        "auth": {
+          "kind": "xsuaa"
+        }
+      }
+    },
+    "features": {
+      "assert_integrity": false
+    }
+  }
+}
