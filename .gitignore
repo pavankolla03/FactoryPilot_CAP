@@ -68,3 +68,8 @@ coverage/
 htmlcov/
 .coverage
 .nyc_output/
+
+# MTA build scratch (mbt writes then removes these)
+.cap_mta_build_tmp/
+Makefile_*.mta
+mta_archives/
