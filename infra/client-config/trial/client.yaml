@@ -1,0 +1,26 @@
+# The landscape this product is currently developed and proven on.
+client:
+  id: trial
+  display_name: FactoryPilot BTP Trial
+  environment: dev
+
+cloudfoundry:
+  api: https://api.cf.us10-003.hana.ondemand.com
+  org: 674521f2trial
+  space: dev
+
+adapters:
+  db_engine: postgres
+  cache_engine: redis
+  llm_provider: openrouter
+
+defaults:
+  warehouse: '1000'
+  quota_daily: 50
+  quota_weekly: 200
+  quota_monthly: 500
+
+secrets:
+  llm: OPENROUTER_API_KEY
+  integration: CPI
+  hub: SAP_HUB_API_KEY

@@ -1,0 +1,34 @@
+# FactoryPilot client landscape.
+#
+# Copy this directory, fill it in, then:
+#   ./infra/scripts/onboard.sh <directory-name>
+#
+# No secrets belong in this file. Anything sensitive is referenced by the NAME
+# of an environment variable and set with `cf set-env` on the target space.
+
+client:
+  id: acme
+  display_name: ACME Manufacturing
+  environment: dev            # dev | qa | prod
+
+cloudfoundry:
+  api: https://api.cf.eu10.hana.ondemand.com
+  org: acme-org
+  space: dev
+
+adapters:
+  db_engine: postgres         # postgres | hana
+  cache_engine: redis         # redis | memory (memory is single-instance only)
+  llm_provider: openrouter    # openrouter | aicore | fake
+
+defaults:
+  warehouse: '1000'           # used when a question does not name one
+  quota_daily: 50
+  quota_weekly: 200
+  quota_monthly: 500
+
+# Names of environment variables, never the values.
+secrets:
+  llm: OPENROUTER_API_KEY
+  integration: CPI            # expands to CPI_CLIENT_ID and CPI_CLIENT_SECRET
+  hub: SAP_HUB_API_KEY

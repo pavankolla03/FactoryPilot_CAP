@@ -15,12 +15,13 @@ Requirements thick-CPI doc is **baseline only**, not the default build path unle
 ## Architecture (locked)
 
 - **One frontend:** Approuter shell — Insights (business) + Admin console (roles).  
-- **Two backends:** CAP (admin/config/dashboard) + FastAPI/LangGraph (orchestration).  
-- **CPI:** thin generic OData iFlow only — no LLM, rate limit, cache, or intent in CPI.  
+- **One backend:** CAP. The agent loop runs as CAP custom handlers (ADR-023). There is no FastAPI service — do not add one.  
+- **CPI:** iFlow endpoints are registered as data in IntegrationService. No LLM, quota, cache or intent logic in CPI.  
 - **S/4 APIs:** from **SAP Business Accelerator Hub**; trial uses Hub **sandbox** + API Key.  
 - **LLM:** `LLMProvider` adapter — OpenRouter and AI Core (config switch).  
-- **No RAG / no MCP** in product runtime. AG-UI deferred.  
-- **DB/cache:** Postgres + Redis per env (adapters for HANA later).  
+- **No RAG / no MCP** in this CAP implementation (ADR-025). AG-UI deferred.  
+- **DB/cache:** Postgres + Redis per env (HANA adapter still open).
+- **Seven CAP services:** Config, Token, Admin, Audit, Cache, Integration, Insights — each separately scoped.  
 
 ## Coding rules
 

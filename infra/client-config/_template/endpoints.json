@@ -1,0 +1,13 @@
+[
+  {
+    "name": "Material Stock iFlow",
+    "kind": "iflow",
+    "url": "https://<tenant>.it-cpitrial06-rt.cfapps.<region>.hana.ondemand.com/http/materialstockread",
+    "httpMethod": "GET",
+    "authMode": "oauth2_client_credentials",
+    "credentialRef": "CPI",
+    "tokenUrl": "https://<tenant>.authentication.<region>.hana.ondemand.com/oauth/token",
+    "timeoutMs": 20000,
+    "description": "Material stock levels."
+  }
+]

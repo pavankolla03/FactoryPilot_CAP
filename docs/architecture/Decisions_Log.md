@@ -9,9 +9,13 @@ Decisions below resolve the open points from the architecture draft and the TDD 
 
 ## ADR-001 — Orchestration runtime
 
+> **Superseded by ADR-023.** The orchestrator is CAP custom handlers, not
+> FastAPI + LangGraph. Kept for the reasoning, which still holds; only the
+> conclusion changed once the product turned out to be TypeScript.
+
 | Field | Value |
 | --- | --- |
-| Status | Locked |
+| Status | Superseded (see ADR-023) |
 | Decision | FastAPI + LangGraph as the query orchestrator |
 | Alternatives | CAP-only orchestration; thick CPI iFlow; CrewAI |
 | Rationale | CAP is strong for Fiori/CDS/admin, weak for agent graphs. CPI is strong for S/4 connectivity, weak for LLM policy/cache/audit evolution. LangGraph fits a gated enterprise pipeline; CrewAI is better for free-form multi-agent later. |
@@ -86,9 +90,12 @@ Decisions below resolve the open points from the architecture draft and the TDD 
 
 ## ADR-008 — Intent classification
 
+> **Superseded by ADR-024.** Tool selection is the model's, through tool
+> calling, rather than a keyword pass before it.
+
 | Field | Value |
 | --- | --- |
-| Status | Locked for MVP |
+| Status | Superseded (see ADR-024) |
 | Decision | Keyword / synonym match against `BusinessObjectConfig.keywords` first; optional LLM fallback behind a feature flag |
 | Alternatives | LLM classify every request |
 | Rationale | Deterministic, cheap, and tunable by functional consultants via the admin app. |
@@ -248,9 +255,13 @@ Do not move day/week/month token product limits solely onto the Integration Suit
 
 ## ADR-021 — RAG and MCP not required for product runtime
 
+> **Amended by ADR-025.** Still true of this CAP implementation, but the
+> shipped web application (version4) uses MCP as its core tool layer, so the
+> blanket wording was wrong about the product as a whole.
+
 | Field | Value |
 | --- | --- |
-| Status | Locked |
+| Status | Amended (see ADR-025) |
 | Decision | **No RAG** and **no MCP servers** in the production Insights path. Facts come from live S/4 OData; tools are direct adapters (LLM, CPI, Redis, DB). Optional later: RAG over SOPs/history; MCP only as **developer** IDE tooling. |
 | Alternatives | Vector RAG over S/4 extracts; expose all tools via MCP to the runtime agent |
 | Rationale | Requirements are operational NL Q&A over OData, not document Q&A. MCP adds runtime complexity without matching the designed adapter model. |
@@ -282,3 +293,64 @@ These are locked for planning but should be explicitly confirmed in the next rev
 8. Exact BTP marketplace / trial entitlements available (CF, Kyma, AI Core, Postgres, Redis, HANA) — drives which matrix cells are live-tested vs contract-tested on trial.
 9. Whether a client may **bring their own** existing Postgres/Redis (import into Terraform) vs always create new instances (default: create new).
 10. Whether to schedule AG-UI / streaming Insights UI in Phase 3 or leave backlog.
+
+---
+
+## ADR-023 — Orchestration runs in CAP, not a separate Python service
+
+| Field | Value |
+| --- | --- |
+| Status | Locked |
+| Supersedes | ADR-001 |
+| Decision | The agent loop runs as CAP custom handlers in `apps/cap/srv/lib/agent.js`, inside the same deployable as the CAP services |
+| Alternatives | FastAPI + LangGraph beside CAP (ADR-001); thick CPI |
+
+**Why this changed.** ADR-001 reasoned that CAP is a poor host for an agent
+graph, and that is still true in the abstract. What it assumed was Python. The
+product that actually exists (`pavankolla03/FactoryPilot`, branch `version4`)
+is NestJS/TypeScript, and CAP is Node.js — so the loop can live *in* CAP
+instead of in a second runtime beside it. That removes an app, a route, a
+deployment and a network hop, and keeps one auth chain.
+
+**What it costs.** CAP offers nothing for graph state, retries or checkpoints;
+those are plain code in `agent.js`. If the pipeline ever needs durable
+multi-step state, this decision should be revisited rather than worked around.
+
+---
+
+## ADR-024 — The model selects tools; keywords remain for discovery
+
+| Field | Value |
+| --- | --- |
+| Status | Locked |
+| Supersedes | ADR-008 |
+| Decision | Tool choice is made by the model through tool calling. `BusinessObjectConfig.keywords` is passed to the model as part of each tool description rather than being matched before it |
+| Alternatives | Deterministic keyword pass first, LLM fallback (ADR-008) |
+
+**Why.** With the registry generating one tool per business object, the model
+already sees every option and its keywords. A keyword pass in front picks a
+tool the model then has to live with, and it loses multi-tool questions
+entirely.
+
+**What it costs.** Tool choice is no longer deterministic, so a functional
+consultant cannot force a routing by editing keywords alone — they influence
+it. The offline provider keeps a keyword matcher so the product still answers
+with no model configured; that matcher is a stand-in, not the contract.
+
+---
+
+## ADR-025 — MCP is out of scope here, not out of scope for the product
+
+| Field | Value |
+| --- | --- |
+| Status | Locked |
+| Amends | ADR-021 |
+| Decision | This CAP implementation exposes tools from the CAP registry and does not run MCP. The statement that MCP has no place in the product runtime is withdrawn |
+
+**Why.** ADR-021 said no MCP in the product runtime. The shipped web
+application uses MCP servers as its core tool layer, so as written the ADR
+contradicted the running system. Scoping it to this implementation makes it
+true again.
+
+**Open.** If the two codebases converge, one of these tool layers has to win.
+That decision has not been made and should not be inferred from this ADR.
