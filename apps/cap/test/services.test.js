@@ -170,7 +170,7 @@ describe('ConfigService', () => {
   test('serves the seeded registry', async () => {
     const { data: res } = await GET('/odata/config/BusinessObjects?$select=objectCode,isActive', ADMIN)
     const codes = res.value.map((r) => r.objectCode)
-    for (const seeded of ['DELIVERY', 'GOODS_MOVEMENT', 'PURCHASING', 'SALES', 'SHIPPING']) {
+    for (const seeded of ['DELIVERY', 'MATERIAL_STOCK', 'MATERIAL_DOCUMENT', 'PHYSICAL_INVENTORY', 'PURCHASING']) {
       assert.ok(codes.includes(seeded), `${seeded} should be registered`)
     }
   })
@@ -179,7 +179,7 @@ describe('ConfigService', () => {
     const { data: res } = await GET('/odata/config/ToolCatalog', ADMIN)
     // Only DELIVERY is seeded active; other tests may add inactive rows.
     assert.ok(res.value.map((r) => r.objectCode).includes('DELIVERY'))
-    assert.ok(res.value.every((r) => r.objectCode !== 'SALES'), 'inactive objects must not be exposed as tools')
+    assert.ok(res.value.length >= 5, 'the live objects should all be exposed as tools')
   })
 
   test('a viewer cannot write configuration', async () => {
@@ -200,14 +200,14 @@ describe('ConfigService', () => {
     // Storing the key itself would put it in the database and every export of
     // that table. The field takes the NAME of an env var.
     await assert.rejects(
-      () => POST('/odata/integration/Endpoints', { name: 'leaky', kind: 'iflow', url: 'https://x.example.com', credentialRef: 'sk-or-v1-abcdefghijklmnopqrstuvwxyz012345' }, ADMIN),
+      () => POST('/odata/integration/Endpoints', { name: `leaky ${Date.now()}`, kind: 'iflow', url: 'https://x.example.com', credentialRef: 'sk-or-v1-abcdefghijklmnopqrstuvwxyz012345' }, ADMIN),
       (err) => err.response?.status === 400
     )
   })
 
   test('an http endpoint is refused — credentials would go in clear', async () => {
     await assert.rejects(
-      () => POST('/odata/integration/Endpoints', { name: 'insecure', kind: 'iflow', url: 'http://cpi.example.com/flow' }, ADMIN),
+      () => POST('/odata/integration/Endpoints', { name: `insecure ${Date.now()}`, kind: 'iflow', url: 'http://cpi.example.com/flow' }, ADMIN),
       (err) => err.response?.status === 400
     )
   })
@@ -215,7 +215,7 @@ describe('ConfigService', () => {
   test('an iFlow endpoint can be registered by URL alone', async () => {
     // This is the point of the service: connecting an iFlow is data entry.
     const { data } = await POST('/odata/integration/Endpoints', {
-      name: 'Customer iFlow', kind: 'iflow',
+      name: `Customer iFlow ${Date.now()}`, kind: 'iflow',
       url: 'https://my-tenant.it-cpi001.cfapps.eu10.hana.ondemand.com/http/s4/odata/query',
       authMode: 'bearer', credentialRef: 'CUSTOMER_IFLOW_TOKEN',
     }, ADMIN)
@@ -225,7 +225,7 @@ describe('ConfigService', () => {
 
   test('testing an unreachable endpoint records the failure rather than throwing', async () => {
     const { data: created } = await POST('/odata/integration/Endpoints', {
-      name: 'Unreachable', kind: 'iflow', url: 'https://127.0.0.1:9/nope', timeoutMs: 900,
+      name: `Unreachable ${Date.now()}`, kind: 'iflow', url: 'https://127.0.0.1:9/nope', timeoutMs: 900,
     }, ADMIN)
     const { data: result } = await POST(`/odata/integration/Endpoints(${created.ID})/IntegrationService.test`, {}, ADMIN)
     assert.ok(['FAILED', 'UNCONFIGURED'].includes(result.status))

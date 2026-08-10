@@ -183,6 +183,119 @@ class CpiBackend {
 }
 
 /**
+ * Integration Suite iFlow over OAuth2 client credentials.
+ *
+ * The iFlow is an HTTP wrapper around an S/4 OData v2 service, so the response
+ * is parsed as OData v2. Whether it wants the query as GET parameters or a
+ * POST body is per-iFlow and therefore configuration (`httpMethod`), not an
+ * assumption baked in here.
+ */
+class IflowBackend {
+  constructor(endpoint) {
+    if (!endpoint?.url) {
+      throw new BackendError('This iFlow endpoint has no URL. Set it in the Integration console and press Test.', 503)
+    }
+    this.endpoint = endpoint
+    this.name = 'iflow'
+    this.timeoutMs = endpoint.timeoutMs || 15000
+  }
+
+  async #authHeader() {
+    if (this.endpoint.authMode === 'oauth2_client_credentials') {
+      const oauth = require('./oauth')
+      return { Authorization: `Bearer ${await oauth.getToken(this.endpoint)}` }
+    }
+    const secret = this.endpoint.credentialRef ? process.env[this.endpoint.credentialRef] : undefined
+    if (this.endpoint.authMode === 'bearer' && secret) return { Authorization: `Bearer ${secret}` }
+    if (this.endpoint.authMode === 'api_key' && secret) {
+      return { [this.endpoint.authHeaderName || 'APIKey']: secret }
+    }
+    return {}
+  }
+
+  async #send(query, headers) {
+    const method = (this.endpoint.httpMethod || 'GET').toUpperCase()
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs)
+    try {
+      if (method === 'GET') {
+        const qs = buildQueryString(query)
+        const url = `${this.endpoint.url}${qs ? (this.endpoint.url.includes('?') ? '&' : '?') + qs : ''}`
+        const res = await fetch(url, { headers: { Accept: 'application/json', ...headers }, signal: controller.signal })
+        return { res, url }
+      }
+      const res = await fetch(this.endpoint.url, {
+        method,
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...headers },
+        body: JSON.stringify({
+          servicePath: query.servicePath,
+          entitySet: query.entitySet,
+          apiVersion: query.apiVersion,
+          queryOptions: { filter: query.filter, select: query.select, top: query.top },
+          correlationId: query.correlationId,
+        }),
+        signal: controller.signal,
+      })
+      return { res, url: this.endpoint.url }
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  async query(query) {
+    const started = Date.now()
+    let headers
+    try {
+      headers = await this.#authHeader()
+    } catch (err) {
+      throw new BackendError(`Authentication failed: ${err.message}`, 401)
+    }
+
+    let out
+    try {
+      out = await this.#send(query, headers)
+    } catch (err) {
+      throw new BackendError(
+        err.name === 'AbortError'
+          ? `iFlow did not respond within ${this.timeoutMs}ms`
+          : `Could not reach the iFlow: ${err.message}`
+      )
+    }
+
+    // A 401 usually means the cached token was revoked or the key rotated.
+    // Drop it and try once more before surfacing an error to the user.
+    if (out.res.status === 401 && this.endpoint.authMode === 'oauth2_client_credentials') {
+      require('./oauth').invalidate(this.endpoint)
+      headers = await this.#authHeader()
+      out = await this.#send(query, headers)
+    }
+
+    if (!out.res.ok) {
+      throw new BackendError(
+        `iFlow returned HTTP ${out.res.status}: ${(await out.res.text()).slice(0, 200)}`,
+        out.res.status
+      )
+    }
+
+    let body
+    try {
+      body = await out.res.json()
+    } catch {
+      throw new BackendError('iFlow returned a non-JSON body — check what the flow emits.')
+    }
+
+    // Tolerate both a bare OData payload and the thin-CPI envelope.
+    const inner = body && typeof body === 'object' && body.body ? body.body : body
+    return {
+      rows: extractRows(inner),
+      url: out.url,
+      statusCode: out.res.status,
+      elapsedMs: Date.now() - started,
+    }
+  }
+}
+
+/**
  * Build the client an IntegrationEndpoint row describes.
  *
  * The kind is data, so pointing a business object at a customer's own iFlow is
@@ -196,9 +309,10 @@ function forEndpoint(endpoint) {
   const timeoutMs = endpoint?.timeoutMs
 
   if (kind === 'hub_sandbox') return new HubBackend({ baseUrl: endpoint.url, apiKey: secret, timeoutMs })
-  if (kind === 'iflow' || kind === 'cpi') return new CpiBackend({ baseUrl: endpoint.url, token: secret, timeoutMs })
+  if (kind === 'iflow') return new IflowBackend(endpoint)
+  if (kind === 'cpi') return new CpiBackend({ baseUrl: endpoint.url, token: secret, timeoutMs })
   if (kind === 'odata_direct') return new HubBackend({ baseUrl: endpoint.url, apiKey: secret || 'none', timeoutMs })
   return new MockBackend()
 }
 
-module.exports = { BackendError, MockBackend, HubBackend, CpiBackend, forEndpoint, extractRows, buildQueryString, toDate }
+module.exports = { BackendError, MockBackend, HubBackend, CpiBackend, IflowBackend, forEndpoint, extractRows, buildQueryString, toDate }
