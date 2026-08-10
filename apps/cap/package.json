@@ -54,7 +54,10 @@
               "AuditRead",
               "DashboardAdmin",
               "InsightsQuery",
-              "InsightsReadOwnUsage"
+              "InsightsReadOwnUsage",
+              "CacheRead",
+              "IntegrationRead",
+              "IntegrationMaintain"
             ]
           },
           "viewer": {
@@ -63,7 +66,9 @@
               "ConfigRead",
               "TokenRead",
               "AdminRead",
-              "AuditRead"
+              "AuditRead",
+              "CacheRead",
+              "IntegrationRead"
             ]
           },
           "bob": {

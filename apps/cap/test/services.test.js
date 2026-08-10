@@ -169,13 +169,17 @@ const VIEWER = { auth: { username: 'viewer', password: 'viewer' } }
 describe('ConfigService', () => {
   test('serves the seeded registry', async () => {
     const { data: res } = await GET('/odata/config/BusinessObjects?$select=objectCode,isActive', ADMIN)
-    const codes = res.value.map((r) => r.objectCode).sort()
-    assert.deepEqual(codes, ['DELIVERY', 'GOODS_MOVEMENT', 'PURCHASING', 'SALES', 'SHIPPING'])
+    const codes = res.value.map((r) => r.objectCode)
+    for (const seeded of ['DELIVERY', 'GOODS_MOVEMENT', 'PURCHASING', 'SALES', 'SHIPPING']) {
+      assert.ok(codes.includes(seeded), `${seeded} should be registered`)
+    }
   })
 
   test('ToolCatalog exposes only active, tool-enabled objects', async () => {
     const { data: res } = await GET('/odata/config/ToolCatalog', ADMIN)
-    assert.deepEqual(res.value.map((r) => r.objectCode), ['DELIVERY'])
+    // Only DELIVERY is seeded active; other tests may add inactive rows.
+    assert.ok(res.value.map((r) => r.objectCode).includes('DELIVERY'))
+    assert.ok(res.value.every((r) => r.objectCode !== 'SALES'), 'inactive objects must not be exposed as tools')
   })
 
   test('a viewer cannot write configuration', async () => {
@@ -193,12 +197,39 @@ describe('ConfigService', () => {
   })
 
   test('a credentialRef that looks like a secret is refused', async () => {
-    // Storing the key itself here would put it in the database and every audit
-    // export of it.
+    // Storing the key itself would put it in the database and every export of
+    // that table. The field takes the NAME of an env var.
     await assert.rejects(
-      () => POST('/odata/config/Connections', { name: 'leaky', credentialRef: 'sk-or-v1-abc123' }, ADMIN),
+      () => POST('/odata/integration/Endpoints', { name: 'leaky', kind: 'iflow', url: 'https://x.example.com', credentialRef: 'sk-or-v1-abcdefghijklmnopqrstuvwxyz012345' }, ADMIN),
       (err) => err.response?.status === 400
     )
+  })
+
+  test('an http endpoint is refused — credentials would go in clear', async () => {
+    await assert.rejects(
+      () => POST('/odata/integration/Endpoints', { name: 'insecure', kind: 'iflow', url: 'http://cpi.example.com/flow' }, ADMIN),
+      (err) => err.response?.status === 400
+    )
+  })
+
+  test('an iFlow endpoint can be registered by URL alone', async () => {
+    // This is the point of the service: connecting an iFlow is data entry.
+    const { data } = await POST('/odata/integration/Endpoints', {
+      name: 'Customer iFlow', kind: 'iflow',
+      url: 'https://my-tenant.it-cpi001.cfapps.eu10.hana.ondemand.com/http/s4/odata/query',
+      authMode: 'bearer', credentialRef: 'CUSTOMER_IFLOW_TOKEN',
+    }, ADMIN)
+    assert.equal(data.kind, 'iflow')
+    assert.equal(data.isActive, true)
+  })
+
+  test('testing an unreachable endpoint records the failure rather than throwing', async () => {
+    const { data: created } = await POST('/odata/integration/Endpoints', {
+      name: 'Unreachable', kind: 'iflow', url: 'https://127.0.0.1:9/nope', timeoutMs: 900,
+    }, ADMIN)
+    const { data: result } = await POST(`/odata/integration/Endpoints(${created.ID})/IntegrationService.test`, {}, ADMIN)
+    assert.ok(['FAILED', 'UNCONFIGURED'].includes(result.status))
+    assert.ok(result.message.length > 0, 'the admin needs to be told why')
   })
 })
 

@@ -1,4 +1,0 @@
-ID;name;kind;baseUrl;destinationName;authMode;credentialRef;timeoutMs;isActive
-c0000000-0000-0000-0000-000000000001;Local Mock;mock;;;none;;15000;true
-c0000000-0000-0000-0000-000000000002;Hub Sandbox;hub_sandbox;https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata/sap/API_OUTBOUND_DELIVERY_SRV;SAP_ACCELERATOR_HUB_SANDBOX;api_key;SAP_HUB_API_KEY;15000;false
-c0000000-0000-0000-0000-000000000003;Thin CPI iFlow;cpi;;CPI_GENERIC_ODATA;oauth2;CPI_TOKEN;15000;false

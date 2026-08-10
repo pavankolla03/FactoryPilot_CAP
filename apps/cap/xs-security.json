@@ -61,6 +61,14 @@
     {
       "name": "$XSAPPNAME.CacheRead",
       "description": "Read cache policy and effectiveness"
+    },
+    {
+      "name": "$XSAPPNAME.IntegrationRead",
+      "description": "Read registered integration endpoints"
+    },
+    {
+      "name": "$XSAPPNAME.IntegrationMaintain",
+      "description": "Register and test integration endpoints"
     }
   ],
   "attributes": [
@@ -90,7 +98,8 @@
         "$XSAPPNAME.TokenRead",
         "$XSAPPNAME.AdminRead",
         "$XSAPPNAME.AuditRead",
-        "$XSAPPNAME.CacheRead"
+        "$XSAPPNAME.CacheRead",
+        "$XSAPPNAME.IntegrationRead"
       ]
     },
     {
@@ -100,7 +109,9 @@
         "$XSAPPNAME.ConfigRead",
         "$XSAPPNAME.ConfigMaintain",
         "$XSAPPNAME.CacheMaintain",
-        "$XSAPPNAME.CacheRead"
+        "$XSAPPNAME.CacheRead",
+        "$XSAPPNAME.IntegrationRead",
+        "$XSAPPNAME.IntegrationMaintain"
       ]
     },
     {
@@ -118,7 +129,9 @@
         "$XSAPPNAME.AdminMaintain",
         "$XSAPPNAME.AuditRead",
         "$XSAPPNAME.DashboardAdmin",
-        "$XSAPPNAME.CacheRead"
+        "$XSAPPNAME.CacheRead",
+        "$XSAPPNAME.IntegrationRead",
+        "$XSAPPNAME.IntegrationMaintain"
       ],
       "attribute-references": [
         "warehouse"

@@ -105,14 +105,16 @@ async function executeRead(toolName, args, { businessObjects, defaults, correlat
   const bo = businessObjects.find((b) => toolNameFor(b.objectCode) === toolName)
   if (!bo) throw new backend.BackendError(`Unknown tool: ${toolName}`, 400)
 
-  const { Connection } = cds.entities('factorypilot.config')
-  const connection = bo.connection_ID ? await SELECT.one.from(Connection).where({ ID: bo.connection_ID }) : null
+  const { IntegrationEndpoint } = cds.entities('factorypilot.integration')
+  const endpoint = bo.endpoint_ID
+    ? await SELECT.one.from(IntegrationEndpoint).where({ ID: bo.endpoint_ID })
+    : null
 
-  const client = backend.forConnection(connection)
+  const client = backend.forEndpoint(endpoint)
   const filter = buildFilter(bo.defaultFilters, args, bo.apiVersion, defaults)
 
   const result = await client.query({
-    destinationName: connection?.destinationName,
+    destinationName: endpoint?.destinationName,
     servicePath: bo.odataServicePath,
     entitySet: bo.entitySet,
     filter,

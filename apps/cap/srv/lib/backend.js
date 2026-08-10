@@ -115,7 +115,7 @@ class HubBackend {
   constructor({ baseUrl, apiKey, timeoutMs = 15000 }) {
     if (!apiKey) {
       throw new BackendError(
-        'No Hub API key available — set the env var named by the connection’s credentialRef ' +
+        'No Hub API key available — set the env var named by the endpoint’s credentialRef ' +
           '(see docs/api/hub/DAY1_MANUAL_CHECKLIST.md)',
         503
       )
@@ -151,7 +151,7 @@ class HubBackend {
 
 class CpiBackend {
   constructor({ baseUrl, token, timeoutMs = 15000 }) {
-    if (!baseUrl) throw new BackendError('CPI connection has no baseUrl', 503)
+    if (!baseUrl) throw new BackendError('This iFlow endpoint has no URL. Set it in the Integration console and press Test.', 503)
     Object.assign(this, { baseUrl, token, timeoutMs })
     this.name = 'cpi'
   }
@@ -182,13 +182,23 @@ class CpiBackend {
   }
 }
 
-/** Build the client a Connection row describes. */
-function forConnection(connection) {
-  const kind = connection?.kind || 'mock'
-  const secret = connection?.credentialRef ? process.env[connection.credentialRef] : undefined
-  if (kind === 'hub_sandbox') return new HubBackend({ baseUrl: connection.baseUrl, apiKey: secret, timeoutMs: connection.timeoutMs })
-  if (kind === 'cpi') return new CpiBackend({ baseUrl: connection.baseUrl, token: secret, timeoutMs: connection.timeoutMs })
+/**
+ * Build the client an IntegrationEndpoint row describes.
+ *
+ * The kind is data, so pointing a business object at a customer's own iFlow is
+ * a row change rather than a deploy. `url` is the endpoint the admin pasted;
+ * the secret is read from the environment variable named by credentialRef and
+ * never stored.
+ */
+function forEndpoint(endpoint) {
+  const kind = endpoint?.kind || 'mock'
+  const secret = endpoint?.credentialRef ? process.env[endpoint.credentialRef] : undefined
+  const timeoutMs = endpoint?.timeoutMs
+
+  if (kind === 'hub_sandbox') return new HubBackend({ baseUrl: endpoint.url, apiKey: secret, timeoutMs })
+  if (kind === 'iflow' || kind === 'cpi') return new CpiBackend({ baseUrl: endpoint.url, token: secret, timeoutMs })
+  if (kind === 'odata_direct') return new HubBackend({ baseUrl: endpoint.url, apiKey: secret || 'none', timeoutMs })
   return new MockBackend()
 }
 
-module.exports = { BackendError, MockBackend, HubBackend, CpiBackend, forConnection, extractRows, buildQueryString, toDate }
+module.exports = { BackendError, MockBackend, HubBackend, CpiBackend, forEndpoint, extractRows, buildQueryString, toDate }

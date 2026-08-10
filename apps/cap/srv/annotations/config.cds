@@ -19,8 +19,7 @@ annotate ConfigService.BusinessObjects with @(
       { $Type: 'UI.DataField', Value: moduleDomain,  Label: 'Module' },
       { $Type: 'UI.DataField', Value: entitySet,     Label: 'Entity Set' },
       { $Type: 'UI.DataField', Value: exposedAsTool, Label: 'Agent Tool' },
-      { $Type: 'UI.DataField', Value: isActive,      Label: 'Active' },
-      { $Type: 'UI.DataFieldForAction', Action: 'ConfigService.testConnection', Label: 'Test Connection' }
+      { $Type: 'UI.DataField', Value: isActive,      Label: 'Active' }
     ],
     Facets: [
       { $Type: 'UI.ReferenceFacet', Label: 'General',      Target: '@UI.FieldGroup#General' },
@@ -31,7 +30,7 @@ annotate ConfigService.BusinessObjects with @(
       { Value: objectCode }, { Value: objectName }, { Value: moduleDomain }, { Value: isActive }
     ]},
     FieldGroup#OData: { Data: [
-      { Value: connection_ID, Label: 'Connection' }, { Value: odataServicePath }, { Value: entitySet },
+      { Value: endpoint_ID, Label: 'Integration Endpoint' }, { Value: odataServicePath }, { Value: entitySet },
       { Value: apiVersion }, { Value: defaultFilters }, { Value: selectFields },
       { Value: hubApiName }, { Value: hubApiUrl }, { Value: communicationScenario }
     ]},
@@ -41,36 +40,5 @@ annotate ConfigService.BusinessObjects with @(
   }
 );
 
-annotate ConfigService.Connections with @(
-  UI: {
-    HeaderInfo: { TypeName: 'Connection', TypeNamePlural: 'Connections', Title: { Value: name } },
-    SelectionFields: [ name, kind, isActive ],
-    LineItem: [
-      { $Type: 'UI.DataField', Value: name,           Label: 'Name' },
-      { $Type: 'UI.DataField', Value: kind,           Label: 'Kind' },
-      { $Type: 'UI.DataField', Value: baseUrl,        Label: 'Base URL' },
-      { $Type: 'UI.DataField', Value: lastTestStatus, Label: 'Last Test', Criticality: testCriticality },
-      { $Type: 'UI.DataField', Value: lastTestedAt,   Label: 'Tested' },
-      { $Type: 'UI.DataField', Value: isActive,       Label: 'Active' },
-      { $Type: 'UI.DataFieldForAction', Action: 'ConfigService.test', Label: 'Test' }
-    ],
-    Facets: [
-      { $Type: 'UI.ReferenceFacet', Label: 'Connection', Target: '@UI.FieldGroup#Conn' },
-      { $Type: 'UI.ReferenceFacet', Label: 'Last Test',  Target: '@UI.FieldGroup#Test' }
-    ],
-    FieldGroup#Conn: { Data: [
-      { Value: name }, { Value: kind }, { Value: baseUrl }, { Value: destinationName },
-      { Value: authMode }, { Value: credentialRef }, { Value: timeoutMs }, { Value: isActive }
-    ]},
-    FieldGroup#Test: { Data: [
-      { Value: lastTestStatus }, { Value: lastTestedAt }, { Value: lastTestMessage }
-    ]}
-  }
-);
 
-// The credential reference is a env var *name*, never the secret. Say so where
-// an admin is typing it.
-annotate ConfigService.Connections with {
-  credentialRef @title: 'Credential env var name (never the secret)';
-};
 

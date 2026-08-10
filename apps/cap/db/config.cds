@@ -2,6 +2,7 @@ namespace factorypilot.config;
 
 using { managed, cuid } from '@sap/cds/common';
 using { factorypilot.common.ActiveFlag } from './common';
+using { factorypilot.integration.IntegrationEndpoint } from './integration';
 
 /**
  * The OData / business object registry.
@@ -24,8 +25,8 @@ entity BusinessObjectConfig : cuid, managed, ActiveFlag {
   @title: 'Intent Keywords'
   keywords              : String(500);
 
-  @title: 'Connection'
-  connection            : Association to Connection;
+  @title: 'Integration Endpoint'
+  endpoint              : Association to IntegrationEndpoint;
 
   @title: 'OData Service Path'
   odataServicePath      : String(200);
@@ -58,45 +59,6 @@ entity BusinessObjectConfig : cuid, managed, ActiveFlag {
   exposedAsTool         : Boolean default true;
 }
 
-/**
- * A backend the platform can reach: Hub sandbox, a customer S/4 via
- * destination, or the thin CPI iFlow. Keeping this separate from
- * BusinessObjectConfig means many objects share one connection and credentials
- * rotate in a single place.
- */
-@assert.unique: { name: [ name ] }
-entity Connection : cuid, managed, ActiveFlag {
-  @title: 'Name'
-  name            : String(60) not null;
-
-  @title: 'Kind'
-  kind            : String(20) default 'hub_sandbox';  // hub_sandbox | destination | cpi | mock
-
-  @title: 'Base URL'
-  baseUrl         : String(300);
-
-  @title: 'BTP Destination'
-  destinationName : String(100);
-
-  @title: 'Auth Mode'
-  authMode        : String(30) default 'api_key';      // api_key | oauth2 | basic | none
-
-  /** Never the secret itself — the name of the env var / credential-store key. */
-  @title: 'Credential Reference'
-  credentialRef   : String(100);
-
-  @title: 'Timeout (ms)'
-  timeoutMs       : Integer default 15000;
-
-  @title: 'Last Test Result'
-  lastTestStatus  : String(20);
-
-  @title: 'Last Tested'
-  lastTestedAt    : Timestamp;
-
-  @title: 'Last Test Message'
-  lastTestMessage : String(500);
-}
 
 // Cache policy moved to db/cache.cds and CacheService: freshness-vs-cost is a
 // different job from registering OData services, and giving it its own scope
