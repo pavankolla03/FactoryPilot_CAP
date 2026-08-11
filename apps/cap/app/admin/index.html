@@ -3,197 +3,213 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>FactoryPilot — Admin console</title>
-<style>
-  :root {
-    --bg:#f5f6f7; --surface:#fff; --border:#d9d9d9; --text:#1d2d3e; --muted:#5b738b;
-    --accent:#0a6ed1; --accent-dark:#0854a0; --good:#107e3e; --warn:#e9730c; --radius:10px;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#1c2228; --surface:#23292f; --border:#3a4552; --text:#eaecee;
-            --muted:#a9b4bf; --accent:#4db1ff; --accent-dark:#7cc4ff; --good:#4db678; --warn:#f5a623; }
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);
-       font:15px/1.55 "72",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-  header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 20px;
-         display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-  header h1{font-size:17px;margin:0;font-weight:600}
-  header .sub{color:var(--muted);font-size:13px}
-  header .spacer{flex:1}
-  header a{color:var(--accent);font-size:13px;text-decoration:none}
-  header a:hover{text-decoration:underline}
-  main{max-width:1000px;margin:0 auto;padding:22px 20px 40px}
-  h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
-     margin:26px 0 12px;font-weight:600}
-  h2:first-of-type{margin-top:6px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px}
-  .tile{display:block;background:var(--surface);border:1px solid var(--border);
-        border-radius:var(--radius);padding:16px;text-decoration:none;color:inherit;
-        transition:border-color .12s,transform .12s}
-  .tile:hover{border-color:var(--accent);transform:translateY(-1px)}
-  .tile .name{font-weight:600;margin-bottom:4px}
-  .tile .desc{font-size:13px;color:var(--muted)}
-  .tile .path{font-size:12px;color:var(--muted);margin-top:8px;font-family:ui-monospace,Menlo,monospace}
-  .stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:6px}
-  .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
-  .stat .n{font-size:24px;font-weight:600;font-variant-numeric:tabular-nums}
-  .stat .k{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
-  .note{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--warn);
-        border-radius:var(--radius);padding:14px 16px;font-size:14px;color:var(--muted);margin-top:26px}
-  code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:13px}
-</style>
+<title>FactoryPilot — Admin</title>
+<link rel="stylesheet" href="../shared/fiori.css" />
 </head>
 <body>
-<header>
-  <h1>FactoryPilot</h1>
-  <span class="sub">Admin console</span>
-  <span class="spacer"></span>
-  <a href="../insights/">← Insights</a>
-</header>
 
-<main>
-  <p style="margin:0 0 18px"><a class="tile" style="display:inline-block;border-color:var(--accent)" href="/dashboard/index.html">
-    <span class="name">Monitoring dashboard →</span>
-    <span class="desc">Volume, cache effectiveness, quota headroom, latency split, failures.</span>
-  </a></p>
+<div class="fd-shellbar">
+  <span class="fd-shellbar__logo">FP</span>
+  <span class="fd-shellbar__title">FactoryPilot</span>
+  <span class="fd-shellbar__subtitle">Administration</span>
+  <span class="fd-shellbar__spacer"></span>
+  <nav class="fd-shellbar__nav">
+    <a href="../insights/">Insights</a>
+    <a href="../admin/" aria-current="page">Admin</a>
+    <a href="../dashboard/">Monitoring</a>
+  </nav>
+  <span class="fd-shellbar__user"><span class="fd-avatar" id="initials">–</span><span id="who"></span></span>
+</div>
 
-  <h2>At a glance</h2>
-  <div class="stats" id="stats">
-    <div class="stat"><div class="n">—</div><div class="k">loading</div></div>
+<main class="fd-page">
+
+  <h2 class="fd-group-title">At a glance</h2>
+  <div class="fd-tiles" id="kpis">
+    <div class="fd-tile"><div class="fd-tile__title">…</div><div class="fd-tile__subtitle">loading</div></div>
   </div>
 
-  <h2>Configuration</h2>
-  <div class="grid">
-    <a class="tile" href="/$fiori-preview/ConfigService/BusinessObjects#preview-app">
-      <div class="name">Business Objects</div>
-      <div class="desc">Register S/4 OData services. Each active row becomes an agent tool.</div>
-      <div class="path">/odata/config</div>
-    </a>
-  </div>
-
-  <h2>Integration</h2>
-  <div class="grid">
-    <a class="tile" href="/integrationendpoints/webapp/index.html">
-      <div class="name">Integration Endpoints</div>
-      <div class="desc">Connect any iFlow by pasting its endpoint. Test before activating.</div>
-      <div class="path">/odata/integration</div>
-    </a>
-    <a class="tile" href="/$fiori-preview/IntegrationService/EndpointTests#preview-app">
-      <div class="name">Connection Test History</div>
-      <div class="desc">Every test, with status and duration — for "it worked on Monday".</div>
-      <div class="path">/odata/integration</div>
+  <h2 class="fd-group-title">Configuration</h2>
+  <div class="fd-tiles">
+    <a class="fd-tile" href="/businessobjects/webapp/index.html">
+      <div>
+        <div class="fd-tile__title">Business Objects</div>
+        <div class="fd-tile__subtitle">Register S/4 OData services. Each active row becomes an agent tool.</div>
+      </div>
+      <div class="fd-tile__footer">/odata/config</div>
     </a>
   </div>
 
-  <h2>Cache</h2>
-  <div class="grid">
-    <a class="tile" href="/cachepolicies/webapp/index.html">
-      <div class="name">Cache Policies</div>
-      <div class="desc">How long an answer may be reused before the question goes back to S/4 and the model.</div>
-      <div class="path">/odata/cache</div>
+  <h2 class="fd-group-title">Integration</h2>
+  <div class="fd-tiles">
+    <a class="fd-tile" href="/integrationendpoints/webapp/index.html">
+      <div>
+        <div class="fd-tile__title">Integration Endpoints</div>
+        <div class="fd-tile__subtitle">Connect any iFlow by pasting its endpoint. Test before activating.</div>
+      </div>
+      <div class="fd-tile__footer">/odata/integration</div>
     </a>
-    <a class="tile" href="/$fiori-preview/CacheService/CacheStats#preview-app">
-      <div class="name">Cache Effectiveness</div>
-      <div class="desc">Hits, misses and tokens saved per object per day.</div>
-      <div class="path">/odata/cache</div>
-    </a>
-  </div>
-
-  <h2>Tokenisation</h2>
-  <div class="grid">
-    <a class="tile" href="/$fiori-preview/TokenService/QuotaPolicies#preview-app">
-      <div class="name">Quota Policies</div>
-      <div class="desc">Day, week and month caps per user, role or DEFAULT.</div>
-      <div class="path">/odata/token</div>
-    </a>
-    <a class="tile" href="/$fiori-preview/TokenService/TokenUsages#preview-app">
-      <div class="name">Token Usage</div>
-      <div class="desc">One row per model call. Estimated counts are flagged as such.</div>
-      <div class="path">/odata/token</div>
-    </a>
-    <a class="tile" href="/$fiori-preview/TokenService/ModelRoutes#preview-app">
-      <div class="name">Model Routes</div>
-      <div class="desc">Which model serves light, heavy and intent traffic.</div>
-      <div class="path">/odata/token</div>
-    </a>
-    <a class="tile" href="/$fiori-preview/TokenService/Consumptions#preview-app">
-      <div class="name">Consumption</div>
-      <div class="desc">Durable counters behind the quota decisions.</div>
-      <div class="path">/odata/token</div>
+    <a class="fd-tile" href="/$fiori-preview/IntegrationService/EndpointTests#preview-app">
+      <div>
+        <div class="fd-tile__title">Connection Tests</div>
+        <div class="fd-tile__subtitle">Every test with status and duration — for “it worked on Monday”.</div>
+      </div>
+      <div class="fd-tile__footer">/odata/integration</div>
     </a>
   </div>
 
-  <h2>Users and governance</h2>
-  <div class="grid">
-    <a class="tile" href="/$fiori-preview/AdminService/Users#preview-app">
-      <div class="name">Users</div>
-      <div class="desc">Identity projection and per-warehouse read/write scopes.</div>
-      <div class="path">/odata/admin</div>
+  <h2 class="fd-group-title">Cache</h2>
+  <div class="fd-tiles">
+    <a class="fd-tile" href="/cachepolicies/webapp/index.html">
+      <div>
+        <div class="fd-tile__title">Cache Policies</div>
+        <div class="fd-tile__subtitle">How long an answer may be reused before the question goes back to S/4.</div>
+      </div>
+      <div class="fd-tile__footer">/odata/cache</div>
     </a>
-    <a class="tile" href="/$fiori-preview/AdminService/ApprovalPolicies#preview-app">
-      <div class="name">Approval Policies</div>
-      <div class="desc">When the agent may act unattended. Most restrictive layer wins.</div>
-      <div class="path">/odata/admin</div>
-    </a>
-    <a class="tile" href="/$fiori-preview/AdminService/OrgSettings#preview-app">
-      <div class="name">Org Settings</div>
-      <div class="desc">Autopilot, anomaly factor, digest hour, default warehouse.</div>
-      <div class="path">/odata/admin</div>
-    </a>
-  </div>
-
-  <h2>Audit</h2>
-  <div class="grid">
-    <a class="tile" href="/$fiori-preview/AuditService/SessionLogs#preview-app">
-      <div class="name">Session Log</div>
-      <div class="desc">One row per request, with whether the answer was grounded in data.</div>
-      <div class="path">/odata/audit</div>
-    </a>
-    <a class="tile" href="/$fiori-preview/AuditService/AgentRuns#preview-app">
-      <div class="name">Agent Runs</div>
-      <div class="desc">Tool rounds per turn, drill down to each step.</div>
-      <div class="path">/odata/audit</div>
-    </a>
-    <a class="tile" href="/$fiori-preview/AuditService/PendingActions#preview-app">
-      <div class="name">Approvals</div>
-      <div class="desc">Proposed writes: pending, approved, rejected, expired.</div>
-      <div class="path">/odata/audit</div>
-    </a>
-    <a class="tile" href="/$fiori-preview/AuditService/UsageByObject#preview-app">
-      <div class="name">Usage by Object</div>
-      <div class="desc">Requests, tokens and grounding rate per business object.</div>
-      <div class="path">/odata/audit</div>
+    <a class="fd-tile" href="/$fiori-preview/CacheService/CacheStats#preview-app">
+      <div>
+        <div class="fd-tile__title">Cache Effectiveness</div>
+        <div class="fd-tile__subtitle">Hits, misses and tokens saved per object per day.</div>
+      </div>
+      <div class="fd-tile__footer">/odata/cache</div>
     </a>
   </div>
 
-  <div class="note">
-    These screens are generated from the CDS annotations — there is no
-    hand-written UI behind them. They are served here by CAP's
-    <code>$fiori-preview</code>, which is a development feature and is disabled
-    in production; a production deployment needs Fiori Elements app descriptors
-    under <code>app/</code>. See the README.
+  <h2 class="fd-group-title">Tokenisation</h2>
+  <div class="fd-tiles">
+    <a class="fd-tile" href="/quotapolicies/webapp/index.html">
+      <div>
+        <div class="fd-tile__title">Quota Policies</div>
+        <div class="fd-tile__subtitle">Day, week and month caps per user, role or DEFAULT.</div>
+      </div>
+      <div class="fd-tile__footer">/odata/token</div>
+    </a>
+    <a class="fd-tile" href="/$fiori-preview/TokenService/TokenUsages#preview-app">
+      <div>
+        <div class="fd-tile__title">Token Usage</div>
+        <div class="fd-tile__subtitle">One row per model call. Estimated counts are flagged as such.</div>
+      </div>
+      <div class="fd-tile__footer">/odata/token</div>
+    </a>
+    <a class="fd-tile" href="/$fiori-preview/TokenService/ModelRoutes#preview-app">
+      <div>
+        <div class="fd-tile__title">Model Routes</div>
+        <div class="fd-tile__subtitle">Which model serves light, heavy and intent traffic.</div>
+      </div>
+      <div class="fd-tile__footer">/odata/token</div>
+    </a>
+  </div>
+
+  <h2 class="fd-group-title">Users and governance</h2>
+  <div class="fd-tiles">
+    <a class="fd-tile" href="/users/webapp/index.html">
+      <div>
+        <div class="fd-tile__title">Users</div>
+        <div class="fd-tile__subtitle">Identity and per-warehouse read/write scopes.</div>
+      </div>
+      <div class="fd-tile__footer">/odata/admin</div>
+    </a>
+    <a class="fd-tile" href="/$fiori-preview/AdminService/ApprovalPolicies#preview-app">
+      <div>
+        <div class="fd-tile__title">Approval Policies</div>
+        <div class="fd-tile__subtitle">When the agent may act unattended. Most restrictive layer wins.</div>
+      </div>
+      <div class="fd-tile__footer">/odata/admin</div>
+    </a>
+    <a class="fd-tile" href="/$fiori-preview/AdminService/OrgSettings#preview-app">
+      <div>
+        <div class="fd-tile__title">Org Settings</div>
+        <div class="fd-tile__subtitle">Autopilot, anomaly factor, digest hour, default warehouse.</div>
+      </div>
+      <div class="fd-tile__footer">/odata/admin</div>
+    </a>
+  </div>
+
+  <h2 class="fd-group-title">Audit</h2>
+  <div class="fd-tiles">
+    <a class="fd-tile" href="/sessionlogs/webapp/index.html">
+      <div>
+        <div class="fd-tile__title">Session Log</div>
+        <div class="fd-tile__subtitle">One row per request, and whether the answer was grounded in data.</div>
+      </div>
+      <div class="fd-tile__footer">/odata/audit</div>
+    </a>
+    <a class="fd-tile" href="/$fiori-preview/AuditService/AgentRuns#preview-app">
+      <div>
+        <div class="fd-tile__title">Agent Runs</div>
+        <div class="fd-tile__subtitle">Tool rounds per turn, drill down to each step.</div>
+      </div>
+      <div class="fd-tile__footer">/odata/audit</div>
+    </a>
+    <a class="fd-tile" href="/$fiori-preview/AuditService/PendingActions#preview-app">
+      <div>
+        <div class="fd-tile__title">Approvals</div>
+        <div class="fd-tile__subtitle">Proposed writes: pending, approved, rejected, expired.</div>
+      </div>
+      <div class="fd-tile__footer">/odata/audit</div>
+    </a>
+  </div>
+
+  <div class="fd-message-strip" style="margin-top:1.5rem">
+    <span>
+      <span class="fd-message-strip__title">Generated screens.</span>
+      Tiles marked <code>$fiori-preview</code> are rendered from the CDS annotations by a
+      development-only feature; a production deployment serves them from app descriptors instead.
+    </span>
   </div>
 </main>
 
+<footer class="fd-footer">FactoryPilot administration · seven CAP services, each separately scoped</footer>
+
 <script>
-(async () => {
-  const tiles = [
-    ["/odata/config/BusinessObjects/$count?$filter=isActive eq true", "active objects"],
-    ["/odata/audit/SessionLogs/$count", "requests logged"],
-    ["/odata/audit/PendingActions/$count?$filter=status eq 'PENDING'", "awaiting approval"],
-    ["/odata/token/TokenUsages/$count", "model calls"],
-    ["/odata/admin/Users/$count?$filter=isActive eq true", "active users"],
-  ];
-  const cells = await Promise.all(tiles.map(async ([url, label]) => {
+(() => {
+  "use strict";
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+  const num = (n) => (n == null ? "—" : Number(n).toLocaleString());
+
+  async function count(url) {
     try {
       const res = await fetch(url);
-      return [res.ok ? (await res.text()).trim() : "—", label];
-    } catch { return ["—", label]; }
-  }));
-  document.getElementById("stats").innerHTML = cells
-    .map(([n, k]) => `<div class="stat"><div class="n">${n}</div><div class="k">${k}</div></div>`)
-    .join("");
+      return res.ok ? (await res.text()).trim() : null;
+    } catch { return null; }
+  }
+
+  (async () => {
+    // Identify the signed-in user from the approuter, so the shell shows who
+    // you are rather than pretending to be single-user.
+    try {
+      const res = await fetch("/user-api/currentUser");
+      if (res.ok) {
+        const u = await res.json();
+        const name = u.name || u.email || "";
+        document.getElementById("who").textContent = name;
+        document.getElementById("initials").textContent =
+          ((u.firstname || name)[0] || "?").toUpperCase() + ((u.lastname || "")[0] || "").toUpperCase();
+      }
+    } catch { /* running without the approuter locally */ }
+
+    const tiles = [
+      ["../../odata/config/BusinessObjects/$count?$filter=isActive eq true", "Active objects", "exposed as agent tools"],
+      ["../../odata/integration/Endpoints/$count?$filter=isActive eq true", "Endpoints", "backends registered"],
+      ["../../odata/audit/SessionLogs/$count", "Requests", "logged all time"],
+      ["../../odata/audit/PendingActions/$count?$filter=status eq 'PENDING'", "Awaiting approval", "proposed writes"],
+      ["../../odata/admin/Users/$count?$filter=isActive eq true", "Users", "active"],
+    ];
+    const values = await Promise.all(tiles.map(([u]) => count(u)));
+    document.getElementById("kpis").innerHTML = tiles.map(([, label, sub], i) => {
+      const v = values[i];
+      // "Awaiting approval" is the only one where a non-zero value deserves attention.
+      const critical = label === "Awaiting approval" && Number(v) > 0;
+      return `<div class="fd-tile">
+        <div>
+          <div class="fd-tile__title">${esc(label)}</div>
+          <div class="fd-tile__subtitle">${esc(sub)}</div>
+        </div>
+        <div class="fd-tile__kpi ${critical ? "fd-tile__kpi--critical" : ""}">${v == null ? "—" : num(v)}</div>
+      </div>`;
+    }).join("");
+  })();
 })();
 </script>
 </body>

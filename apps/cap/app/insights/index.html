@@ -4,105 +4,76 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>FactoryPilot — Insights</title>
+<link rel="stylesheet" href="../shared/fiori.css" />
 <style>
-  :root {
-    --bg:#f5f6f7; --surface:#fff; --raised:#fbfbfc; --border:#d9d9d9;
-    --text:#1d2d3e; --muted:#5b738b; --accent:#0a6ed1; --accent-dark:#0854a0;
-    --good:#107e3e; --warn:#e9730c; --bad:#bb0000; --radius:10px;
+  .turn { margin-bottom: 0.75rem; }
+  .turn__role {
+    font-size: 0.75rem; color: var(--sapContentLabelColor);
+    text-transform: uppercase; letter-spacing: .04em; margin-bottom: 0.25rem;
   }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#1c2228; --surface:#23292f; --raised:#2a3138; --border:#3a4552;
-            --text:#eaecee; --muted:#a9b4bf; --accent:#4db1ff; --accent-dark:#7cc4ff;
-            --good:#4db678; --warn:#f5a623; --bad:#ff5c5c; }
+  .turn__body { font-size: 0.9375rem; }
+  .turn--me .fd-card { border-style: dashed; box-shadow: none; background: transparent; }
+  .badges { display: flex; gap: 0.375rem; flex-wrap: wrap; margin-top: 0.75rem; }
+  .metrics { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.75rem 0 0; }
+  .metric {
+    background: var(--sapBackgroundColor); border: 1px solid var(--sapList_BorderColor);
+    border-radius: 0.25rem; padding: 0.5rem 0.75rem; min-width: 5rem;
   }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--text);
-       font:15px/1.55 "72",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-  header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 20px;
-         display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
-  header h1{font-size:17px;margin:0;font-weight:600}
-  header .sub{color:var(--muted);font-size:13px}
-  header .spacer{flex:1}
-  header a{color:var(--accent);font-size:13px;text-decoration:none}
-  header a:hover{text-decoration:underline}
-  main{max-width:880px;margin:0 auto;padding:20px}
-  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
-        padding:18px;margin-bottom:16px}
-  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
-  .row{display:flex;gap:10px;flex-wrap:wrap}
-  input,select{width:100%;padding:10px 12px;font:inherit;color:var(--text);
-               background:var(--bg);border:1px solid var(--border);border-radius:8px}
-  input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
-  button{padding:10px 18px;font:inherit;font-weight:600;cursor:pointer;background:var(--accent);
-         color:#fff;border:none;border-radius:8px}
-  button:hover:not(:disabled){background:var(--accent-dark)}
-  button:disabled{opacity:.55;cursor:not-allowed}
-  button.ghost{background:transparent;color:var(--accent);border:1px solid var(--border);font-weight:400}
-  button.ghost:hover{background:var(--bg)}
-  button.danger{background:var(--bad)}
-  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-  .chip{background:transparent;color:var(--accent);border:1px solid var(--border);
-        border-radius:999px;padding:5px 12px;font-size:13px;font-weight:400}
-  .chip:hover{background:var(--bg)}
-  .turn{margin-bottom:14px}
-  .turn .who{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
-  .bubble{background:var(--raised);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
-  .bubble.me{background:transparent;border-style:dashed}
-  .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
-  .badge{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid var(--border);color:var(--muted)}
-  .badge.ok{color:var(--good);border-color:var(--good)}
-  .badge.bad{color:var(--bad);border-color:var(--bad)}
-  .badge.warn{color:var(--warn);border-color:var(--warn)}
-  .approve{border-left:4px solid var(--warn)}
-  .approve.anom{border-left-color:var(--bad)}
-  .approve h3{margin:0 0 6px;font-size:15px}
-  .approve dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:10px 0 14px;font-size:14px}
-  .approve dt{color:var(--muted)}
-  .approve dd{margin:0;font-variant-numeric:tabular-nums}
-  .alert{border-left:4px solid var(--bad)}
-  code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:13px}
-  .spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;
-           border-radius:50%;display:inline-block;animation:spin .7s linear infinite;
-           vertical-align:-2px;margin-right:7px}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  footer{color:var(--muted);font-size:12px;text-align:center;padding:6px 20px 30px}
+  .metric__n { font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .metric__k { font-size: 0.6875rem; color: var(--sapContentLabelColor); text-transform: uppercase; letter-spacing: .03em; }
+  .approve { border-left: 0.25rem solid var(--sapCriticalColor); }
+  .approve--anomalous { border-left-color: var(--sapNegativeColor); }
+  .approve dl { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 1rem; margin: 0.75rem 0; font-size: 0.875rem; }
+  .approve dt { color: var(--sapContentLabelColor); }
+  .approve dd { margin: 0; font-variant-numeric: tabular-nums; }
+  .suggest { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+  .suggest button { font-size: 0.8125rem; border-radius: 1rem; padding: 0.3125rem 0.75rem; }
 </style>
 </head>
 <body>
-<header>
-  <h1>FactoryPilot</h1>
-  <span class="sub">Insights</span>
-  <span class="spacer"></span>
-  <a href="../admin/">Admin console →</a>
-  <a href="../dashboard/">Monitoring</a>
-  <span class="sub" id="usage">&nbsp;</span>
-</header>
 
-<main>
-  <section class="card">
-    <div class="row">
-      <div style="flex:1 1 340px">
-        <label for="q">Ask about your operational data</label>
-        <input id="q" type="text" autocomplete="off" placeholder="How many deliveries today in my warehouse?" />
+<div class="fd-shellbar">
+  <span class="fd-shellbar__logo">FP</span>
+  <span class="fd-shellbar__title">FactoryPilot</span>
+  <span class="fd-shellbar__subtitle">Insights</span>
+  <span class="fd-shellbar__spacer"></span>
+  <nav class="fd-shellbar__nav">
+    <a href="../insights/" aria-current="page">Insights</a>
+    <a href="../admin/">Admin</a>
+    <a href="../dashboard/">Monitoring</a>
+  </nav>
+  <span class="fd-shellbar__user"><span class="fd-avatar" id="initials">–</span><span id="usage"></span></span>
+</div>
+
+<main class="fd-page fd-page--narrow">
+
+  <section class="fd-card">
+    <div class="fd-card__content">
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1 1 20rem">
+          <label class="fd-label" for="q">Ask about your operational data</label>
+          <input class="fd-input" id="q" type="text" autocomplete="off"
+                 placeholder="How many deliveries today in my warehouse?" />
+        </div>
+        <div style="flex:0 0 8rem">
+          <label class="fd-label" for="wh">Warehouse</label>
+          <select class="fd-select" id="wh"><option>1000</option><option>1010</option><option>2000</option></select>
+        </div>
+        <button class="fd-button" id="ask">Ask</button>
       </div>
-      <div style="flex:0 0 140px">
-        <label for="wh">Warehouse</label>
-        <select id="wh"><option>1000</option><option>1010</option><option>2000</option></select>
+      <div class="suggest">
+        <button class="fd-button fd-button--transparent" data-q="How many deliveries today in warehouse 1000?">Deliveries today</button>
+        <button class="fd-button fd-button--transparent" data-q="How much stock do we have?">Material stock</button>
+        <button class="fd-button fd-button--transparent" data-q="Move 250 units of P123 from packing to shipping in warehouse 1000">Move stock</button>
+        <button class="fd-button fd-button--transparent" data-q="What is the weather in Berlin?">Unmatched question</button>
       </div>
-      <div style="flex:0 0 auto;align-self:flex-end"><button id="ask">Ask</button></div>
-    </div>
-    <div class="chips">
-      <button class="chip" data-q="How many deliveries today in warehouse 1000?">Deliveries today</button>
-      <button class="chip" data-q="Move 250 units of P123 from packing to shipping in warehouse 1000">Move stock (needs approval)</button>
-      <button class="chip" data-q="Move 900 units of P123 to shipping in warehouse 1010">Move in a warehouse I can't write</button>
-      <button class="chip" data-q="What is the weather in Berlin?">Unmatched question</button>
     </div>
   </section>
 
   <div id="thread"></div>
 </main>
 
-<footer>Answers come from live S/4HANA data via the registered business objects. Writes always require confirmation.</footer>
+<footer class="fd-footer">Answers come from live S/4HANA data via the registered business objects. Writes always require confirmation.</footer>
 
 <script>
 (() => {
@@ -116,39 +87,48 @@
 
   function add(html, cls = "") {
     const el = document.createElement("section");
-    el.className = "card " + cls;
+    el.className = "fd-card " + cls;
+    el.style.marginBottom = "0.75rem";
     el.innerHTML = html;
     thread.prepend(el);
     return el;
   }
 
+  /** Fiori object status — semantic colour carries the meaning, not decoration. */
   function badges(m = {}) {
     const bits = [];
-    if (m.objectCode) bits.push(`<span class="badge">${esc(m.objectCode)}</span>`);
-    if (m.toolsCalled) bits.push(`<span class="badge">${esc(m.toolsCalled)}</span>`);
-    bits.push(`<span class="badge ${m.grounded ? "ok" : "warn"}">${m.grounded ? "grounded in data" : "not grounded"}</span>`);
-    if (m.quotaResult) bits.push(`<span class="badge ${m.quotaResult === "DENIED" ? "bad" : ""}">quota ${esc(m.quotaResult)}</span>`);
-    if (m.rounds != null) bits.push(`<span class="badge">${esc(m.rounds)} rounds</span>`);
-    bits.push(`<span class="badge">${esc(m.tokensUsed ?? 0)} tokens</span>`);
-    bits.push(`<span class="badge">${esc(m.totalResponseTimeMs ?? 0)} ms</span>`);
-    if (m.provider) bits.push(`<span class="badge">${esc(m.provider)}</span>`);
+    if (m.objectCode) bits.push(`<span class="fd-status fd-status--information">${esc(m.objectCode)}</span>`);
+    if (m.toolsCalled) bits.push(`<span class="fd-status">${esc(m.toolsCalled)}</span>`);
+    bits.push(`<span class="fd-status ${m.grounded ? "fd-status--positive" : "fd-status--critical"}">${
+      m.grounded ? "Grounded in data" : "Not grounded"}</span>`);
+    if (m.quotaResult) bits.push(`<span class="fd-status ${m.quotaResult === "DENIED" ? "fd-status--negative" : ""}">Quota ${esc(m.quotaResult)}</span>`);
+    if (m.cacheResult && m.cacheResult !== "NOT_APPLICABLE") {
+      bits.push(`<span class="fd-status ${m.cacheResult === "HIT" ? "fd-status--positive" : ""}">Cache ${esc(m.cacheResult)}</span>`);
+    }
+    if (m.rounds != null) bits.push(`<span class="fd-status">${esc(m.rounds)} rounds</span>`);
+    bits.push(`<span class="fd-status">${esc(m.tokensUsed ?? 0)} tokens</span>`);
+    bits.push(`<span class="fd-status">${esc(m.totalResponseTimeMs ?? 0)} ms</span>`);
     return `<div class="badges">${bits.join("")}</div>`;
   }
 
   function renderApproval(p, meta) {
     const args = (() => { try { return JSON.parse(p.arguments || "{}"); } catch { return {}; } })();
-    const rows = Object.entries(args)
-      .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
+    const rows = Object.entries(args).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
     const el = add(`
-      <h3>Confirmation required</h3>
-      <p>${esc(p.summary)}</p>
-      ${p.anomalous ? `<p class="badge bad" style="display:inline-block">Anomaly: ${esc(p.anomalyReason)}</p>` : ""}
-      <dl>${rows}</dl>
-      <div class="row">
-        <button data-act="approve">Approve and run</button>
-        <button class="ghost" data-act="reject">Reject</button>
+      <div class="fd-card__header">
+        <h3 class="fd-card__title">Confirmation required</h3>
+        <p class="fd-card__subtitle">${esc(p.summary)}</p>
       </div>
-      ${badges(meta)}`, `approve${p.anomalous ? " anom" : ""}`);
+      <div class="fd-card__content">
+        ${p.anomalous ? `<div class="fd-message-strip fd-message-strip--error" style="margin-bottom:0.75rem">
+          <span><span class="fd-message-strip__title">Anomaly.</span> ${esc(p.anomalyReason)}</span></div>` : ""}
+        <dl>${rows}</dl>
+        <div style="display:flex;gap:0.5rem">
+          <button class="fd-button" data-act="approve">Approve and run</button>
+          <button class="fd-button fd-button--transparent" data-act="reject">Reject</button>
+        </div>
+        ${badges(meta)}
+      </div>`, `approve${p.anomalous ? " approve--anomalous" : ""}`);
 
     el.querySelectorAll("button[data-act]").forEach((b) =>
       b.addEventListener("click", () => confirmAction(p.actionID, b.dataset.act === "approve", el)));
@@ -160,19 +140,21 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const data = await res.json().catch(() => ({}));
-    return { ok: res.ok, status: res.status, data };
+    return { ok: res.ok, status: res.status, data: await res.json().catch(() => ({})) };
   }
 
   async function confirmAction(actionID, approve, cardEl) {
     cardEl.querySelectorAll("button").forEach((b) => (b.disabled = true));
     const { data } = await call("../../insights/confirmAction", { actionID, approve });
     if (data.status === "SUCCESS") {
-      add(`<div class="turn"><div class="who">Result</div>
-           <div class="bubble">${esc(data.answer)}</div></div>`);
+      add(`<div class="fd-card__content"><div class="turn__role">Result</div>
+           <div class="turn__body">${esc(data.answer)}</div></div>`);
     } else {
-      add(`<div class="turn"><div class="who">Refused</div>
-           <div class="bubble">${esc(data.message)} <code>${esc(data.errorCode || "")}</code></div></div>`, "alert");
+      add(`<div class="fd-card__content">
+             <div class="fd-message-strip fd-message-strip--error">
+               <span><span class="fd-message-strip__title">Refused.</span> ${esc(data.message)}
+               ${data.errorCode ? `<code>${esc(data.errorCode)}</code>` : ""}</span>
+             </div></div>`);
     }
     refreshUsage();
   }
@@ -182,9 +164,9 @@
     if (!question) { qEl.focus(); return; }
 
     askEl.disabled = true;
-    askEl.innerHTML = '<span class="spinner"></span>Asking';
-    add(`<div class="turn"><div class="who">You</div>
-         <div class="bubble me">${esc(question)}</div></div>`);
+    askEl.innerHTML = '<span class="fd-busy"></span>Asking';
+    add(`<div class="fd-card__content turn turn--me">
+           <div class="turn__role">You</div><div class="turn__body">${esc(question)}</div></div>`, "");
 
     try {
       const { data } = await call("../../insights/ask", {
@@ -197,18 +179,30 @@
       if (data.status === "AWAITING_APPROVAL" && data.pendingAction) {
         renderApproval(data.pendingAction, meta);
       } else if (data.status === "RATE_LIMITED") {
-        add(`<div class="turn"><div class="who">Quota</div>
-             <div class="bubble">${esc(data.message)}</div></div>${badges(meta)}`, "alert");
+        add(`<div class="fd-card__content">
+               <div class="fd-message-strip fd-message-strip--warning">
+                 <span><span class="fd-message-strip__title">Quota reached.</span> ${esc(data.message)}</span></div>
+               ${badges(meta)}</div>`);
       } else if (data.status === "ERROR") {
-        add(`<div class="turn"><div class="who">Problem</div>
-             <div class="bubble">${esc(data.message)} <code>${esc(data.errorCode || "")}</code></div></div>${badges(meta)}`, "alert");
+        add(`<div class="fd-card__content">
+               <div class="fd-message-strip fd-message-strip--error">
+                 <span><span class="fd-message-strip__title">Could not answer.</span> ${esc(data.message)}
+                 ${data.errorCode ? `<code>${esc(data.errorCode)}</code>` : ""}</span></div>
+               ${badges(meta)}</div>`);
       } else {
-        add(`<div class="turn"><div class="who">FactoryPilot</div>
-             <div class="bubble">${esc(data.answer)}</div></div>${badges(meta)}`);
+        // Pipeline internals (rounds, tool calls) are already in the badges;
+        // repeating them as tiles reads as "0 rounds, 0 tool calls" on a cache
+        // hit — true, and useless. Only business numbers earn a tile.
+        add(`<div class="fd-card__content">
+               <div class="turn__role">FactoryPilot</div>
+               <div class="turn__body">${esc(data.answer)}</div>
+               ${badges(meta)}</div>`);
       }
     } catch (err) {
-      add(`<div class="turn"><div class="who">Offline</div>
-           <div class="bubble">Cannot reach the service: ${esc(err.message)}</div></div>`, "alert");
+      add(`<div class="fd-card__content">
+             <div class="fd-message-strip fd-message-strip--error">
+               <span><span class="fd-message-strip__title">Service unreachable.</span> ${esc(err.message)}</span>
+             </div></div>`);
     } finally {
       askEl.disabled = false;
       askEl.textContent = "Ask";
@@ -224,13 +218,14 @@
       const u = await res.json();
       $("usage").textContent = u.limitDay == null
         ? String(u.userID || "")
-        : `${u.userID} — ${u.usedDay}/${u.limitDay} today`;
-    } catch { /* decoration only; never block the page on it */ }
+        : `${u.userID} · ${u.usedDay}/${u.limitDay} today`;
+      $("initials").textContent = ((u.userID || "?")[0] || "?").toUpperCase();
+    } catch { /* the usage chip is decoration; never block the page on it */ }
   }
 
   askEl.addEventListener("click", ask);
   qEl.addEventListener("keydown", (e) => { if (e.key === "Enter") ask(); });
-  document.querySelectorAll(".chip").forEach((c) =>
+  document.querySelectorAll("button[data-q]").forEach((c) =>
     c.addEventListener("click", () => { qEl.value = c.dataset.q; ask(); }));
   refreshUsage();
 })();
