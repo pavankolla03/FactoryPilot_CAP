@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FactoryPilot — Monitoring</title>
+<style>
+  :root {
+    --bg:#f5f6f7; --surface:#fff; --border:#d9d9d9; --text:#1d2d3e; --muted:#5b738b;
+    --accent:#0a6ed1; --good:#107e3e; --warn:#e9730c; --bad:#bb0000; --radius:10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#1c2228; --surface:#23292f; --border:#3a4552; --text:#eaecee;
+            --muted:#a9b4bf; --accent:#4db1ff; --good:#4db678; --warn:#f5a623; --bad:#ff5c5c; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font:15px/1.55 "72",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 20px;
+         display:flex;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:5}
+  header h1{font-size:17px;margin:0;font-weight:600}
+  header .sub{color:var(--muted);font-size:13px}
+  header .spacer{flex:1}
+  header a{color:var(--accent);font-size:13px;text-decoration:none}
+  header a:hover{text-decoration:underline}
+  main{max-width:1100px;margin:0 auto;padding:20px}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+     margin:26px 0 12px;font-weight:600}
+  h2:first-of-type{margin-top:4px}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+  .tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px}
+  .tile .n{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.15}
+  .tile .k{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:2px}
+  .tile .note{font-size:12px;color:var(--muted);margin-top:6px}
+  .tile.good .n{color:var(--good)} .tile.warn .n{color:var(--warn)} .tile.bad .n{color:var(--bad)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+        padding:16px;overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:14px;min-width:460px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  tr:last-child td{border-bottom:none}
+  .bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden;min-width:70px}
+  .bar > i{display:block;height:100%;background:var(--accent)}
+  .bar.risk > i{background:var(--bad)}
+  .empty{color:var(--muted);font-size:14px;padding:8px 2px}
+  .err{border-left:4px solid var(--bad)}
+  footer{color:var(--muted);font-size:12px;text-align:center;padding:10px 20px 30px}
+</style>
+</head>
+<body>
+<header>
+  <h1>FactoryPilot</h1>
+  <span class="sub">Monitoring</span>
+  <span class="spacer"></span>
+  <a href="../admin/">Admin console</a>
+  <a href="../insights/">Insights</a>
+  <span class="sub" id="stamp"></span>
+</header>
+
+<main>
+  <h2>Overview</h2>
+  <div class="tiles" id="tiles"><div class="tile"><div class="n">—</div><div class="k">loading</div></div></div>
+
+  <h2>Quota headroom</h2>
+  <div class="card" id="headroom"><div class="empty">loading…</div></div>
+
+  <h2>By business object</h2>
+  <div class="card" id="byobject"><div class="empty">loading…</div></div>
+
+  <h2>Where the time goes</h2>
+  <div class="card" id="latency"><div class="empty">loading…</div></div>
+
+  <h2>Most asked</h2>
+  <div class="card" id="questions"><div class="empty">loading…</div></div>
+
+  <h2>Failures</h2>
+  <div class="card" id="failures"><div class="empty">loading…</div></div>
+</main>
+
+<footer>Aggregated from the audit, token and cache planes. This page owns no data of its own.</footer>
+
+<script>
+(() => {
+  "use strict";
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+  const num = (n) => (n == null ? "—" : Number(n).toLocaleString());
+
+  async function get(path) {
+    const res = await fetch(path, { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error(`${path} → HTTP ${res.status}`);
+    return res.json();
+  }
+
+  function table(el, rows, columns, emptyText) {
+    if (!rows || !rows.length) { el.innerHTML = `<div class="empty">${esc(emptyText)}</div>`; return; }
+    const head = columns.map((c) => `<th class="${c.num ? "num" : ""}">${esc(c.label)}</th>`).join("");
+    const body = rows.map((r) =>
+      `<tr>${columns.map((c) => `<td class="${c.num ? "num" : ""}">${c.render ? c.render(r) : esc(r[c.key] ?? "—")}</td>`).join("")}</tr>`
+    ).join("");
+    el.innerHTML = `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+  }
+
+  function fail(el, err) {
+    el.className = "card err";
+    el.innerHTML = `<div class="empty">${esc(err.message)}</div>`;
+  }
+
+  async function loadOverview() {
+    const el = document.getElementById("tiles");
+    try {
+      const o = await get("../../odata/dashboard/overview()");
+      // Ratios are only meaningful once there is traffic; showing 0% on an
+      // empty system reads as a fault rather than as "nothing has happened".
+      const seen = o.requestsTotal > 0;
+      const tiles = [
+        { n: num(o.requestsToday), k: "requests today", note: `${num(o.requestsTotal)} all time` },
+        { n: num(o.tokensToday), k: "tokens today", note: `${num(o.tokensTotal)} all time` },
+        { n: seen ? o.cacheHitRatio + "%" : "—", k: "cache hit rate",
+          cls: !seen ? "" : o.cacheHitRatio >= 20 ? "good" : "warn",
+          note: seen ? "" : "no traffic yet" },
+        { n: seen ? o.groundedRatio + "%" : "—", k: "grounded answers",
+          cls: !seen ? "" : o.groundedRatio >= 90 ? "good" : "warn",
+          note: "answered from tool output" },
+        { n: num(o.avgResponseMs) + " ms", k: "avg response" },
+        { n: num(o.quotaDenials), k: "quota denials", cls: o.quotaDenials > 0 ? "warn" : "" },
+        { n: num(o.failures), k: "failures", cls: o.failures > 0 ? "bad" : "good" },
+        { n: num(o.pendingApprovals), k: "awaiting approval", cls: o.pendingApprovals > 0 ? "warn" : "" },
+        { n: num(o.activeUsers), k: "active users" },
+        { n: num(o.activeObjects), k: "active objects" },
+      ];
+      el.innerHTML = tiles.map((t) =>
+        `<div class="tile ${t.cls || ""}"><div class="n">${esc(t.n)}</div>
+         <div class="k">${esc(t.k)}</div>${t.note ? `<div class="note">${esc(t.note)}</div>` : ""}</div>`
+      ).join("");
+    } catch (e) { fail(el, e); }
+  }
+
+  async function loadHeadroom() {
+    const el = document.getElementById("headroom");
+    try {
+      const rows = (await get("../../odata/dashboard/quotaHeadroom()")).value || [];
+      table(el, rows, [
+        { key: "userID", label: "User" },
+        { key: "usedDay", label: "Used today", num: true, render: (r) => num(r.usedDay) },
+        { key: "limitDay", label: "Limit", num: true, render: (r) => num(r.limitDay) },
+        { label: "", render: (r) => {
+            const p = Math.min(100, r.percentUsed || 0);
+            return `<div class="bar ${r.atRisk ? "risk" : ""}"><i style="width:${p}%"></i></div>`;
+          } },
+        { key: "percentUsed", label: "%", num: true, render: (r) => (r.percentUsed ?? 0) + "%" },
+      ], "Nobody has spent any quota today.");
+    } catch (e) { fail(el, e); }
+  }
+
+  async function loadTable(id, path, columns, emptyText, sort) {
+    const el = document.getElementById(id);
+    try {
+      let rows = (await get(path)).value || [];
+      if (sort) rows = rows.sort(sort);
+      table(el, rows.slice(0, 15), columns, emptyText);
+    } catch (e) { fail(el, e); }
+  }
+
+  (async () => {
+    document.getElementById("stamp").textContent = new Date().toLocaleTimeString();
+    await loadOverview();
+    await loadHeadroom();
+    await loadTable("byobject", "../../odata/dashboard/ByObject", [
+      { key: "objectCode", label: "Object", render: (r) => esc(r.objectCode || "(unresolved)") },
+      { key: "requests", label: "Requests", num: true, render: (r) => num(r.requests) },
+      { key: "cacheHits", label: "Cache hits", num: true, render: (r) => num(r.cacheHits) },
+      { key: "grounded", label: "Grounded", num: true, render: (r) => num(r.grounded) },
+      { key: "tokens", label: "Tokens", num: true, render: (r) => num(r.tokens) },
+      { key: "avgMs", label: "Avg ms", num: true, render: (r) => num(r.avgMs) },
+    ], "No requests recorded yet.", (a, b) => (b.requests || 0) - (a.requests || 0));
+
+    await loadTable("latency", "../../odata/dashboard/LatencySplit", [
+      { key: "objectCode", label: "Object", render: (r) => esc(r.objectCode || "(unresolved)") },
+      { key: "samples", label: "Samples", num: true, render: (r) => num(r.samples) },
+      { key: "avgBackendMs", label: "S/4 ms", num: true, render: (r) => num(r.avgBackendMs) },
+      { key: "avgTotalMs", label: "Total ms", num: true, render: (r) => num(r.avgTotalMs) },
+      { label: "Model share", render: (r) => {
+          // Total minus backend is everything else, dominated by the model.
+          const total = r.avgTotalMs || 0, backend = r.avgBackendMs || 0;
+          const share = total ? Math.round(((total - backend) / total) * 100) : 0;
+          return `<div class="bar"><i style="width:${Math.max(0, Math.min(100, share))}%"></i></div>`;
+        } },
+    ], "No latency samples yet.");
+
+    await loadTable("questions", "../../odata/dashboard/TopQuestions", [
+      { key: "userQuery", label: "Question" },
+      { key: "asked", label: "Asked", num: true, render: (r) => num(r.asked) },
+      { key: "tokens", label: "Tokens", num: true, render: (r) => num(r.tokens) },
+    ], "Nobody has asked anything yet.", (a, b) => (b.asked || 0) - (a.asked || 0));
+
+    await loadTable("failures", "../../odata/dashboard/Failures", [
+      { key: "errorDetail", label: "Error" },
+      { key: "occurrences", label: "Times", num: true, render: (r) => num(r.occurrences) },
+      { key: "lastSeen", label: "Last seen", render: (r) => esc(String(r.lastSeen || "").replace("T", " ").slice(0, 19)) },
+    ], "No failures recorded — good.");
+  })();
+})();
+</script>
+</body>
+</html>

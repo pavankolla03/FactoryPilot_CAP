@@ -20,14 +20,14 @@
       "csrfProtection": true
     },
     {
-      "source": "^/odata/(config|token|admin|audit|cache)/(.*)$",
+      "source": "^/odata/(config|token|admin|audit|cache|integration|dashboard)/(.*)$",
       "target": "/odata/$1/$2",
       "destination": "srv-api",
       "authenticationType": "xsuaa",
       "csrfProtection": true
     },
     {
-      "source": "^/(insights|admin|businessobjects|quotapolicies|users|sessionlogs|cachepolicies|integrationendpoints)/(.*)$",
+      "source": "^/(insights|admin|dashboard|businessobjects|quotapolicies|users|sessionlogs|cachepolicies|integrationendpoints)/(.*)$",
       "target": "/$1/$2",
       "destination": "srv-api",
       "authenticationType": "xsuaa"

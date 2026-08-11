@@ -69,6 +69,10 @@
     {
       "name": "$XSAPPNAME.IntegrationMaintain",
       "description": "Register and test integration endpoints"
+    },
+    {
+      "name": "$XSAPPNAME.DashboardRead",
+      "description": "Read the monitoring dashboard"
     }
   ],
   "attributes": [
@@ -99,7 +103,8 @@
         "$XSAPPNAME.AdminRead",
         "$XSAPPNAME.AuditRead",
         "$XSAPPNAME.CacheRead",
-        "$XSAPPNAME.IntegrationRead"
+        "$XSAPPNAME.IntegrationRead",
+        "$XSAPPNAME.DashboardRead"
       ]
     },
     {
@@ -111,7 +116,8 @@
         "$XSAPPNAME.CacheMaintain",
         "$XSAPPNAME.CacheRead",
         "$XSAPPNAME.IntegrationRead",
-        "$XSAPPNAME.IntegrationMaintain"
+        "$XSAPPNAME.IntegrationMaintain",
+        "$XSAPPNAME.DashboardRead"
       ]
     },
     {
@@ -131,7 +137,8 @@
         "$XSAPPNAME.DashboardAdmin",
         "$XSAPPNAME.CacheRead",
         "$XSAPPNAME.IntegrationRead",
-        "$XSAPPNAME.IntegrationMaintain"
+        "$XSAPPNAME.IntegrationMaintain",
+        "$XSAPPNAME.DashboardRead"
       ],
       "attribute-references": [
         "warehouse"
