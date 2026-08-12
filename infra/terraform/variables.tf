@@ -29,6 +29,12 @@ variable "db_engine" {
   }
 }
 
+variable "xsuaa_plan" {
+  description = "Service plan for the xsuaa offering"
+  type        = string
+  default     = "application"
+}
+
 variable "db_plan" {
   description = "Service plan for the database offering"
   type        = string
