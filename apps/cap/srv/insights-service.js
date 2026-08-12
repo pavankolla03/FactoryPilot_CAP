@@ -280,6 +280,8 @@ module.exports = cds.service.impl(function () {
         orgSettings,
       })
       status = result.status
+      // A run that reached an answer but grounded none of it reports why here.
+      errorDetail = result.errorDetail || ''
     } catch (err) {
       status = 'FAILED'
       errorDetail = err.message
@@ -370,7 +372,7 @@ module.exports = cds.service.impl(function () {
 
     const { logID, runID } = await writeAudit({
       result, userID, channel, question, conversationID, correlationId,
-      quotaResult: 'ALLOWED', startedAt, objectCode, status, cacheResult,
+      quotaResult: 'ALLOWED', startedAt, objectCode, status, errorDetail, cacheResult,
     })
 
     return {

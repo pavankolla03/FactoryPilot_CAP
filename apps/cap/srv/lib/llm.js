@@ -171,6 +171,11 @@ function inferArgs(question, tool) {
 
 function summarise(raw) {
   const parsed = safeParse(raw)
+  // A failed fetch is not an empty result. Saying "no records" when the
+  // source system was never reached tells a supervisor there is no stock,
+  // which is a different and much more expensive statement than "I could
+  // not check".
+  if (parsed?.error) return `I could not reach the source system, so I have no data to answer that: ${parsed.error}`
   const rows = Array.isArray(parsed?.rows) ? parsed.rows : Array.isArray(parsed) ? parsed : []
   if (!rows.length) return 'No records matched that question for the requested period and location.'
 

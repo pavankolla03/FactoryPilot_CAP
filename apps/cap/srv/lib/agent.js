@@ -87,6 +87,7 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
   const usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0, isEstimated: false }
   const steps = []
   const toolsCalled = []
+  const toolErrors = []
   let grounded = false
   let rounds = 0
 
@@ -107,7 +108,7 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
     usage.model = completion.model
 
     if (!completion.toolCalls?.length) {
-      return {
+      return settle({
         status: 'SUCCESS',
         answer: completion.text || '',
         toolsCalled,
@@ -116,7 +117,7 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
         usage,
         steps,
         messages,
-      }
+      })
     }
 
     messages.push({
@@ -184,6 +185,7 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
         })
       } catch (err) {
         content = JSON.stringify({ error: err.message })
+        toolErrors.push(`${call.name}: ${err.message}`)
         steps.push({
           toolName: call.name,
           arguments: JSON.stringify(call.arguments || {}),
@@ -197,7 +199,7 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
     }
   }
 
-  return {
+  return settle({
     status: 'SUCCESS',
     answer: 'I could not complete that within the allowed number of tool rounds.',
     toolsCalled,
@@ -207,6 +209,33 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
     steps,
     messages,
     exhausted: true,
+  })
+
+  /**
+   * Decide what a run that reached an answer is actually worth.
+   *
+   * The model is handed `{"error": ...}` as a tool result and will happily
+   * narrate around it — the offline provider used to answer "No records
+   * matched" for a warehouse whose endpoint was unreachable. That reads as
+   * "there is no stock" rather than "I could not check", it was stored as
+   * SUCCESS so nobody investigating saw a failure, and SUCCESS is also the
+   * condition for writing to the answer cache, so the wrong answer outlived
+   * the outage that caused it.
+   *
+   * Every tool call failing with nothing grounded is a failed run, whatever
+   * the model chose to say. A partial failure stays SUCCESS: some data was
+   * really fetched, and the caller can see the failed step in `steps`.
+   */
+  function settle(outcome) {
+    if (outcome.grounded || !toolErrors.length) return outcome
+    return {
+      ...outcome,
+      status: 'FAILED',
+      errorDetail: toolErrors.join('; '),
+      answer:
+        'I could not reach the source system for that question, so I have no data to answer it. ' +
+        'This is a connection problem, not an empty result — please retry, and tell an administrator if it persists.',
+    }
   }
 }
 

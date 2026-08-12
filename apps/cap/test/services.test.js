@@ -146,6 +146,25 @@ describe('offline provider tool choice', () => {
     assert.equal(res.toolCalls[0].name, 'move_stock')
   })
 
+  test('an unreachable backend is not summarised as an empty result', async () => {
+    // The model is handed {"error": ...} as the tool result and will narrate
+    // around it. "No records matched" tells a supervisor there is no stock,
+    // when in fact nothing was ever checked.
+    const definitions = tools.buildDefinitions([
+      { objectCode: 'MATERIAL_STOCK', objectName: 'Material Stock', keywords: 'stock,material' },
+    ])
+    const res = await new llm.FakeProvider().complete({
+      messages: [
+        { role: 'user', content: 'How much stock do we have?' },
+        { role: 'assistant', content: null, tool_calls: [{ id: 'c1' }] },
+        { role: 'tool', tool_call_id: 'c1', content: '{"error":"connect ECONNREFUSED"}' },
+      ],
+      tools: definitions,
+    })
+    assert.doesNotMatch(res.text, /no records matched/i, 'a failed fetch must not read as an empty result')
+    assert.match(res.text, /could not reach/i)
+  })
+
   test('picks the read tool for a read question', async () => {
     const definitions = tools.buildDefinitions([
       { objectCode: 'DELIVERY', objectName: 'Outbound Delivery', keywords: 'delivery,deliveries,shipping' },
@@ -155,6 +174,40 @@ describe('offline provider tool choice', () => {
       tools: definitions,
     })
     assert.equal(res.toolCalls[0].name, 'query_delivery')
+  })
+})
+
+describe('a run whose every tool call failed', () => {
+  test('is FAILED, carries the reason, and says so in the answer', async () => {
+    // Nothing was grounded and the fetch threw, so whatever the model chose to
+    // narrate, this run did not answer the question. Reporting SUCCESS hides
+    // the outage from anyone reading the audit log, and SUCCESS is also what
+    // gates the answer cache — so the wrong answer would outlive the outage.
+    const realExecuteRead = tools.executeRead
+    tools.executeRead = async () => {
+      throw new Error('connect ECONNREFUSED 10.0.0.1:443')
+    }
+    try {
+      const result = await agent.run({
+        question: 'How much stock do we have?',
+        userID: 'tester',
+        roles: ['InsightsQuery'],
+        warehouseID: '1000',
+        conversationID: 'c-fail',
+        correlationId: 'x-fail',
+        businessObjects: [
+          { objectCode: 'MATERIAL_STOCK', objectName: 'Material Stock', keywords: 'stock,material', isActive: true },
+        ],
+        route: null,
+        orgSettings: {},
+      })
+      assert.equal(result.status, 'FAILED')
+      assert.equal(result.grounded, false)
+      assert.match(result.errorDetail, /ECONNREFUSED/)
+      assert.doesNotMatch(result.answer, /no records matched/i)
+    } finally {
+      tools.executeRead = realExecuteRead
+    }
   })
 })
 

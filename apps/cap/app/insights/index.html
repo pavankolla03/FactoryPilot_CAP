@@ -183,6 +183,14 @@
                <div class="fd-message-strip fd-message-strip--warning">
                  <span><span class="fd-message-strip__title">Quota reached.</span> ${esc(data.message)}</span></div>
                ${badges(meta)}</div>`);
+      } else if (data.status === "FAILED") {
+        // A run that reached the model but grounded nothing. Rendering this as
+        // an ordinary answer bubble is how "I could not check" gets read as
+        // "there is nothing there" — it has to look like a failure.
+        add(`<div class="fd-card__content">
+               <div class="fd-message-strip fd-message-strip--error">
+                 <span><span class="fd-message-strip__title">No data retrieved.</span> ${esc(data.answer)}</span></div>
+               ${badges(meta)}</div>`);
       } else if (data.status === "ERROR") {
         add(`<div class="fd-card__content">
                <div class="fd-message-strip fd-message-strip--error">
