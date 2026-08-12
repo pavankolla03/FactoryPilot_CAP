@@ -29,6 +29,9 @@ defaults:
 
 # Names of environment variables, never the values.
 secrets:
+  # For llm_provider: aicore use `AICORE` instead — it expands to
+  # AICORE_CLIENT_ID and AICORE_CLIENT_SECRET, and the three non-secret
+  # AICORE_* settings are set alongside them with cf set-env.
   llm: OPENROUTER_API_KEY
   integration: CPI            # expands to CPI_CLIENT_ID and CPI_CLIENT_SECRET
   hub: SAP_HUB_API_KEY

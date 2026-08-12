@@ -9,7 +9,7 @@ const PROJECT = path.resolve(__dirname, '..')
 // developer's db/factorypilot.db.
 const { GET, POST, expect: _unused, data } = cds.test(PROJECT).in(PROJECT)
 
-let quota, policy, tools, llm, agent
+let quota, policy, tools, llm, agent, oauth
 
 before(async () => {
   quota = require('../srv/lib/quota')
@@ -17,6 +17,7 @@ before(async () => {
   tools = require('../srv/lib/tools')
   llm = require('../srv/lib/llm')
   agent = require('../srv/lib/agent')
+  oauth = require('../srv/lib/oauth')
 })
 
 // ---------------------------------------------------------------------------
@@ -174,6 +175,133 @@ describe('offline provider tool choice', () => {
       tools: definitions,
     })
     assert.equal(res.toolCalls[0].name, 'query_delivery')
+  })
+})
+
+describe('AI Core provider', () => {
+  // No AI Core tenant in CI, so this is a contract test: it pins the parts of
+  // the request that AI Core rejects when they are wrong, and that a live
+  // smoke test would only tell us about after a deploy.
+  const CONFIG = {
+    baseUrl: 'https://api.ai.internalprod.eu-central-1.aws.ml.hana.ondemand.com/',
+    deploymentId: 'd1234567890abcde',
+    tokenUrl: 'https://client.authentication.eu10.hana.ondemand.com',
+  }
+
+  const okBody = {
+    choices: [{ message: { content: 'Two deliveries are open.', tool_calls: [] } }],
+    usage: { prompt_tokens: 40, completion_tokens: 9, total_tokens: 49 },
+  }
+  const reply = (status, body) => ({ ok: status < 400, status, json: async () => body, text: async () => JSON.stringify(body) })
+
+  function withStubs(fetchImpl, run) {
+    const realFetch = global.fetch
+    const realGetToken = oauth.getToken
+    let issued = 0
+    global.fetch = fetchImpl
+    oauth.getToken = async (_ep, { force = false } = {}) => `token-${force ? ++issued + 100 : ++issued}`
+    return Promise.resolve(run()).finally(() => {
+      global.fetch = realFetch
+      oauth.getToken = realGetToken
+    })
+  }
+
+  test('addresses the deployment and carries the resource group', async () => {
+    let seen
+    await withStubs(
+      async (url, init) => { seen = { url, init }; return reply(200, okBody) },
+      async () => {
+        const res = await new llm.AICoreProvider(CONFIG).complete({ messages: [{ role: 'user', content: 'hi' }] })
+        assert.equal(res.provider, 'aicore')
+        assert.equal(res.totalTokens, 49)
+        assert.equal(res.isEstimated, false)
+      }
+    )
+    // The trailing slash on baseUrl must not produce a double slash, and the
+    // path is scoped by deployment id — there is no model name in the body.
+    assert.match(seen.url, /ondemand\.com\/v2\/inference\/deployments\/d1234567890abcde\/chat\/completions\?api-version=/)
+    assert.equal(seen.init.headers['AI-Resource-Group'], 'default', 'AI Core 400s without this, and does not say so')
+    assert.equal(seen.init.headers.Authorization, 'Bearer token-1')
+    assert.equal(JSON.parse(seen.init.body).model, undefined)
+  })
+
+  test('a 401 is retried once with a freshly forced token', async () => {
+    // A token cached across a credential rotation is inside its stated expiry
+    // and still refused; without the retry every request fails until restart.
+    const calls = []
+    await withStubs(
+      async (_url, init) => {
+        calls.push(init.headers.Authorization)
+        return calls.length === 1 ? reply(401, { message: 'unauthorized' }) : reply(200, okBody)
+      },
+      async () => {
+        const res = await new llm.AICoreProvider(CONFIG).complete({ messages: [{ role: 'user', content: 'hi' }] })
+        assert.equal(res.text, 'Two deliveries are open.')
+      }
+    )
+    assert.deepEqual(calls, ['Bearer token-1', 'Bearer token-102'], 'the retry must not reuse the rejected token')
+  })
+
+  test('tools are offered, and tool calls come back parsed', async () => {
+    await withStubs(
+      async (_url, init) => {
+        assert.equal(JSON.parse(init.body).tool_choice, 'auto')
+        return reply(200, {
+          choices: [{ message: { content: '', tool_calls: [{ id: 't1', function: { name: 'query_delivery', arguments: '{"warehouseID":"1000"}' } }] } }],
+          usage: {},
+        })
+      },
+      async () => {
+        const res = await new llm.AICoreProvider(CONFIG).complete({
+          messages: [{ role: 'user', content: 'deliveries?' }],
+          tools: tools.buildDefinitions([{ objectCode: 'DELIVERY', objectName: 'Delivery', keywords: 'delivery' }]),
+        })
+        assert.equal(res.toolCalls[0].name, 'query_delivery')
+        assert.deepEqual(res.toolCalls[0].arguments, { warehouseID: '1000' })
+        assert.equal(res.isEstimated, true, 'no usage block means the count is an estimate')
+      }
+    )
+  })
+
+  test('refuses to construct without the settings it cannot work without', () => {
+    assert.throws(() => new llm.AICoreProvider({ ...CONFIG, deploymentId: '' }), /AICORE_DEPLOYMENT_ID/)
+  })
+
+  test('getProvider wires the env through to a usable client', () => {
+    // The names here are the contract with .env.example and cf set-env. A
+    // mismatch between the two constructs nothing and falls back silently,
+    // which looks identical to "no AI Core configured".
+    const saved = { ...process.env }
+    Object.assign(process.env, {
+      LLM_PROVIDER: 'aicore',
+      AICORE_BASE_URL: CONFIG.baseUrl,
+      AICORE_DEPLOYMENT_ID: CONFIG.deploymentId,
+      AICORE_TOKEN_URL: CONFIG.tokenUrl,
+      AICORE_RESOURCE_GROUP: 'team-a',
+    })
+    try {
+      const p = llm.getProvider({})
+      assert.equal(p.name, 'aicore')
+      assert.equal(p.resourceGroup, 'team-a')
+      assert.match(p.url, /deployments\/d1234567890abcde\/chat\/completions/)
+      assert.equal(p.tokenEndpoint.tokenUrl, `${CONFIG.tokenUrl}/oauth/token`)
+    } finally {
+      for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k]
+      Object.assign(process.env, saved)
+    }
+  })
+
+  test('getProvider falls back rather than half-configuring AI Core', () => {
+    // A route asking for aicore with no env set must not throw at question
+    // time — the offline provider answers and the log says why.
+    const saved = { ...process.env }
+    delete process.env.LLM_PROVIDER
+    delete process.env.AICORE_BASE_URL
+    try {
+      assert.equal(llm.getProvider({ provider: 'aicore' }).name, 'fake')
+    } finally {
+      Object.assign(process.env, saved)
+    }
   })
 })
 

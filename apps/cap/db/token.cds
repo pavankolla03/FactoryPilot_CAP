@@ -95,14 +95,26 @@ entity TokenUsage : cuid {
   latencyMs        : Integer;
 }
 
+/** Where completions are bought. `aicore` runs the model inside the client's
+ *  own AI Core tenant, for clients who will not send operational questions to
+ *  a third party; `fake` is the deterministic offline provider. */
+type LLMProvider : String(40) enum {
+  openrouter;
+  aicore;
+  fake;
+}
+
 /** Which model handles which class of request. Light routing keeps simple
  *  lookups off an expensive model. */
 entity ModelRoute : cuid, managed, ActiveFlag {
   @title: 'Route'
   route     : String(20) not null;  // light | heavy | intent
 
+  /** Constrained on purpose: a typo here does not fail, it silently falls back
+   *  to the offline provider, and the only symptom is answers that quietly
+   *  stopped using the model an operator thought they had configured. */
   @title: 'Provider'
-  provider  : String(40) default 'openrouter';
+  provider  : LLMProvider default 'openrouter';
 
   @title: 'Model'
   model     : String(100) not null;

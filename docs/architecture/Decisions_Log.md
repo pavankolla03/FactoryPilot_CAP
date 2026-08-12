@@ -231,14 +231,15 @@ Do not move day/week/month token product limits solely onto the Integration Suit
 
 ---
 
-## ADR-019 — LangGraph calls LLM only via adapter
+## ADR-019 — The agent loop calls an LLM only through an adapter
 
 | Field | Value |
 | --- | --- |
-| Status | Locked |
-| Decision | LangGraph `LlmContextualize` node calls `LLMProvider.complete(...)`. Implementations: OpenRouter and AI Core. Provider chosen by `llm_provider` config. No direct SDK imports inside graph nodes. |
-| Alternatives | Hard-code OpenRouter in the node; separate graphs per provider; call LLM from CPI |
-| Rationale | Keeps the pipeline provider-agnostic and matches the production-close matrix. |
+| Status | Locked — **amended by ADR-023** (the caller is the CAP agent loop, not a LangGraph node; the decision itself is unchanged) |
+| Decision | Callers use `LLMProvider.complete(...)` and never import a vendor SDK. Implementations live in `apps/cap/srv/lib/llm.js`: `OpenRouterProvider`, `AICoreProvider`, and the deterministic `FakeProvider`. The provider is chosen by `ModelRoute.provider` (constrained to that set) with `LLM_PROVIDER` as an operator override. |
+| Alternatives | Hard-code OpenRouter in the loop; separate loops per provider; call the LLM from CPI |
+| Rationale | Keeps the loop provider-agnostic, and lets a client who will not send operational questions to a third party run the same product against a model in their own AI Core tenant. |
+| Notes | A route naming a provider whose credentials are absent falls back to `FakeProvider` with a one-time warning rather than failing the request — a missing key must not look like an outage. An explicit `LLM_PROVIDER` is an operator's instruction and does throw. |
 
 ---
 

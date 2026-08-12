@@ -484,8 +484,8 @@ Each day: **AM / PM** checklists, **branch**, **files/artifacts**, **ship**, **D
 
 **AM (B)**
 
-- [ ] Finish `AICoreLLMProvider` + VCR/contract tests.  
-- [ ] If trial has AI Core: flip `LLM_PROVIDER=aicore` smoke; else mark checklist “contract-only”.
+- [x] Finish `AICoreLLMProvider` + VCR/contract tests. — `AICoreProvider` in `apps/cap/srv/lib/llm.js`; 6 contract tests pin the deployment path, the `AI-Resource-Group` header, the 401-retry and the env wiring.
+- [x] If trial has AI Core: flip `LLM_PROVIDER=aicore` smoke; else mark checklist “contract-only”. — **contract-only**: the trial subaccount has no AI Core entitlement, so no live call has been made.
 
 **PM (A)**
 

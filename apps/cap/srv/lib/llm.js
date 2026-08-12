@@ -5,6 +5,8 @@
  * and gets back text, tool calls and a token count — nothing provider-shaped.
  */
 
+const oauth = require('./oauth')
+
 class LLMError extends Error {}
 
 /** OpenRouter chat-completions with tool calling. */
@@ -51,24 +53,127 @@ class OpenRouterProvider {
 
     if (!res.ok) throw new LLMError(`OpenRouter returned ${res.status}: ${(await res.text()).slice(0, 300)}`)
 
-    const payload = await res.json()
-    const choice = payload.choices?.[0]
-    if (!choice) throw new LLMError('OpenRouter returned no choices')
-    const usage = payload.usage || {}
+    return parseCompletion(await res.json(), { provider: this.name, model: body.model, vendor: 'OpenRouter' })
+  }
+}
 
-    return {
-      text: choice.message?.content || '',
-      toolCalls: (choice.message?.tool_calls || []).map((tc) => ({
-        id: tc.id,
-        name: tc.function?.name,
-        arguments: safeParse(tc.function?.arguments),
-      })),
+/**
+ * Read a chat-completions response into the shape the agent loop expects.
+ *
+ * Shared because AI Core fronts OpenAI-compatible models and returns the same
+ * envelope — only the transport and auth differ.
+ */
+function parseCompletion(payload, { provider, model, vendor }) {
+  const choice = payload.choices?.[0]
+  if (!choice) throw new LLMError(`${vendor} returned no choices`)
+  const usage = payload.usage || {}
+
+  return {
+    text: choice.message?.content || '',
+    toolCalls: (choice.message?.tool_calls || []).map((tc) => ({
+      id: tc.id,
+      name: tc.function?.name,
+      arguments: safeParse(tc.function?.arguments),
+    })),
+    provider,
+    model: payload.model || model,
+    promptTokens: usage.prompt_tokens || 0,
+    completionTokens: usage.completion_tokens || 0,
+    totalTokens: usage.total_tokens || 0,
+    isEstimated: usage.total_tokens == null,
+  }
+}
+
+/**
+ * SAP AI Core inference (ADR-019).
+ *
+ * Why this exists: OpenRouter sends the client's operational questions to a
+ * third party. A client who will not accept that can run the same product
+ * against a model deployed in their own AI Core tenant, and nothing above this
+ * module changes.
+ *
+ * Three things differ from a plain OpenAI call and each one is a hard failure
+ * if missed: the bearer token comes from the tenant's XSUAA (client
+ * credentials, cached by oauth.js), the path is scoped to a deployment ID
+ * rather than a model name, and every request must carry AI-Resource-Group —
+ * without it AI Core answers 400 with a message that does not mention the
+ * header.
+ */
+class AICoreProvider {
+  constructor({ baseUrl, deploymentId, tokenUrl, resourceGroup = 'default', apiVersion = '2023-05-15', timeoutMs = 30000 }) {
+    const missing = [
+      !baseUrl && 'AICORE_BASE_URL',
+      !deploymentId && 'AICORE_DEPLOYMENT_ID',
+      !tokenUrl && 'AICORE_TOKEN_URL',
+    ].filter(Boolean)
+    if (missing.length) throw new LLMError(`AI Core is not configured: ${missing.join(', ')} not set`)
+
+    Object.assign(this, {
+      baseUrl: baseUrl.replace(/\/$/, ''),
+      deploymentId,
+      resourceGroup,
+      apiVersion,
+      timeoutMs,
+    })
+    this.name = 'aicore'
+    // oauth.js keys its token cache by ID and reads the client id/secret from
+    // AICORE_CLIENT_ID / AICORE_CLIENT_SECRET, same as every other endpoint —
+    // the value never appears in configuration.
+    this.tokenEndpoint = {
+      ID: `aicore:${deploymentId}`,
+      tokenUrl: tokenUrl.replace(/\/$/, '').endsWith('/oauth/token') ? tokenUrl : `${tokenUrl.replace(/\/$/, '')}/oauth/token`,
+      credentialRef: 'AICORE',
+      timeoutMs,
+    }
+  }
+
+  get url() {
+    return `${this.baseUrl}/v2/inference/deployments/${this.deploymentId}/chat/completions?api-version=${this.apiVersion}`
+  }
+
+  async complete({ messages, tools, maxTokens = 800, temperature = 0.2 }) {
+    const body = { messages, max_tokens: maxTokens, temperature }
+    if (tools?.length) {
+      body.tools = tools
+      body.tool_choice = 'auto'
+    }
+
+    // Retry once on 401: a token cached across a rotation is still within its
+    // stated expiry but no longer accepted.
+    let res = await this.#post(body, await oauth.getToken(this.tokenEndpoint))
+    if (res.status === 401) {
+      res = await this.#post(body, await oauth.getToken(this.tokenEndpoint, { force: true }))
+    }
+
+    if (!res.ok) throw new LLMError(`AI Core returned ${res.status}: ${(await res.text()).slice(0, 300)}`)
+
+    return parseCompletion(await res.json(), {
       provider: this.name,
-      model: payload.model || body.model,
-      promptTokens: usage.prompt_tokens || 0,
-      completionTokens: usage.completion_tokens || 0,
-      totalTokens: usage.total_tokens || 0,
-      isEstimated: usage.total_tokens == null,
+      model: this.deploymentId,
+      vendor: 'AI Core',
+    })
+  }
+
+  async #post(body, token) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs)
+    try {
+      return await fetch(this.url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          'AI-Resource-Group': this.resourceGroup,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
+    } catch (err) {
+      throw new LLMError(
+        err.name === 'AbortError' ? `AI Core timed out after ${this.timeoutMs}ms` : `AI Core request failed: ${err.message}`
+      )
+    } finally {
+      clearTimeout(timer)
     }
   }
 }
@@ -215,6 +320,23 @@ function safeParse(value) {
 function getProvider(route = {}) {
   const explicit = process.env.LLM_PROVIDER
   const hasOpenRouterKey = Boolean(process.env.OPENROUTER_API_KEY)
+  const hasAICore = Boolean(process.env.AICORE_BASE_URL && process.env.AICORE_DEPLOYMENT_ID && process.env.AICORE_TOKEN_URL)
+
+  if (explicit === 'aicore' || (!explicit && route.provider === 'aicore' && hasAICore)) {
+    return new AICoreProvider({
+      baseUrl: process.env.AICORE_BASE_URL,
+      deploymentId: route.model || process.env.AICORE_DEPLOYMENT_ID,
+      tokenUrl: process.env.AICORE_TOKEN_URL,
+      resourceGroup: process.env.AICORE_RESOURCE_GROUP || 'default',
+    })
+  }
+
+  if (!explicit && route.provider === 'aicore' && !hasAICore) {
+    warnOnce(
+      '[llm] ModelRoute asks for aicore but AICORE_BASE_URL / AICORE_DEPLOYMENT_ID / AICORE_TOKEN_URL are not all set — ' +
+        'using the offline provider. Answers are computed from real tool output, but no model is called.'
+    )
+  }
 
   if (explicit === 'openrouter' || (!explicit && route.provider === 'openrouter' && hasOpenRouterKey)) {
     return new OpenRouterProvider({
@@ -224,17 +346,22 @@ function getProvider(route = {}) {
   }
 
   if (!explicit && route.provider === 'openrouter' && !hasOpenRouterKey) {
-    // Say it once per process rather than per request.
-    if (!getProvider._warned) {
-      console.warn(
-        '[llm] ModelRoute asks for openrouter but OPENROUTER_API_KEY is unset — using the offline provider. ' +
-          'Answers are computed from real tool output, but no model is called.'
-      )
-      getProvider._warned = true
-    }
+    warnOnce(
+      '[llm] ModelRoute asks for openrouter but OPENROUTER_API_KEY is unset — using the offline provider. ' +
+        'Answers are computed from real tool output, but no model is called.'
+    )
   }
 
   return new FakeProvider()
 }
 
-module.exports = { LLMError, OpenRouterProvider, FakeProvider, getProvider, safeParse }
+/** Once per process, not once per request — this is config, and it does not
+ *  change between two questions asked a second apart. */
+const warned = new Set()
+function warnOnce(message) {
+  if (warned.has(message)) return
+  warned.add(message)
+  console.warn(message)
+}
+
+module.exports = { LLMError, OpenRouterProvider, AICoreProvider, FakeProvider, getProvider, safeParse }
