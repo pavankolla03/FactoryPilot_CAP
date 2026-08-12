@@ -83,7 +83,10 @@
     const body = rows.map((r) =>
       `<tr>${columns.map((c) => `<td class="${c.num ? "num" : ""}">${c.render ? c.render(r) : esc(r[c.key] ?? "—")}</td>`).join("")}</tr>`
     ).join("");
-    el.innerHTML = `<table class="fd-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+    // Cells are nowrap, so a table with more columns than fit simply runs off
+    // the card and the last column becomes unreachable — "avg ms" was invisible
+    // on a laptop. Let the table scroll inside its own card instead.
+    el.innerHTML = `<div class="fd-scroll"><table class="fd-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
   }
 
   const fail = (el, err) =>

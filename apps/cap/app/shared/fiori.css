@@ -171,8 +171,11 @@ body {
 
 .fd-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); gap: 0.75rem; }
 .fd-tile {
-  display: flex; flex-direction: column; justify-content: space-between;
-  min-height: 11rem; padding: 1rem;
+  /* Fiori's 11rem GenericTile is sized for a tile with a chart in it. These
+     carry a single number, so that height reads as a rendering fault — four
+     KPIs filled an entire viewport with whitespace. */
+  display: flex; flex-direction: column; justify-content: space-between; gap: 0.75rem;
+  min-height: 7rem; padding: 1rem;
   background: var(--sapTileBackground);
   border: 1px solid var(--sapList_BorderColor);
   border-radius: var(--sapElement_BorderCornerRadius);
