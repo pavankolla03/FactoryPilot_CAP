@@ -61,6 +61,11 @@ function buildDefinitions(businessObjects) {
         properties: {
           warehouseID: { type: 'string', description: 'Shipping point / plant, e.g. 1000' },
           datePreset: { type: 'string', enum: ['today', 'yesterday', 'tomorrow'], description: 'Which day to report on' },
+          // Without this the model has nowhere to put a material the user
+          // named, so "how much stock of P123" silently reported every
+          // material. Clauses referencing it are dropped when it is absent, so
+          // the unfiltered question still works.
+          materialID: { type: 'string', description: 'Material number, when the question names one, e.g. P123' },
         },
         required: [],
       },

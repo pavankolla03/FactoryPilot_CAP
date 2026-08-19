@@ -166,6 +166,69 @@ describe('offline provider tool choice', () => {
     assert.match(res.text, /could not reach/i)
   })
 
+  test('a material number keeps the case the user typed', async () => {
+    // The question is lowercased for keyword matching. Extracting the material
+    // from that copy yields "p123", which matches no row in S/4 — the question
+    // then answers "no records" for a material that is plainly in stock.
+    const definitions = tools.buildDefinitions([
+      { objectCode: 'MATERIAL_STOCK', objectName: 'Material Stock', keywords: 'stock,material stock' },
+    ])
+    const res = await new llm.FakeProvider().complete({
+      messages: [{ role: 'user', content: 'How much stock do we have for P123?' }],
+      tools: definitions,
+    })
+    assert.equal(res.toolCalls[0].arguments.materialID, 'P123')
+  })
+
+  test('a read with no material named is not narrowed to one', async () => {
+    // Defaulting materialID on a read turns "how much stock do we have?" into
+    // "how much P123 do we have?" — an authoritative-looking answer covering a
+    // fraction of the data.
+    const definitions = tools.buildDefinitions([
+      { objectCode: 'MATERIAL_STOCK', objectName: 'Material Stock', keywords: 'stock,material stock' },
+    ])
+    const res = await new llm.FakeProvider().complete({
+      messages: [{ role: 'user', content: 'How much stock do we have?' }],
+      tools: definitions,
+    })
+    assert.equal(res.toolCalls[0].arguments.materialID, undefined)
+
+    // The write tool still needs one: materialID is required there, so a
+    // missing value cannot be expressed and the confirmation card needs it.
+    const write = await new llm.FakeProvider().complete({
+      messages: [{ role: 'user', content: 'Move 40 units to shipping in warehouse 1000' }],
+      tools: definitions,
+    })
+    assert.equal(write.toolCalls[0].name, 'move_stock')
+    assert.ok(write.toolCalls[0].arguments.materialID, 'a write must carry a material')
+  })
+
+  test('each business object is summarised from its own fields', async () => {
+    // Every object except DELIVERY used to report "N unknown", because the
+    // summariser only knew the delivery status field.
+    const cases = [
+      [{ Material: 'P123', MaterialName: 'Pump', Plant: '1000', MaterialBaseUnit: 'EA',
+         MatlStkQtyInMatlBaseUnitUnrestricted: '600', MatlStkQtyInMatlBaseUnitBlocked: '10',
+         MatlStkQtyInMatlBaseUnitInQualityInsp: '5' }, /600 units are unrestricted/],
+      [{ GoodsMovementType: '101', ReversedMaterialDocument: '' }, /goods receipts/],
+      [{ PhysicalInventoryDocument: '1', PhysInventoryCountIsCompleted: false, PhysicalInventoryIsPosted: false }, /still to count/],
+      [{ PurchaseOrder: '45', SupplierName: 'Nordic Steel AB', PurchaseOrderNetAmount: '1000',
+         PurchasingCompletenessStatus: '', PurchasingDocumentDeletionCode: '', DocumentCurrency: 'EUR' }, /still open/],
+    ]
+    for (const [row, expected] of cases) {
+      const res = await new llm.FakeProvider().complete({
+        messages: [
+          { role: 'user', content: 'report' },
+          { role: 'assistant', content: null, tool_calls: [{ id: 'c1' }] },
+          { role: 'tool', tool_call_id: 'c1', content: JSON.stringify({ rows: [row] }) },
+        ],
+        tools: [],
+      })
+      assert.match(res.text, expected)
+      assert.doesNotMatch(res.text, /unknown/, `${Object.keys(row)[0]} fell through to the status tally`)
+    }
+  })
+
   test('picks the read tool for a read question', async () => {
     const definitions = tools.buildDefinitions([
       { objectCode: 'DELIVERY', objectName: 'Outbound Delivery', keywords: 'delivery,deliveries,shipping' },

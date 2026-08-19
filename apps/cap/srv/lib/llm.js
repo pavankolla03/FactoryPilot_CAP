@@ -200,7 +200,8 @@ class FakeProvider {
     const lastUserIdx = messages.map((m) => m.role).lastIndexOf('user')
     const turn = lastUserIdx === -1 ? messages : messages.slice(lastUserIdx)
 
-    const question = (messages[lastUserIdx]?.content || '').toLowerCase()
+    const asked = messages[lastUserIdx]?.content || ''
+    const question = asked.toLowerCase()
     const alreadyCalled = turn.some((m) => m.role === 'tool')
 
     const promptTokens = Math.ceil(messages.reduce((n, m) => n + (m.content?.length || 0), 0) / 4)
@@ -210,7 +211,7 @@ class FakeProvider {
       if (picked) {
         return {
           text: '',
-          toolCalls: [{ id: `call_${picked.function.name}`, name: picked.function.name, arguments: inferArgs(question, picked) }],
+          toolCalls: [{ id: `call_${picked.function.name}`, name: picked.function.name, arguments: inferArgs(question, picked, asked) }],
           provider: this.name,
           model: this.model,
           promptTokens,
@@ -260,7 +261,12 @@ function pickTool(question, tools) {
   return best?.tool || null
 }
 
-function inferArgs(question, tool) {
+/**
+ * `question` is lowercased for keyword matching; `original` is what the user
+ * actually typed. Material numbers are case-sensitive in S/4, so extracting
+ * them from the lowercased copy produced "p123", which matches no row.
+ */
+function inferArgs(question, tool, original = question) {
   const args = {}
   const props = tool.function?.parameters?.properties || {}
   if ('warehouseID' in props) {
@@ -270,7 +276,16 @@ function inferArgs(question, tool) {
     args.datePreset = /yesterday/.test(question) ? 'yesterday' : /tomorrow/.test(question) ? 'tomorrow' : 'today'
   }
   if ('quantity' in props) args.quantity = Number(question.match(/\b(\d+)\s*(units?|pcs)?\b/)?.[1] || 1)
-  if ('materialID' in props) args.materialID = question.match(/\b([A-Z]\d{2,})\b/i)?.[1] || 'P123'
+
+  if ('materialID' in props) {
+    const found = original.match(/\b([A-Z]{1,3}\d{2,})\b/)?.[1]
+    // Only default for the write tool, where materialID is required and a
+    // missing one cannot be expressed. Defaulting on a read silently narrows
+    // "how much stock do we have?" to one material nobody asked about, and the
+    // answer looks authoritative while covering a fraction of the data.
+    if (found) args.materialID = found
+    else if (tool.function?.parameters?.required?.includes('materialID')) args.materialID = 'P123'
+  }
   return args
 }
 
@@ -285,6 +300,12 @@ function summarise(raw) {
   if (!rows.length) return 'No records matched that question for the requested period and location.'
 
   const counts = {}
+  // Shape-detect the object rather than counting a status field that only
+  // deliveries have — every other object was reporting "N unknown", which is a
+  // true statement that answers nothing.
+  const shaped = summariseByShape(rows)
+  if (shaped) return shaped
+
   for (const row of rows) {
     const key = String(row.OverallGoodsMovementStatus ?? row.status ?? 'unknown')
     counts[key] = (counts[key] || 0) + 1
@@ -295,6 +316,86 @@ function summarise(raw) {
     .map(([code, n]) => `${n} ${labels[code] || code}`)
     .join(', ')
   return `You have ${rows.length} record(s) matching that question. Breakdown by status: ${parts}.`
+}
+
+const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0)
+const sum = (rows, field) => rows.reduce((n, r) => n + num(r[field]), 0)
+const round = (n) => Math.round(n * 100) / 100
+
+/** Tally a field into "3 A, 2 B" ordered by frequency. */
+function tally(rows, pick) {
+  const counts = {}
+  for (const r of rows) {
+    const k = pick(r)
+    if (k) counts[k] = (counts[k] || 0) + 1
+  }
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])
+}
+
+/**
+ * A readable sentence per S/4 object, chosen by the fields present.
+ *
+ * These are the same numbers a real model would be asked to summarise, so the
+ * offline provider stays a faithful stand-in rather than a placeholder — the
+ * product is demonstrable with no API key at all.
+ */
+function summariseByShape(rows) {
+  const r0 = rows[0] || {}
+
+  if ('MatlStkQtyInMatlBaseUnitUnrestricted' in r0) {
+    const free = sum(rows, 'MatlStkQtyInMatlBaseUnitUnrestricted')
+    const blocked = sum(rows, 'MatlStkQtyInMatlBaseUnitBlocked')
+    const quality = sum(rows, 'MatlStkQtyInMatlBaseUnitInQualityInsp')
+    const materials = new Set(rows.map((r) => r.Material)).size
+    const plants = new Set(rows.map((r) => r.Plant)).size
+    const top = [...rows].sort(
+      (a, b) => num(b.MatlStkQtyInMatlBaseUnitUnrestricted) - num(a.MatlStkQtyInMatlBaseUnitUnrestricted)
+    )[0]
+    return (
+      `${round(free)} units are unrestricted across ${materials} material(s) in ${plants} plant(s), ` +
+      `with ${round(quality)} in quality inspection and ${round(blocked)} blocked. ` +
+      `Largest single holding: ${top.Material}${top.MaterialName ? ` (${top.MaterialName})` : ''} ` +
+      `at ${round(num(top.MatlStkQtyInMatlBaseUnitUnrestricted))} ${top.MaterialBaseUnit || ''} in plant ${top.Plant}.`
+    )
+  }
+
+  if ('GoodsMovementType' in r0) {
+    const labels = { 101: 'goods receipts', 261: 'issues to order', 311: 'transfers', 601: 'deliveries' }
+    const reversed = rows.filter((r) => r.ReversedMaterialDocument).length
+    const parts = tally(rows, (r) => r.GoodsMovementType)
+      .map(([code, n]) => `${n} ${labels[code] || `type ${code}`}`)
+      .join(', ')
+    return (
+      `${rows.length} goods movement(s): ${parts}.` +
+      (reversed ? ` ${reversed} of them were reversed and should be excluded from any net figure.` : '')
+    )
+  }
+
+  if ('PhysicalInventoryDocument' in r0) {
+    const counted = rows.filter((r) => r.PhysInventoryCountIsCompleted === true || r.PhysInventoryCountIsCompleted === 'true').length
+    const posted = rows.filter((r) => r.PhysicalInventoryIsPosted === true || r.PhysicalInventoryIsPosted === 'true').length
+    const open = rows.length - counted
+    return (
+      `${rows.length} physical inventory document(s): ${open} still to count, ${counted} counted, ` +
+      `${posted} posted. ${open ? `The ${open} uncounted document(s) are what block period close.` : 'Nothing is outstanding.'}`
+    )
+  }
+
+  if ('PurchaseOrder' in r0) {
+    const deleted = rows.filter((r) => r.PurchasingDocumentDeletionCode).length
+    const live = rows.filter((r) => !r.PurchasingDocumentDeletionCode)
+    const open = live.filter((r) => !r.PurchasingCompletenessStatus)
+    const value = sum(open, 'PurchaseOrderNetAmount')
+    const bySupplier = tally(open, (r) => r.SupplierName || r.Supplier)
+    return (
+      `${open.length} of ${live.length} purchase order(s) are still open, worth ${round(value)} ` +
+      `${r0.DocumentCurrency || ''}`.trim() +
+      `.${bySupplier.length ? ` Most are with ${bySupplier[0][0]} (${bySupplier[0][1]}).` : ''}` +
+      (deleted ? ` ${deleted} deleted order(s) were excluded.` : '')
+    )
+  }
+
+  return null
 }
 
 function safeParse(value) {

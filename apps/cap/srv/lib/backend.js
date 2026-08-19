@@ -78,15 +78,54 @@ function applyFilter(rows, filter) {
   return out
 }
 
+/**
+ * Which fixture answers which entity set.
+ *
+ * Without this the mock replayed outbound deliveries for every question, so a
+ * stock question offline came back with delivery rows — wrong data presented
+ * as an answer, which is worse than no answer.
+ */
+const FIXTURES = {
+  A_OutbDeliveryHeader: FIXTURE,
+  A_MatlStkInAcctMod: fixture('material_stock'),
+  A_MaterialDocumentHeader: fixture('material_document'),
+  A_PhysInventoryDocHeader: fixture('physical_inventory'),
+  A_PurchaseOrder: fixture('purchasing'),
+}
+
+/** Read once: flipping this per-request would let a demo half-switch mid-run. */
+const DEMO_MODE = ['1', 'true', 'yes'].includes(String(process.env.FACTORYPILOT_DEMO_MODE || '').toLowerCase())
+
+function fixture(dir) {
+  return path.join(__dirname, '../../../../docs/api/hub', dir, 'sample_response.synthetic.json')
+}
+
 class MockBackend {
-  constructor(fixturePath = FIXTURE) {
+  constructor(fixturePath) {
     this.name = 'mock'
-    this.fixturePath = fixturePath
+    this.fixturePath = fixturePath || null
   }
 
-  load() {
-    if (!fs.existsSync(this.fixturePath)) throw new BackendError(`Fixture not found: ${this.fixturePath}`, 503)
-    const body = JSON.parse(fs.readFileSync(this.fixturePath, 'utf-8'))
+  /** An entity set with no fixture is refused rather than answered from the
+   *  wrong file — a demo that says "I have no fixture for that" is recoverable,
+   *  an answer built from another object's rows is not. */
+  resolve(entitySet) {
+    if (this.fixturePath) return this.fixturePath
+    const found = entitySet && FIXTURES[entitySet]
+    if (!found) {
+      throw new BackendError(
+        `No mock fixture for entity set "${entitySet || '(none)'}". ` +
+          `Available: ${Object.keys(FIXTURES).join(', ')}. Run scripts/make-demo-fixtures.js to regenerate.`,
+        503
+      )
+    }
+    return found
+  }
+
+  load(entitySet) {
+    const fixturePath = this.resolve(entitySet)
+    if (!fs.existsSync(fixturePath)) throw new BackendError(`Fixture not found: ${fixturePath}`, 503)
+    const body = JSON.parse(fs.readFileSync(fixturePath, 'utf-8'))
     let rows = extractRows(body)
     // The fixture was generated on a fixed day; shift it so "today" questions
     // keep returning rows however old the file is.
@@ -100,7 +139,7 @@ class MockBackend {
 
   async query({ filter, select, top = 200, apiVersion = 'v2', entitySet }) {
     const started = Date.now()
-    let rows = applyFilter(this.load(), filter)
+    let rows = applyFilter(this.load(entitySet), filter)
     if (select) {
       const wanted = select.split(',').map((s) => s.trim()).filter(Boolean)
       rows = rows.map((r) => Object.fromEntries(wanted.map((k) => [k, r[k]])))
@@ -304,6 +343,23 @@ class IflowBackend {
  * never stored.
  */
 function forEndpoint(endpoint) {
+  // One switch for a demo that must not depend on Integration Suite, S/4 and a
+  // set of credentials all being healthy at the same moment. Every endpoint
+  // answers from fixtures; nothing else in the product changes, so the agent
+  // loop, quota, cache, approval and audit paths are all still exercised for
+  // real. Deliberately loud, because an operator who leaves it set in
+  // production would otherwise be serving fixtures to real users.
+  if (DEMO_MODE) {
+    if (!forEndpoint._announced) {
+      console.warn(
+        '[backend] FACTORYPILOT_DEMO_MODE is on — every endpoint is answering from synthetic fixtures. ' +
+          'No S/4, iFlow or Hub call will be made. Unset it to reach real systems.'
+      )
+      forEndpoint._announced = true
+    }
+    return new MockBackend()
+  }
+
   const kind = endpoint?.kind || 'mock'
   const secret = endpoint?.credentialRef ? process.env[endpoint.credentialRef] : undefined
   const timeoutMs = endpoint?.timeoutMs
