@@ -70,10 +70,11 @@
     </div>
   </section>
 
+  <div id="demo-banner" hidden></div>
   <div id="thread"></div>
 </main>
 
-<footer class="fd-footer">Answers come from live S/4HANA data via the registered business objects. Writes always require confirmation.</footer>
+<footer class="fd-footer" id="provenance">Answers come from live S/4HANA data via the registered business objects. Writes always require confirmation.</footer>
 
 <script>
 (() => {
@@ -231,11 +232,39 @@
     } catch { /* the usage chip is decoration; never block the page on it */ }
   }
 
+  /**
+   * Say where the data actually comes from.
+   *
+   * The footer claimed live S/4HANA data unconditionally. In demo mode that is
+   * false — every answer is replayed from a fixture — and it is exactly the
+   * claim someone in the room might read off the screen.
+   */
+  async function declareProvenance() {
+    try {
+      const res = await fetch("../../insights/health()");
+      if (!res.ok) return;
+      const raw = await res.json();
+      const h = JSON.parse(raw.value ?? raw);
+      if (!h.demoMode) return;
+
+      $("provenance").textContent =
+        "Demo mode: answers are replayed from synthetic fixtures, not a live S/4HANA system. Writes always require confirmation.";
+      const banner = $("demo-banner");
+      banner.innerHTML =
+        '<div class="fd-message-strip fd-message-strip--information">' +
+        '<span><span class="fd-message-strip__title">Demo mode.</span> ' +
+        'Answers come from synthetic fixtures — no S/4, iFlow or credential is involved. ' +
+        'Everything else, including approvals and the audit trail, is running for real.</span></div>';
+      banner.hidden = false;
+    } catch { /* if we cannot tell, leave the default text rather than guess */ }
+  }
+
   askEl.addEventListener("click", ask);
   qEl.addEventListener("keydown", (e) => { if (e.key === "Enter") ask(); });
   document.querySelectorAll("button[data-q]").forEach((c) =>
     c.addEventListener("click", () => { qEl.value = c.dataset.q; ask(); }));
   refreshUsage();
+  declareProvenance();
 })();
 </script>
 </body>

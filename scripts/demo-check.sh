@@ -7,8 +7,9 @@
 # and the exit code is non-zero only when something would actually break the
 # demo — a WARN is something you can live with.
 #
-#   ./scripts/demo-check.sh            # local demo path
-#   ./scripts/demo-check.sh --remote   # also check the deployed BTP app
+#   ./scripts/demo-check.sh                # local demo path
+#   ./scripts/demo-check.sh --remote       # also check the deployed BTP app
+#   ./scripts/demo-check.sh --reset-quota  # clear the local demo user's usage first
 #
 set -uo pipefail
 
@@ -16,7 +17,26 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CAP="$ROOT/apps/cap"
 PORT="${DEMO_PORT:-4099}"
 REMOTE=0
-[ "${1:-}" = "--remote" ] && REMOTE=1
+RESET=0
+for arg in "$@"; do
+  case "$arg" in
+    --remote)      REMOTE=1 ;;
+    --reset-quota) RESET=1 ;;
+  esac
+done
+
+# Rehearsing spends the same daily allowance as the demo. Two or three run
+# throughs of a seven-question script is most of a 50/day limit, and the
+# symptom is every question returning RATE_LIMITED — mid-demo, with no warning
+# that it was coming. Local database only; this never touches a deployed one.
+if [ "$RESET" -eq 1 ]; then
+  node -e "
+    const {DatabaseSync}=require('node:sqlite');
+    const db=new DatabaseSync('$CAP/db/factorypilot.db');
+    const n=db.prepare('DELETE FROM factorypilot_token_Consumption').run();
+    console.log('  Cleared ' + n.changes + ' local usage row(s).');
+  " 2>/dev/null || echo "  Could not clear usage — is the database deployed?"
+fi
 
 fails=0
 warns=0
@@ -73,6 +93,22 @@ if [ "$up" -ne 1 ]; then
 else
   pass "server started on port $PORT"
 
+  # Check headroom before spending any of it, so the report says "you will run
+  # out" rather than showing seven confusing RATE_LIMITED failures.
+  quota=$(curl -s -m 15 "http://localhost:$PORT/odata/token/myUsage()" | node -e "
+    let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
+      try{ const u=JSON.parse(s);
+        if(u.limitDay==null) return console.log('NONE|no daily limit configured');
+        const left=u.limitDay-u.usedDay;
+        console.log((left<9?'FAIL|':left<20?'WARN|':'PASS|')+left+' of '+u.limitDay+' requests left today for \"'+u.userID+'\"');
+      }catch(e){console.log('WARN|could not read the usage endpoint')}})" 2>/dev/null)
+  qstate=${quota%%|*}; qdetail=${quota#*|}
+  case "$qstate" in
+    PASS|NONE) pass "quota headroom — $qdetail" ;;
+    WARN) warn "quota headroom — $qdetail" "a full run-through spends about 9; reset with ./scripts/demo-check.sh --reset-quota" ;;
+    *)    fail "quota headroom — $qdetail" "not enough for one run-through: ./scripts/demo-check.sh --reset-quota" ;;
+  esac
+
   # Each of these is a line in the demo script. A question that answers
   # ungrounded is worse than one that fails: it looks fine on stage.
   while IFS='|' read -r question expected label; do
@@ -107,6 +143,29 @@ Which physical inventory counts are still open?|SUCCESS|physical inventory
 What purchase orders are open?|SUCCESS|purchase orders
 Move 250 units of P123 to shipping in warehouse 1000|AWAITING_APPROVAL|write proposes a confirmation
 QUESTIONS
+
+  # Proposing a write and approving it are different code paths with different
+  # authority checks. Checking only the proposal is how a demo reaches the last
+  # click of its most important moment and is refused SCOPE_DENIED.
+  approve=$(curl -s -m 30 -X POST "http://localhost:$PORT/insights/ask" \
+    -H 'Content-Type: application/json' \
+    -d '{"question":"Move 250 units of P123 to shipping in warehouse 1000","warehouseID":"1000","channel":"WEB","conversationID":"preflight-approve"}' \
+    | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
+        try{console.log(JSON.parse(s).pendingAction?.actionID||'')}catch(e){console.log('')}})")
+  if [ -z "$approve" ]; then
+    fail "approving a write — no confirmation card to approve" "check the write path"
+  else
+    verdict=$(curl -s -m 30 -X POST "http://localhost:$PORT/insights/confirmAction" \
+      -H 'Content-Type: application/json' -d "{\"actionID\":\"$approve\",\"approve\":true}" \
+      | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
+          try{ const r=JSON.parse(s);
+            if(r.status==='SUCCESS') return console.log('PASS|'+String(r.answer||'').replace(/\n/g,' ').slice(0,64));
+            console.log('FAIL|'+(r.errorCode||r.error?.message||r.status)+': '+String(r.message||'').slice(0,70));
+          }catch(e){console.log('FAIL|unparseable: '+s.slice(0,80))}})")
+    state=${verdict%%|*}; detail=${verdict#*|}
+    if [ "$state" = "PASS" ]; then pass "approving the write — $detail"
+    else fail "approving the write — $detail" "the caller needs write scope on the warehouse, or the AdminMaintain role"; fi
+  fi
 
   for page in insights admin dashboard; do
     code=$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT/$page/index.html")

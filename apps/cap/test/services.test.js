@@ -569,6 +569,50 @@ describe('InsightsService agent loop', () => {
     assert.equal(replay.errorCode, 'ACTION_EXPIRED')
   })
 
+  test('a caller who has never been seen is provisioned, but granted nothing', async () => {
+    // Identity comes from the token, so every real user arrives with no row.
+    // They were invisible in the Admin console, which is where someone has to
+    // go to grant them warehouse scope — a deadlock.
+    const NEW = { auth: { username: 'newstarter', password: 'newstarter' } }
+    await POST('/insights/ask', { question: 'How many deliveries today?', warehouseID: '1000' }, NEW)
+
+    const { data: users } = await GET("/odata/admin/Users?$filter=userID eq 'newstarter'", ADMIN)
+    assert.equal(users.value.length, 1, 'first question must make the caller visible to an administrator')
+    assert.equal(users.value[0].isAdmin, false, 'being seen must not confer admin')
+
+    // Visible, but still powerless — a write is refused until scope is granted.
+    const { data: proposed } = await POST(
+      '/insights/ask',
+      { question: 'Move 15 units of P123 from packing to shipping in warehouse 1000', warehouseID: '1000' },
+      NEW
+    )
+    const { data: denied } = await POST(
+      '/insights/confirmAction',
+      { actionID: proposed.pendingAction.actionID, approve: true },
+      NEW
+    )
+    assert.equal(denied.errorCode, 'SCOPE_DENIED')
+  })
+
+  test('a platform administrator is not locked out of their own system', async () => {
+    // This is what broke the end-to-end demo: the BTP role collection grants
+    // OAuth scopes but creates no row here, so canWrite refused every write —
+    // including for the person who administers the subaccount, whose only
+    // remedy was editing a table they could not reach.
+    const NEWADMIN = { auth: { username: 'newadmin', password: 'newadmin' } }
+    const { data: proposed } = await POST(
+      '/insights/ask',
+      { question: 'Move 25 units of P123 from packing to shipping in warehouse 1000', warehouseID: '1000' },
+      NEWADMIN
+    )
+    const { data: done } = await POST(
+      '/insights/confirmAction',
+      { actionID: proposed.pendingAction.actionID, approve: true },
+      NEWADMIN
+    )
+    assert.equal(done.status, 'SUCCESS', done.message || '')
+  })
+
   test('rejecting changes nothing', async () => {
     const { data: proposed } = await POST(
       '/insights/ask',

@@ -5,9 +5,20 @@ const cds = require('@sap/cds')
  * without asking a human?
  */
 
-/** Admins bypass; everyone else needs an explicit `write` scope on that
- *  warehouse. A `read` scope is not a weaker write — it is not a write. */
-async function canWrite(userID, warehouseID) {
+/**
+ * Admins bypass; everyone else needs an explicit `write` scope on that
+ * warehouse. A `read` scope is not a weaker write — it is not a write.
+ *
+ * `isPlatformAdmin` comes from the caller's token, not from the database. Who
+ * administers the system is decided in BTP by whoever owns the subaccount, and
+ * that assignment is the authority — a platform administrator who has just been
+ * granted the role collection has no row here yet, and locking them out of
+ * their own system until someone edits a table they cannot reach is a deadlock.
+ * The stored `isAdmin` flag stays as a way to mark an admin who has no BTP role.
+ */
+async function canWrite(userID, warehouseID, { isPlatformAdmin = false } = {}) {
+  if (isPlatformAdmin) return true
+
   const { User, UserScope } = cds.entities('factorypilot.admin')
   const user = await SELECT.one.from(User).where({ userID, isActive: true })
   if (!user) return false
@@ -16,6 +27,32 @@ async function canWrite(userID, warehouseID) {
     .from(UserScope)
     .where({ user_ID: user.ID, warehouseID, accessLevel: 'write' })
   return Boolean(scope)
+}
+
+/**
+ * Make sure an authenticated caller exists as a row.
+ *
+ * Identity comes from the token, so the first time anyone signs in they have no
+ * User record — which made them invisible in the Admin console and silently
+ * denied every write, with no way for an administrator to find them and grant
+ * scope. Provisioning on first sight is deliberately powerless: no admin flag
+ * and no warehouse scopes, so appearing in the list grants nothing. It only
+ * means an administrator can now see who is asking and decide.
+ */
+async function ensureUser(userID, { displayName, defaultWarehouse } = {}) {
+  if (!userID) return null
+  const { User } = cds.entities('factorypilot.admin')
+  const existing = await SELECT.one.from(User).where({ userID })
+  if (existing) return existing
+
+  await INSERT.into(User).entries({
+    userID,
+    displayName: displayName || userID,
+    defaultWarehouse: defaultWarehouse || '',
+    isAdmin: false,
+    isActive: true,
+  })
+  return SELECT.one.from(User).where({ userID })
 }
 
 const MOST_RESTRICTIVE = {
@@ -111,4 +148,4 @@ async function shouldAutoApprove({ userID, warehouseID, args, recentQuantities, 
   return { autoApprove: true, policy, anomaly, reason: 'within policy' }
 }
 
-module.exports = { canWrite, effectivePolicy, detectAnomaly, shouldAutoApprove }
+module.exports = { canWrite, ensureUser, effectivePolicy, detectAnomaly, shouldAutoApprove }

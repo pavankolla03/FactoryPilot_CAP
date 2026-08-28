@@ -158,7 +158,15 @@ async function recordTokenUsage({ userID, conversationID, usage, latencyMs }) {
 }
 
 module.exports = cds.service.impl(function () {
-  this.on('health', async () => 'ok')
+  // Reports how this instance is actually running, so the page can say so
+  // rather than claiming live S/4 data while replaying fixtures.
+  this.on('health', async () =>
+    JSON.stringify({
+      status: 'ok',
+      demoMode: ['1', 'true', 'yes'].includes(String(process.env.FACTORYPILOT_DEMO_MODE || '').toLowerCase()),
+      provider: process.env.LLM_PROVIDER || (process.env.OPENROUTER_API_KEY ? 'openrouter' : 'fake'),
+    })
+  )
 
   this.on('ask', async (req) => {
     const startedAt = Date.now()
@@ -168,6 +176,11 @@ module.exports = cds.service.impl(function () {
     const { question, channel, warehouseID } = req.data
 
     if (!question || !question.trim()) return req.reject(400, 'question is required')
+
+    // Identity comes from the token, so a first-time caller has no row and was
+    // invisible to whoever has to grant them warehouse scope. Provisioning here
+    // grants nothing — it only puts them in the Admin list to be decided on.
+    await policy.ensureUser(userID, { displayName: req.user.attr?.name, defaultWarehouse: warehouseID })
 
     const { businessObjects, route, orgSettings } = await loadContext()
     if (!businessObjects.length) {
@@ -452,7 +465,7 @@ module.exports = cds.service.impl(function () {
       }
     }
 
-    if (!(await policy.canWrite(userID, action.warehouseID))) {
+    if (!(await policy.canWrite(userID, action.warehouseID, { isPlatformAdmin: req.user.is('AdminMaintain') }))) {
       await UPDATE(PendingAction).set({ status: 'REJECTED', resolvedAt: new Date() }).where({ ID: actionID })
       return {
         status: 'ERROR',

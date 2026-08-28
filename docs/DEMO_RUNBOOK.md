@@ -11,11 +11,21 @@ is not available on the day.
 ./scripts/demo-check.sh
 ```
 
-It checks the toolchain, the seed data, the fixtures, the test suite, all seven
-demo questions end to end, and every page. `PASS` / `WARN` / `FAIL` with the fix
+It checks the toolchain, the seed data, the fixtures, the test suite, quota
+headroom, all seven demo questions end to end, **approving a write**, and every
+page. `PASS` / `WARN` / `FAIL` with the fix
 next to each one. Add `--remote` to check the deployed BTP app as well.
 
 Exit code is non-zero only when something would actually break the demo.
+
+**Rehearsing spends the demo's quota.** Each full run-through costs about nine
+requests against a 50/day limit, and the symptom of running out is every
+question returning `RATE_LIMITED` — mid-demo, with no warning. Clear the local
+usage before you start:
+
+```bash
+./scripts/demo-check.sh --reset-quota
+```
 
 ---
 

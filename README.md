@@ -33,8 +33,15 @@ Check that everything works before you start it:
 ```
 
 That runs the toolchain, seed integrity, fixtures, the test suite, all seven
-demo questions end to end and every page — each line `PASS`, `WARN` or `FAIL`
-with the fix beside it. Expect `Demo path is ready`.
+demo questions end to end, approving a write, and every page — each line
+`PASS`, `WARN` or `FAIL` with the fix beside it. Expect `Demo path is ready`.
+
+Rehearsing spends the same daily request allowance as the real thing, so if it
+reports no quota headroom, clear the local usage and run it again:
+
+```bash
+./scripts/demo-check.sh --reset-quota
+```
 
 Start the server:
 

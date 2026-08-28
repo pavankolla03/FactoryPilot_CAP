@@ -80,6 +80,22 @@
               "InsightsQuery",
               "InsightsReadOwnUsage"
             ]
+          },
+          "newstarter": {
+            "password": "newstarter",
+            "roles": [
+              "InsightsQuery",
+              "InsightsReadOwnUsage"
+            ]
+          },
+          "newadmin": {
+            "password": "newadmin",
+            "roles": [
+              "InsightsQuery",
+              "InsightsReadOwnUsage",
+              "AdminMaintain",
+              "AdminRead"
+            ]
           }
         }
       },
