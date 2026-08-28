@@ -54,7 +54,7 @@ cd apps/cap && FACTORYPILOT_DEMO_MODE=1 CDS_REQUIRES_AUTH_KIND=dummy npx cds ser
 | Insights chat | <http://localhost:4004/insights/index.html> |
 | Admin console | <http://localhost:4004/admin/index.html> |
 | Monitoring | <http://localhost:4004/dashboard/index.html> |
-| Tests | `cd apps/cap && npm test` (93 tests) |
+| Tests | `cd apps/cap && npm test` |
 
 `Ctrl-C` stops it.
 
@@ -152,7 +152,7 @@ apps/cap/                # The application: 8 CAP services, Fiori apps, agent lo
   db/                    #   CDS models and seed CSVs
   srv/                   #   services, handlers, and lib/ (agent, llm, backend, cache)
   app/                   #   Insights, Admin, Monitoring + Fiori Elements apps
-  test/                  #   93 tests
+  test/                  #   unit, service and concurrency tests
 infra/                   # Terraform, client onboarding and deploy scripts
 integration/cpi/         # Thin generic CPI iFlow
 deploy/                  # Cloud Foundry and Kyma targets

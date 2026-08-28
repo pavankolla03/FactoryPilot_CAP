@@ -39,6 +39,56 @@ describe('quota windows', () => {
   })
 })
 
+describe('quota under concurrency', () => {
+  // The technical design lists this as a non-functional requirement in its own
+  // right: "rate-limit and cache lookups must be safe under concurrent
+  // requests (atomic increment on UserConsumption)". A user who can exceed
+  // their cap by asking twice at once defeats the cost control the product is
+  // partly sold on, and nothing in the logs would show it.
+  const countersFor = async (userID) => {
+    const { Consumption } = cds.entities('factorypilot.token')
+    return SELECT.from(Consumption).where({ userID, periodType: 'DAY' })
+  }
+
+  test('simultaneous first requests do not create rival counters', async () => {
+    // The dangerous window is the very first request of a period: every
+    // concurrent caller looks for a row, none exists yet, and each inserts its
+    // own. readCounter is a SELECT.one, so it then sees one of several and
+    // undercounts for the rest of the day.
+    const user = `race-first-${Date.now()}`
+    await Promise.all(Array.from({ length: 8 }, () => quota.checkAndReserve(user, [], 1)))
+
+    const rows = await countersFor(user)
+    assert.equal(rows.length, 1, `one counter per user per day, found ${rows.length}`)
+    assert.equal(rows[0].consumedCount, 8, 'every concurrent request must be counted')
+  })
+
+  test('a limit is not exceeded by asking many times at once', async () => {
+    // bob's seeded daily limit is 5. Twelve simultaneous requests must yield
+    // exactly five allowances, not "however many raced through the check".
+    const user = `race-limit-${Date.now()}`
+    const { QuotaPolicy } = cds.entities('factorypilot.token')
+    await INSERT.into(QuotaPolicy).entries({
+      ID: cds.utils.uuid(),
+      subject: user,
+      dailyLimit: 5,
+      weeklyLimit: 100,
+      monthlyLimit: 1000,
+      limitType: 'REQUEST_COUNT',
+      overagePolicy: 'BLOCK',
+      isActive: true,
+    })
+
+    const results = await Promise.all(Array.from({ length: 12 }, () => quota.checkAndReserve(user, [], 1)))
+    const allowed = results.filter((r) => r.decision === 'ALLOWED').length
+
+    assert.equal(allowed, 5, `the cap is 5; ${allowed} requests were allowed`)
+    const rows = await countersFor(user)
+    assert.equal(rows.length, 1)
+    assert.equal(rows[0].consumedCount, 5, 'denied requests must give back what they reserved')
+  })
+})
+
 describe('filter templating', () => {
   test('substitutes today and warehouse', () => {
     const out = tools.buildFilter(
@@ -681,5 +731,30 @@ describe('AuditService', () => {
       () => POST('/odata/audit/Feedbacks', { rating: 99 }, BOB),
       (err) => err.response?.status === 400
     )
+  })
+})
+
+describe('quota under heavy concurrency', () => {
+  test('a cap of 5 holds against 60 simultaneous requests', async () => {
+    // Twelve was enough to expose the bug; sixty is the confidence that the
+    // fix is the database enforcing the cap rather than a timing accident.
+    const user = `race-heavy-${Date.now()}`
+    const { QuotaPolicy, Consumption } = cds.entities('factorypilot.token')
+    await INSERT.into(QuotaPolicy).entries({
+      ID: cds.utils.uuid(), subject: user,
+      dailyLimit: 5, weeklyLimit: 1000, monthlyLimit: 10000,
+      limitType: 'REQUEST_COUNT', overagePolicy: 'BLOCK', isActive: true,
+    })
+
+    const results = await Promise.all(Array.from({ length: 60 }, () => quota.checkAndReserve(user, [], 1)))
+    const allowed = results.filter((r) => r.decision === 'ALLOWED').length
+    assert.equal(allowed, 5, `${allowed} of 60 were allowed against a cap of 5`)
+
+    const day = await SELECT.one.from(Consumption).where({ userID: user, periodType: 'DAY' })
+    assert.equal(day.consumedCount, 5, 'the counter must match what was allowed')
+
+    // The 55 refusals must not have left their week/month reservations behind.
+    const week = await SELECT.one.from(Consumption).where({ userID: user, periodType: 'WEEK' })
+    assert.equal(week.consumedCount, 5, 'refused requests must give back every window they reserved')
   })
 })
