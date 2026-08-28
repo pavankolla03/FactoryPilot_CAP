@@ -5,7 +5,7 @@ Read and follow **[AGENTS.md](AGENTS.md)** for project rules.
 ## Priority docs
 
 - `docs/architecture/Architecture_Concept.md` (hybrid build target)
-- `docs/architecture/Four_Week_Delivery_Plan.md` (current day)
+- `docs/architecture/Four_Week_Delivery_Plan.md` (the original contract — read its status header first; several days are superseded and its checkboxes are not a progress measure)
 - `docs/api/hub/API_CATALOG.md` (Business Accelerator Hub)
 
 ## Defaults
@@ -15,4 +15,4 @@ Read and follow **[AGENTS.md](AGENTS.md)** for project rules.
 - Update `CHANGELOG.md` when making structural changes.
 - Do not commit secrets.
 
-When the user names a plan day (e.g. Day 1), execute that day's AM/PM checklists from the Four-Week plan.
+When the user names a plan day (e.g. Day 1), read that day's checklists — but check the status header and any SUPERSEDED marker first, and say so rather than rebuilding something that was deliberately removed.

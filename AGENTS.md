@@ -5,7 +5,7 @@ You are helping build **FactoryPilot**: AI-assisted S/4HANA Business Insights on
 ## Source of truth
 
 1. [docs/architecture/Architecture_Concept.md](docs/architecture/Architecture_Concept.md) — **hybrid target** (build this)  
-2. [docs/architecture/Four_Week_Delivery_Plan.md](docs/architecture/Four_Week_Delivery_Plan.md) — day plan  
+2. [docs/architecture/Four_Week_Delivery_Plan.md](docs/architecture/Four_Week_Delivery_Plan.md) — the original contract. **Read its status header first**: the runtime changed (ADR-023) and six days are marked SUPERSEDED. For what is actually built, read [README.md](README.md) and [CHANGELOG.md](CHANGELOG.md).  
 3. [docs/architecture/Decisions_Log.md](docs/architecture/Decisions_Log.md) — ADRs  
 4. [docs/architecture/Component_Contracts.md](docs/architecture/Component_Contracts.md) — API shapes  
 5. [docs/api/hub/API_CATALOG.md](docs/api/hub/API_CATALOG.md) — Business Accelerator Hub APIs  

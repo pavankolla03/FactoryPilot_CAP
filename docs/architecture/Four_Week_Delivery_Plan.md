@@ -1,5 +1,44 @@
 # Four-Week Delivery Plan (GitHub)
 
+> ## Read this before using this plan
+>
+> **This document is the original contract, not the current state.** It is kept
+> because it records what was agreed and why. Two of its assumptions no longer
+> hold, and following it literally will send you to rebuild things that were
+> deliberately removed.
+>
+> **1. The runtime changed.** Days 4, 7, 10, 11 and 14 describe a FastAPI +
+> LangGraph orchestrator (`services/orchestrator`) and a thin CPI iFlow as the
+> primary path. That service was deleted: orchestration now runs inside CAP
+> (ADR-023), because the product's own web application is TypeScript and a
+> Python runtime meant a second language and a second deployable for no gain.
+> Day 16's Kyma manifests target that same deleted service. These days are
+> marked **SUPERSEDED** below — the capability exists, built differently.
+>
+> **2. The Hub connection was never made.** Days 1, 2, 10, 11, 14 and 17 all
+> depend on a live SAP Business Accelerator Hub key. No such key has ever been
+> configured, so every fixture in `docs/api/hub/` is *generated*, not captured.
+> This one missing dependency gates roughly a third of the plan.
+>
+> The five OData service paths in the seed data **have** been verified against
+> the live sandbox — they resolve, and are rejected only on authentication. To
+> finish the job, get a free key from <https://api.sap.com> and run:
+>
+> ```bash
+> SAP_HUB_API_KEY='...' node scripts/hub-probe.js
+> ```
+>
+> That reports whether every field the registry queries by actually exists
+> upstream — the check that matters, because OData answers a wrong filter
+> column with zero rows rather than an error, so a typo reaches a user as
+> "there is no stock" instead of a failure.
+>
+> **What is actually built** is described in [the README](../../README.md) and
+> [CHANGELOG.md](../../CHANGELOG.md); what runs a demo today is in
+> [DEMO_RUNBOOK.md](../DEMO_RUNBOOK.md). The checkboxes below were never
+> maintained and are not a progress measure — the work landed against a
+> different structure.
+
 **Status:** Execution plan (granular)  
 **Horizon:** 20 working days (4 weeks)  
 **Hosting:** GitHub  
@@ -226,6 +265,8 @@ Each day: **AM / PM** checklists, **branch**, **files/artifacts**, **ship**, **D
 
 #### Day 4 — FastAPI skeleton + Hub OData client (direct)
 
+> **SUPERSEDED** — the FastAPI service described here was removed; the same capability runs in CAP (ADR-023).
+
 **Branch:** `feature/004-orchestrator-hub-client` (**B**)
 
 **AM — FastAPI**
@@ -298,6 +339,8 @@ Each day: **AM / PM** checklists, **branch**, **files/artifacts**, **ship**, **D
 
 #### Day 7 — LangGraph: Auth stub, Intent, LoadConfig
 
+> **SUPERSEDED** — the LangGraph pipeline was replaced by the CAP agent loop in `apps/cap/srv/lib/agent.js` (ADR-023, ADR-024).
+
 **Branch:** `feature/007-langgraph-intent-loadconfig` (**B**)
 
 **AM**
@@ -365,6 +408,8 @@ Each day: **AM / PM** checklists, **branch**, **files/artifacts**, **ship**, **D
 
 #### Day 10 — CallS4 via Hub client + thin CPI contract
 
+> **SUPERSEDED** — the S/4 call now runs through the backend adapters in `apps/cap/srv/lib/backend.js`; thin CPI remains one configurable option, not the primary path.
+
 **Branch:** `feature/010-call-s4-hub-and-cpi-contract` (**B**)
 
 **AM**
@@ -391,6 +436,8 @@ Each day: **AM / PM** checklists, **branch**, **files/artifacts**, **ship**, **D
 ### Week 3 — LLM, UI, CPI, SSO
 
 #### Day 11 — OpenRouter contextualize + CommunicationLog
+
+> **SUPERSEDED** — contextualisation and logging live in the CAP insights service; `CommunicationLog` became `SessionLog` / `AgentRun`.
 
 **Branch:** `feature/011-openrouter-audit` (**B**)
 
@@ -458,6 +505,8 @@ Each day: **AM / PM** checklists, **branch**, **files/artifacts**, **ship**, **D
 
 #### Day 14 — Thin CPI iFlow → Hub Destination
 
+> **SUPERSEDED** — an iFlow is now one endpoint kind among several, registered as data in the Integration console rather than being the default route.
+
 **Branch:** `feature/014-cpi-thin-hub` (**B**)
 
 **AM**
@@ -503,6 +552,8 @@ Each day: **AM / PM** checklists, **branch**, **files/artifacts**, **ship**, **D
 ### Week 4 — Harden, E2E, release
 
 #### Day 16 — Kyma manifests + extra Hub API stubs
+
+> **SUPERSEDED** — the Kyma manifests here target the deleted orchestrator; Cloud Foundry via MTA is the deployment path.
 
 **Branch:** `feature/016-kyma-and-hub-stubs`
 
