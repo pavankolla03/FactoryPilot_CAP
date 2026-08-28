@@ -19,9 +19,14 @@
 - GitHub Actions: `SAP_HUB_API_KEY`  
 - BTP: Destination additional property / credential store  
 
-## Smoke (Day 2)
+## Smoke
+
+`scripts/hub_smoke_delivery.sh` was never built. The equivalent, which checks
+every registered object rather than just Delivery, is:
 
 ```bash
 export SAP_HUB_API_KEY=...
-./scripts/hub_smoke_delivery.sh
+node scripts/hub-probe.js
 ```
+
+See [DAY1_MANUAL_CHECKLIST.md](DAY1_MANUAL_CHECKLIST.md) for how to get the key.
