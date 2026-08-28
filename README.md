@@ -87,6 +87,25 @@ so rather than inventing an answer.
 The fixtures are **generated, not captured** — see the `_synthetic` block in each
 file. Regenerate them with `node scripts/make-demo-fixtures.js`.
 
+### Checking against the real SAP Hub
+
+The fixtures are generated, so the field names in `defaultFilters` and
+`selectFields` follow the published OData services but have not been confirmed
+against live data. With a free key from <https://api.sap.com>:
+
+```bash
+SAP_HUB_API_KEY='...' node scripts/hub-probe.js
+```
+
+It reports, per business object, whether the service path resolves and whether
+every field the registry queries by actually exists upstream. That matters
+because OData does not fail loudly on a wrong filter column — it returns zero
+rows, and the product then says "no records matched" for data that is there.
+Add `--capture` to save the real responses beside the synthetic ones.
+
+The five service paths in the seed data have been verified to resolve against
+the live sandbox; only the key is missing.
+
 ### Real data and a real model
 
 Drop `FACTORYPILOT_DEMO_MODE` to call the endpoints registered in Admin →
@@ -138,7 +157,7 @@ deploy/                  # Cloud Foundry and Kyma targets
 docs/api/hub/            # Hub EDMX, catalog, and the synthetic fixtures
 docs/architecture/       # Design pack and decisions log
 docs/requirements/       # Source requirements
-scripts/                 # demo-check.sh, make-demo-fixtures.js
+scripts/                 # demo-check.sh, hub-probe.js, make-demo-fixtures.js
 ```
 
 ## AI coding assistants
