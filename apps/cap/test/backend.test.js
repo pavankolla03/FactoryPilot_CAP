@@ -157,6 +157,37 @@ describe('MockBackend fixture routing', () => {
     )
   })
 
+  test('"today" means the same thing at every hour of the day', async () => {
+    // The fixture is date-shifted so "today" questions keep returning rows.
+    // Rounding elapsed milliseconds made that shift flip by a whole day
+    // partway through the day, so the same question answered 28 deliveries in
+    // the morning and 3 in the afternoon with nothing changed — the worst kind
+    // of demo failure, because it looks like the data is wrong.
+    const realNow = Date.now
+    const realDate = global.Date
+    const counts = new Set()
+
+    for (const hour of [0, 6, 11, 12, 13, 18, 23]) {
+      // Freeze the clock at a fixed UTC hour on one calendar day.
+      const frozen = realDate.UTC(2026, 7, 28, hour, 30, 0)
+      class FrozenDate extends realDate {
+        constructor(...a) { return a.length ? new realDate(...a) : new realDate(frozen) }
+        static now() { return frozen }
+      }
+      global.Date = FrozenDate
+      try {
+        const rows = new backend.MockBackend().load('A_OutbDeliveryHeader')
+        const today = new realDate(frozen).toISOString().slice(0, 10)
+        counts.add(rows.filter((r) => toDate(r.ActualGoodsMovementDate) === today).length)
+      } finally {
+        global.Date = realDate
+        Date.now = realNow
+      }
+    }
+
+    assert.equal(counts.size, 1, `the count changed across the day: ${[...counts].join(', ')}`)
+  })
+
   test('a filter actually narrows the rows', async () => {
     const mock = new backend.MockBackend()
     const all = await mock.query({ entitySet: 'A_MatlStkInAcctMod' })

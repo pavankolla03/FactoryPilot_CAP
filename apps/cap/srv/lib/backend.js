@@ -131,7 +131,14 @@ class MockBackend {
     // keep returning rows however old the file is.
     const base = body._synthetic?.baseDate
     if (base) {
-      const days = Math.round((Date.now() - new Date(`${base}T00:00:00Z`).getTime()) / 86400000)
+      // Whole calendar days, not elapsed milliseconds rounded. Rounding the
+      // elapsed time flips the shift by one day partway through the day — so
+      // "how many deliveries today" answered 28 in the morning and 3 in the
+      // afternoon, with nothing changed, because a different set of rows had
+      // silently become "today".
+      const now = new Date()
+      const startOfToday = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+      const days = Math.round((startOfToday - new Date(`${base}T00:00:00Z`).getTime()) / 86400000)
       if (days) rows = rows.map((r) => shiftDates(r, days))
     }
     return rows
