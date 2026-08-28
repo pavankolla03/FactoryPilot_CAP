@@ -113,6 +113,26 @@ async function main() {
     process.exit(1)
   }
 
+  // Quota headroom is a precondition, not a scenario. Without it every
+  // question comes back RATE_LIMITED and the run reports several unrelated
+  // failures — "expected AWAITING_APPROVAL, got RATE_LIMITED" — none of which
+  // name the actual cause. Stop here instead, and say what happened.
+  const usage = await http('GET', '/odata/token/myUsage()')
+  if (usage.ok && usage.json?.limitDay != null) {
+    const left = usage.json.limitDay - usage.json.usedDay
+    if (left < 8) {
+      console.log(
+        `\n${RED}Not enough quota to run: ${left} of ${usage.json.limitDay} requests left today ` +
+          `for "${usage.json.userID}".${OFF}\n` +
+          `${DIM}This suite spends about 8. Rehearsals and earlier runs share the same allowance.\n` +
+          `Locally: ./scripts/demo-check.sh --reset-quota. Deployed: raise the limit in Admin → Quota Policies,\n` +
+          `or run as a different user.${OFF}\n`
+      )
+      process.exit(1)
+    }
+    console.log(`${DIM}quota: ${left} of ${usage.json.limitDay} requests left today${OFF}\n`)
+  }
+
   await scenario('a read question is answered from data, not from the model', async () => {
     // "Grounded" is the product's central claim. An answer that is fluent but
     // ungrounded is the failure this whole system exists to prevent.

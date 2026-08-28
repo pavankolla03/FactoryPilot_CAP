@@ -2,6 +2,7 @@
 
 | Script | Purpose |
 | --- | --- |
+| `release.sh` | Decide whether a version tag would be telling the truth: tests, seed and router validation, end-to-end behaviour against a running instance, whether the deployed app is this commit, and a CHANGELOG entry. Tags locally on success; pushing is left to you. |
 | `e2e.js` | Drive a **running** instance over HTTP and assert it behaves: grounded answers, cache hit, honest refusal, write stops for confirmation, approval applies once and cannot be replayed, one audit row per request. `--url` for a deployed instance, `--user`/`--pass` or `--token` for auth. |
 | `hub-probe.js` | Call the SAP Business Accelerator Hub sandbox for every registered business object: proves the key and path work, and reports any `defaultFilters` / `selectFields` name that does not exist upstream. `--capture` saves the real payloads beside the synthetic ones. Needs `SAP_HUB_API_KEY`. |
 | `demo-check.sh` | Pre-demo check: toolchain, seeds, fixtures, tests, all seven demo questions end to end, every page. `--remote` also checks the deployed BTP app. |
