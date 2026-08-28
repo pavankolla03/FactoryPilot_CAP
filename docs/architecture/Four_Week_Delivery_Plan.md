@@ -20,9 +20,11 @@
 > configured, so every fixture in `docs/api/hub/` is *generated*, not captured.
 > This one missing dependency gates roughly a third of the plan.
 >
-> The five OData service paths in the seed data **have** been verified against
-> the live sandbox — they resolve, and are rejected only on authentication. To
-> finish the job, get a free key from <https://api.sap.com> and run:
+> All five service paths reach the Hub's gateway and are rejected only on
+> authentication (`oauth.v2.InvalidApiKey`). That confirms the host and base
+> path, but not the service path or entity set — the gateway checks the key
+> before routing, so nothing downstream was reached. Only a real key settles
+> it. Get a free one from <https://api.sap.com> and run:
 >
 > ```bash
 > SAP_HUB_API_KEY='...' node scripts/hub-probe.js

@@ -103,8 +103,10 @@ because OData does not fail loudly on a wrong filter column — it returns zero
 rows, and the product then says "no records matched" for data that is there.
 Add `--capture` to save the real responses beside the synthetic ones.
 
-The five service paths in the seed data have been verified to resolve against
-the live sandbox; only the key is missing.
+All five reach the Hub's gateway and are rejected only on authentication, so
+the host and base path are right. The service paths and entity sets themselves
+are still unconfirmed — the gateway validates the key before routing, so a
+401 says nothing about what lies behind it. A real key settles it.
 
 ### Real data and a real model
 
