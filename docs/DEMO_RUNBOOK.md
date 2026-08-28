@@ -18,6 +18,13 @@ next to each one. Add `--remote` to check the deployed BTP app as well.
 
 Exit code is non-zero only when something would actually break the demo.
 
+To check a **running** instance rather than the repo — including a deployed
+one — drive it over HTTP:
+
+```bash
+node scripts/e2e.js --url https://<approuter-url> --token "$(cf oauth-token)"
+```
+
 **Rehearsing spends the demo's quota.** Each full run-through costs about nine
 requests against a 50/day limit, and the symptom of running out is every
 question returning `RATE_LIMITED` — mid-demo, with no warning. Clear the local

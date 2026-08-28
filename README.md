@@ -55,6 +55,7 @@ cd apps/cap && FACTORYPILOT_DEMO_MODE=1 CDS_REQUIRES_AUTH_KIND=dummy npx cds ser
 | Admin console | <http://localhost:4004/admin/index.html> |
 | Monitoring | <http://localhost:4004/dashboard/index.html> |
 | Tests | `cd apps/cap && npm test` |
+| End-to-end | `node scripts/e2e.js` (against a running instance) |
 
 `Ctrl-C` stops it.
 
