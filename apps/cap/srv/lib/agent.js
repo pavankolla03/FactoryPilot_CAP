@@ -28,8 +28,10 @@ function systemPrompt(businessObjects) {
     '2. Open with the figure or finding. No preamble such as "Based on the data" or "We have a large dataset".',
     '3. Use the tools to fetch real data. Never invent record counts, material numbers, quantities or supplier names.',
     '4. When a tool result says `truncated: true`, the rows are a sample — quote `rowCount` as the real total and say the detail is a sample.',
-    '5. If the tools return nothing, say so plainly rather than guessing.',
-    '6. Prefer a short markdown table when reporting more than three figures. Keep prose to two or three sentences.',
+    '5. If a tool returns no rows, say which filter was used — quote `queriedWith` — so the reader can see whether the plant or material was the problem rather than the data.',
+    '6. Only call a tool when the question is about the registered business objects below. Anything else — a greeting, a general question, something outside SAP — answer directly and do not call a tool.',
+    '7. When a question names no plant, pass the warehouseID you were given rather than omitting it.',
+    '8. Prefer a short markdown table when reporting more than three figures. Keep prose to two or three sentences.',
     '',
     'Registered business objects:',
     ...businessObjects.map((b) => `- ${b.objectCode}: ${b.objectName || ''} (${b.keywords || ''})`),
@@ -140,7 +142,10 @@ async function loadHistory(conversationID, limit = 20) {
 async function run({ question, userID, roles, warehouseID, conversationID, correlationId, businessObjects, route, orgSettings }) {
   const provider = llm.getProvider(route || {})
   const definitions = tools.buildDefinitions(businessObjects)
-  const defaults = { warehouse: warehouseID || orgSettings?.defaultWarehouse || '1000' }
+  // No literal fallback. A hardcoded plant silently redirects every question
+  // to a site that may not exist in this tenant, and the only symptom is an
+  // empty answer — which has now happened twice, with '1000' both times.
+  const defaults = { warehouse: warehouseID || orgSettings?.defaultWarehouse || '' }
 
   const messages = [
     { role: 'system', content: systemPrompt(businessObjects) },
@@ -265,10 +270,16 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
         // and `truncated` stops the model presenting a sample as the whole.
         const SAMPLE = Number(process.env.FACTORYPILOT_TOOL_ROW_SAMPLE || 25)
         const sample = result.rows.slice(0, SAMPLE)
+        // The filter is part of the result. Without it an empty answer reads
+        // as "there is no stock" when the truth is "plant 1000 has no stock,
+        // and you may have meant another plant" — the query that was actually
+        // run is the difference between those two sentences.
+        const askedFilter = (result.url || '').match(/\$filter=([^&]*)/)?.[1] || ''
         content = JSON.stringify({
           rowCount: result.rows.length,
           returned: sample.length,
           truncated: result.rows.length > sample.length,
+          queriedWith: decodeURIComponent(askedFilter) || '(no filter)',
           rows: sample,
           url: result.url,
         })
