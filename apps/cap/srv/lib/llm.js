@@ -270,7 +270,12 @@ function inferArgs(question, tool, original = question) {
   const args = {}
   const props = tool.function?.parameters?.properties || {}
   if ('warehouseID' in props) {
-    args.warehouseID = question.match(/\b(\d{4})\b/)?.[1] || '1000'
+    // Only when the question actually names one. Defaulting to a literal
+    // plant here overrides the configured default warehouse, so a tenant whose
+    // plants are 1010 and 1710 had every question silently asked against a
+    // plant that does not exist — and answered "no records matched".
+    const named = question.match(/\b(\d{4})\b/)?.[1]
+    if (named) args.warehouseID = named
   }
   if ('datePreset' in props) {
     args.datePreset = /yesterday/.test(question) ? 'yesterday' : /tomorrow/.test(question) ? 'tomorrow' : 'today'

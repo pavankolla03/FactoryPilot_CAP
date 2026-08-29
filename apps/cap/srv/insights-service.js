@@ -295,6 +295,12 @@ module.exports = cds.service.impl(function () {
       status = result.status
       // A run that reached an answer but grounded none of it reports why here.
       errorDetail = result.errorDetail || ''
+      // A provider swap is not a failure, but it must not be invisible either.
+      if (result.degradedFrom) {
+        errorDetail = errorDetail
+          ? `${errorDetail}; model unavailable — ${result.degradedFrom}`
+          : `model unavailable, answered offline — ${result.degradedFrom}`
+      }
     } catch (err) {
       status = 'FAILED'
       errorDetail = err.message

@@ -91,9 +91,29 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
   let grounded = false
   let rounds = 0
 
+  // A paid provider running out of credit, rate-limiting, or going down should
+  // degrade the answer, not lose the question. The offline provider computes
+  // its answer from the same real tool output, so the data stays true — only
+  // the phrasing gets plainer. The swap is recorded rather than hidden: the
+  // audit row and the response both say which provider actually answered.
+  let active = provider
+  let degradedFrom = null
+
+  const complete = async (payload) => {
+    try {
+      return await active.complete(payload)
+    } catch (err) {
+      if (active instanceof llm.FakeProvider) throw err
+      degradedFrom = `${active.name}: ${err.message}`
+      console.warn(`[agent] ${active.name} failed (${err.message}) — answering from the offline provider instead`)
+      active = new llm.FakeProvider()
+      return active.complete(payload)
+    }
+  }
+
   while (rounds < MAX_ROUNDS) {
     rounds++
-    const completion = await provider.complete({
+    const completion = await complete({
       messages,
       tools: definitions,
       maxTokens: route?.maxTokens || 800,
@@ -174,7 +194,20 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
           correlationId,
         })
         grounded = true
-        content = JSON.stringify({ rowCount: result.rows.length, rows: result.rows.slice(0, 60), url: result.url })
+        // Send a sample, not the whole result set. Sixty rows of S/4 columns
+        // is roughly fifteen thousand tokens, which overruns a modest prompt
+        // budget and costs real money on a generous one — for an answer the
+        // model can give from a fraction of it. rowCount is the honest total,
+        // and `truncated` stops the model presenting a sample as the whole.
+        const SAMPLE = Number(process.env.FACTORYPILOT_TOOL_ROW_SAMPLE || 25)
+        const sample = result.rows.slice(0, SAMPLE)
+        content = JSON.stringify({
+          rowCount: result.rows.length,
+          returned: sample.length,
+          truncated: result.rows.length > sample.length,
+          rows: sample,
+          url: result.url,
+        })
         steps.push({
           toolName: call.name,
           arguments: JSON.stringify(call.arguments || {}),
@@ -227,6 +260,9 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
    * really fetched, and the caller can see the failed step in `steps`.
    */
   function settle(outcome) {
+    if (degradedFrom) {
+      outcome = { ...outcome, degradedFrom, usage: { ...outcome.usage, degradedFrom } }
+    }
     if (outcome.grounded || !toolErrors.length) return outcome
     return {
       ...outcome,

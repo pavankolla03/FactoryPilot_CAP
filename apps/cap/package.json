@@ -24,7 +24,7 @@
     "deploy": "cds deploy --to sqlite:db/factorypilot.db",
     "deploy:pg": "cds deploy --to postgres --profile production",
     "build": "node scripts/validate-xs-app.js && node scripts/validate-seeds.js && cds build --production",
-    "test": "node --test --test-concurrency=1 test/*.test.js",
+    "test": "FACTORYPILOT_DEMO_MODE=1 node --test --test-concurrency=1 test/*.test.js",
     "validate:router": "node scripts/validate-xs-app.js",
     "validate:seeds": "node scripts/validate-seeds.js"
   },

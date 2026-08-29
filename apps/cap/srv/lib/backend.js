@@ -171,7 +171,11 @@ class HubBackend {
   }
 
   async query({ servicePath, entitySet, filter, select, top = 200, apiVersion = 'v2', correlationId }) {
-    const root = this.baseUrl || servicePath
+    // One Hub endpoint serves many OData services, so the host and the service
+    // path come from different places: the host is endpoint configuration, the
+    // service path belongs to the business object. Using baseUrl alone sent
+    // every object to whichever service the endpoint happened to name.
+    const root = this.baseUrl ? `${this.baseUrl}${servicePath || ''}` : servicePath
     const qs = buildQueryString({ filter, select, top, apiVersion })
     const url = `${root}/${entitySet}${qs ? `?${qs}` : ''}`
     const started = Date.now()

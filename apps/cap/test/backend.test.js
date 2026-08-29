@@ -92,6 +92,14 @@ describe('OData payload shapes', () => {
 
 describe('forEndpoint routing', () => {
   test('each kind reaches its own adapter', () => {
+    // The suite runs with demo mode on so it never needs a live SAP sandbox.
+    // This test is about the routing underneath that switch, so it re-requires
+    // the module with demo mode explicitly off.
+    const savedDemo = process.env.FACTORYPILOT_DEMO_MODE
+    delete process.env.FACTORYPILOT_DEMO_MODE
+    delete require.cache[require.resolve('../srv/lib/backend')]
+    const { forEndpoint } = require('../srv/lib/backend')
+
     // The secret is read from the environment variable *named* by
     // credentialRef — the value never appears in the endpoint row.
     process.env.HUBKEY = 'k-from-env'
@@ -105,17 +113,32 @@ describe('forEndpoint routing', () => {
       assert.equal(forEndpoint(null).name, 'mock')
     } finally {
       delete process.env.HUBKEY
+      if (savedDemo === undefined) delete process.env.FACTORYPILOT_DEMO_MODE
+      else process.env.FACTORYPILOT_DEMO_MODE = savedDemo
+      delete require.cache[require.resolve('../srv/lib/backend')]
+      require('../srv/lib/backend')
     }
   })
 
   test('a Hub endpoint whose key is not set fails loudly at selection', () => {
+    const savedDemo = process.env.FACTORYPILOT_DEMO_MODE
+    delete process.env.FACTORYPILOT_DEMO_MODE
+    delete require.cache[require.resolve('../srv/lib/backend')]
+    const { forEndpoint } = require('../srv/lib/backend')
+    try {
     // Better here, naming the missing variable, than as an unauthenticated
     // call that comes back 401 and reads like the Hub is down.
     delete process.env.MISSINGKEY
     assert.throws(
-      () => forEndpoint({ kind: 'hub_sandbox', url: 'https://h', credentialRef: 'MISSINGKEY' }),
-      (err) => err.statusCode === 503 && /No Hub API key/.test(err.message)
-    )
+        () => forEndpoint({ kind: 'hub_sandbox', url: 'https://h', credentialRef: 'MISSINGKEY' }),
+        (err) => err.statusCode === 503 && /No Hub API key/.test(err.message)
+      )
+    } finally {
+      if (savedDemo === undefined) delete process.env.FACTORYPILOT_DEMO_MODE
+      else process.env.FACTORYPILOT_DEMO_MODE = savedDemo
+      delete require.cache[require.resolve('../srv/lib/backend')]
+      require('../srv/lib/backend')
+    }
   })
 
   test('demo mode overrides every kind, including a live one', () => {
