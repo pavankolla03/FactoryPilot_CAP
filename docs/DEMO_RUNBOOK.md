@@ -127,7 +127,7 @@ Nothing below blocks the **offline** demo. It is all for the deployed one.
    ```
    Then tell me it is done and I will deploy.
 
-2. **Assign yourself the `FactoryPilot_Administrator` role collection**
+2. **Assign yourself the `FactoryPilot_Admin` role collection**
    (BTP cockpit → Security → Users → your user → Role Collections), then **log
    out and back in**. Without this the chat is `403` for you — the token is
    minted at login, so assigning it while logged in changes nothing.
@@ -166,7 +166,7 @@ Nothing below blocks the **offline** demo. It is all for the deployed one.
 - Subaccount `674521f2trial`, org `674521f2trial`, space `dev`
 - API endpoint `https://api.cf.us10-003.hana.ondemand.com`
 - Apps: `factorypilot-srv`, `factorypilot-approuter`
-- Role collections: `FactoryPilot_Administrator`, `FactoryPilot_ConfigAdministrator`,
-  `FactoryPilot_Viewer`, `FactoryPilot_BusinessUser`
+- Role collections: `FactoryPilot_Admin`, `FactoryPilot_ConfigAdmin`,
+  `FactoryPilot_ReadOnly`, `FactoryPilot_User`
 - Fixtures are **generated, not captured** — see the `_synthetic` block in each
   file, and say so if anyone asks whether it is real data.

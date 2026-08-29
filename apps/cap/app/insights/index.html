@@ -170,7 +170,7 @@
            <div class="turn__role">You</div><div class="turn__body">${esc(question)}</div></div>`, "");
 
     try {
-      const { data } = await call("../../insights/ask", {
+      const { ok, status, data } = await call("../../insights/ask", {
         question, warehouseID: whEl.value, channel: "Web",
         ...(conversationID && { conversationID }),
       });
@@ -184,7 +184,7 @@
         const help =
           status === 403
             ? "This sign-in carries no FactoryPilot permissions. Assign the " +
-              "<code>FactoryPilot_Administrator</code> role collection in the BTP cockpit " +
+              "<code>FactoryPilot_Admin</code> role collection in the BTP cockpit " +
               "(Security &rarr; Users &rarr; your user), then <b>log out and sign in again</b> — " +
               "the token is issued at sign-in, so assigning it alone is not enough."
             : status === 401

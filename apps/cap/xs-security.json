@@ -147,28 +147,28 @@
   ],
   "role-collections": [
     {
-      "name": "FactoryPilot_BusinessUser",
+      "name": "FactoryPilot_User",
       "description": "FactoryPilot business user",
       "role-template-references": [
         "$XSAPPNAME.BusinessUser"
       ]
     },
     {
-      "name": "FactoryPilot_Viewer",
+      "name": "FactoryPilot_ReadOnly",
       "description": "FactoryPilot read-only",
       "role-template-references": [
         "$XSAPPNAME.Viewer"
       ]
     },
     {
-      "name": "FactoryPilot_ConfigAdministrator",
+      "name": "FactoryPilot_ConfigAdmin",
       "description": "FactoryPilot configuration administrator",
       "role-template-references": [
         "$XSAPPNAME.ConfigAdministrator"
       ]
     },
     {
-      "name": "FactoryPilot_Administrator",
+      "name": "FactoryPilot_Admin",
       "description": "FactoryPilot administrator",
       "role-template-references": [
         "$XSAPPNAME.Administrator"
