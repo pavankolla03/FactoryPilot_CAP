@@ -103,7 +103,7 @@ cat <<EOF
   Two things this script cannot do, because they need a human:
 
   1. Assign role collections to real users
-     BTP Cockpit -> Security -> Role Collections -> FactoryPilot_Admin
+     BTP Cockpit -> Security -> Role Collections -> FactoryPilot_Administrator
      Without this, users authenticate and then get 403 on every call.
 
   2. Set the secrets

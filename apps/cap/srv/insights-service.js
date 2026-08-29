@@ -186,7 +186,7 @@ module.exports = cds.service.impl(function () {
         hint: canAsk
           ? 'This token can ask. If ask still fails, the failure is not authorisation.'
           : roles.length
-            ? 'Signed in, but no InsightsQuery scope. The assigned collection has no role granting it — check that FactoryPilot_Admin contains the Administrator role, not only ConfigAdministrator.'
+            ? 'Signed in, but no InsightsQuery scope. The assigned collection has no role granting it — check that FactoryPilot_Administrator contains the Administrator role, not only ConfigAdministrator.'
             : 'Signed in with no FactoryPilot scopes at all. Either no collection is assigned, or this token predates the assignment — sign out and in again.',
       },
       null,

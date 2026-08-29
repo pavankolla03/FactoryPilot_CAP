@@ -75,13 +75,6 @@
       "description": "Read the monitoring dashboard"
     }
   ],
-  "attributes": [
-    {
-      "name": "warehouse",
-      "description": "Default shipping point used when a question does not name one",
-      "valueType": "string"
-    }
-  ],
   "role-templates": [
     {
       "name": "BusinessUser",
@@ -89,9 +82,6 @@
       "scope-references": [
         "$XSAPPNAME.InsightsQuery",
         "$XSAPPNAME.InsightsReadOwnUsage"
-      ],
-      "attribute-references": [
-        "warehouse"
       ]
     },
     {
@@ -139,15 +129,12 @@
         "$XSAPPNAME.IntegrationRead",
         "$XSAPPNAME.IntegrationMaintain",
         "$XSAPPNAME.DashboardRead"
-      ],
-      "attribute-references": [
-        "warehouse"
       ]
     }
   ],
   "role-collections": [
     {
-      "name": "FactoryPilot_User",
+      "name": "FactoryPilot_BusinessUser",
       "description": "FactoryPilot business user",
       "role-template-references": [
         "$XSAPPNAME.BusinessUser"
@@ -168,7 +155,7 @@
       ]
     },
     {
-      "name": "FactoryPilot_Admin",
+      "name": "FactoryPilot_Administrator",
       "description": "FactoryPilot administrator",
       "role-template-references": [
         "$XSAPPNAME.Administrator"
