@@ -340,6 +340,15 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
    */
   function settle(outcome) {
     if (outcome.answer) outcome = { ...outcome, answer: stripDeliberation(outcome.answer) }
+
+    // The answer has to join the transcript. It was returned alongside
+    // `messages` but never pushed into it, so persistTurns saved the question
+    // and the tool call and not the reply: reopening a conversation showed the
+    // user's turns with nothing under them, and a follow-up question was sent
+    // to the model without its own previous answers for context.
+    if (outcome.answer) {
+      outcome = { ...outcome, messages: [...(outcome.messages || []), { role: 'assistant', content: outcome.answer }] }
+    }
     if (degradedFrom) {
       outcome = { ...outcome, degradedFrom, usage: { ...outcome.usage, degradedFrom } }
     }

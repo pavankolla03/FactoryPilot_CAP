@@ -158,12 +158,12 @@
   }
 
   // --- asking --------------------------------------------------------------
-  async function ask(question) {
+  async function ask(question, shownAs) {
     if (busy || !question.trim()) return;
     busy = true; askEl.disabled = true;
     if (threadEl.querySelector(".welcome")) threadEl.innerHTML = "";
 
-    add(`<div class="turn__role">You</div><div class="turn__body">${esc(question)}</div>`, "me");
+    add(`<div class="turn__role">You</div><div class="turn__body">${esc(shownAs || question)}</div>`, "me");
     const pending = add('<div class="turn__role">FactoryPilot</div><div class="turn__body">Working through SAP…</div>');
 
     try {
@@ -359,11 +359,94 @@
     const v = qEl.value.trim();
     if (!v) return;
     qEl.value = ""; qEl.style.height = "auto";
-    ask(v);
+    // The file travels with the question, not as a side channel, so the model
+    // sees the same text the operator thinks it has.
+    const withFile = attached
+      ? `${v}\n\nAttached file "${attached.name}":\n${attached.text}`
+      : v;
+    const shown = attached ? `${v}  📎 ${attached.name}` : v;
+    attached = null; showAttachment();
+    ask(withFile, shown);
   }
   askEl.addEventListener("click", submit);
   $("newchat").addEventListener("click", () => { conversationID = null; welcome(); paintSessions(); });
   $("search").addEventListener("input", paintSessions);
+
+  // --- input tools ---------------------------------------------------------
+  // Each of these does something real or is disabled with a reason. A button
+  // that opens a picker and then silently discards the file is worse than no
+  // button: the operator believes the assistant has seen it.
+
+  let attached = null;                       // { name, text } pending on the next question
+
+  function showAttachment() {
+    const strip = $("attachment");
+    if (!attached) { strip.hidden = true; strip.innerHTML = ""; return; }
+    strip.hidden = false;
+    strip.innerHTML = `<span>📎 ${esc(attached.name)} — ${attached.text.length.toLocaleString()} characters will be sent with your question</span>
+                       <button type="button" id="dropfile" aria-label="Remove attachment">✕</button>`;
+    $("dropfile").addEventListener("click", () => { attached = null; showAttachment(); });
+  }
+
+  // Dictation. Browser speech recognition, so no audio leaves the machine and
+  // no transcription service is needed; the words land in the box for you to
+  // check before sending, which matters when a question can move stock.
+  const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const mic = $("mic");
+  if (!Recognition) {
+    mic.disabled = true;
+    mic.title = "Dictation needs a browser with speech recognition (Chrome or Edge).";
+  } else {
+    let listening = false, rec = null;
+    mic.addEventListener("click", () => {
+      if (listening) { rec && rec.stop(); return; }
+      rec = new Recognition();
+      rec.lang = "en-GB";
+      rec.interimResults = true;
+      rec.continuous = false;
+      const before = qEl.value;
+      rec.onstart = () => { listening = true; mic.classList.add("is-live"); mic.title = "Listening — click to stop"; };
+      rec.onresult = (e) => {
+        const said = Array.from(e.results).map((r) => r[0].transcript).join("");
+        qEl.value = (before ? before + " " : "") + said;
+        qEl.dispatchEvent(new Event("input", { bubbles: true }));
+      };
+      rec.onerror = (e) => {
+        mic.title = e.error === "not-allowed"
+          ? "Microphone permission was refused."
+          : "Dictation failed: " + e.error;
+      };
+      rec.onend = () => { listening = false; mic.classList.remove("is-live"); };
+      try { rec.start(); } catch { listening = false; }
+    });
+  }
+
+  // Attach a text-shaped file. Its contents are prepended to the question, so
+  // the model genuinely reads it — a pasted picking list or CSV extract can be
+  // asked about directly.
+  const MAX_ATTACH = 20000;                  // beyond this the prompt budget suffers
+  $("clip").addEventListener("click", () => $("file").click());
+  $("file").addEventListener("change", async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    if (f.size > 2 * 1024 * 1024) { attached = null; showAttachment(); alert("That file is over 2 MB — please attach a smaller extract."); return; }
+    const text = await f.text();
+    attached = { name: f.name, text: text.slice(0, MAX_ATTACH) };
+    showAttachment();
+    qEl.focus();
+  });
+
+  // A photograph needs a model that can see. Nothing here reads images yet, so
+  // the button says so rather than opening a camera and dropping the result.
+  $("cam").addEventListener("click", () => {
+    add(`<div class="turn__role">FactoryPilot</div><div class="turn__body">
+           <div class="fd-message-strip fd-message-strip--information">
+             <span><span class="fd-message-strip__title">Photos are not read yet.</span>
+             The question pipeline is text-only, so an image would be collected and ignored.
+             Attach a CSV or text extract with 📎, or dictate with 🎤 — both are sent to the model.</span>
+           </div></div>`);
+  });
 
   welcome();
   refreshUsage();

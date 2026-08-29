@@ -19,6 +19,14 @@
     <a href="../admin/index.html">Admin</a>
     <a href="../dashboard/index.html">Monitoring</a>
   </nav>
+  <label class="shell-wh">
+    <span class="shell-wh__label">Plant</span>
+    <select id="wh" aria-label="Plant / warehouse">
+      <option value="1010">1010</option>
+      <option value="1710">1710</option>
+      <option value="1000">1000</option>
+    </select>
+  </label>
   <span class="fd-shellbar__avatar" id="initials">?</span>
   <span class="fd-shellbar__user" id="usage"></span>
 </div>
@@ -41,15 +49,18 @@
     <div class="thread" id="thread"></div>
 
     <div class="composer">
+      <div class="composer__attachment" id="attachment" hidden></div>
       <div class="composer__box">
-        <select id="wh" class="composer__wh" aria-label="Plant">
-          <option value="1010">Plant 1010</option>
-          <option value="1710">Plant 1710</option>
-          <option value="1000">Plant 1000</option>
-        </select>
         <textarea id="q" rows="1"
           placeholder="Ask about stock, goods movements, inventory counts, deliveries or purchase orders…"
           aria-label="Your question"></textarea>
+        <div class="composer__tools">
+          <button id="mic" class="composer__tool" type="button" aria-label="Dictate your question" title="Dictate">🎤</button>
+          <button id="clip" class="composer__tool" type="button" aria-label="Attach a file" title="Attach a CSV, JSON or text file">📎</button>
+          <button id="cam" class="composer__tool" type="button" aria-label="Take a photo" title="Photograph a label or document">📷</button>
+          <input id="file" type="file" hidden accept=".csv,.txt,.json,.md,.log,text/*,application/json" />
+          <input id="photo" type="file" hidden accept="image/*" capture="environment" />
+        </div>
         <button id="ask" class="composer__send" aria-label="Send question">↑</button>
       </div>
       <p class="composer__note">
