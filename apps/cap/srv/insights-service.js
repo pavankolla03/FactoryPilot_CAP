@@ -4,6 +4,7 @@ const quota = require('./lib/quota')
 const tools = require('./lib/tools')
 const policy = require('./lib/policy')
 const cache = require('./lib/cache')
+const router = require('./lib/route')
 
 const rolesOf = (req) => Object.keys(req.user?.roles || {}).filter((r) => !r.startsWith('$'))
 const uuid = () => cds.utils.uuid()
@@ -20,12 +21,11 @@ async function loadContext() {
   const { ModelRoute } = cds.entities('factorypilot.token')
   const { OrgSettings } = cds.entities('factorypilot.admin')
 
-  const [businessObjects, route, orgSettings] = await Promise.all([
+  const [businessObjects, orgSettings] = await Promise.all([
     SELECT.from(BusinessObjectConfig).where({ isActive: true, exposedAsTool: true }),
-    SELECT.one.from(ModelRoute).where({ isActive: true, route: 'heavy' }),
     SELECT.one.from(OrgSettings),
   ])
-  return { businessObjects, route, orgSettings }
+  return { businessObjects, orgSettings }
 }
 
 async function ensureConversation(conversationID, userID, question, channel) {
@@ -76,7 +76,7 @@ async function persistTurns(conversationID, produced, startSeq) {
   return seq
 }
 
-async function writeAudit({ result, userID, channel, question, conversationID, correlationId, quotaResult, startedAt, objectCode, status, errorDetail, cacheResult = 'NOT_APPLICABLE' }) {
+async function writeAudit({ result, userID, channel, question, conversationID, correlationId, quotaResult, startedAt, objectCode, status, errorDetail, cacheResult = 'NOT_APPLICABLE', routeUsed }) {
   const { SessionLog, AgentRun, AgentStep } = cds.entities('factorypilot.audit')
   const logID = uuid()
   const runID = uuid()
@@ -96,7 +96,7 @@ async function writeAudit({ result, userID, channel, question, conversationID, c
     cacheResult,
     quotaResult,
     llmProvider: result?.usage?.provider || '',
-    llmModel: result?.usage?.model || '',
+    llmModel: [result?.usage?.model, routeUsed && `(${routeUsed})`].filter(Boolean).join(' ').slice(0, 100),
     tokensUsed: result?.usage?.totalTokens || 0,
     totalResponseTimeMs: Date.now() - startedAt,
     status,
@@ -152,7 +152,7 @@ async function recordTokenUsage({ userID, conversationID, usage, latencyMs }) {
     completionTokens: usage.completionTokens || 0,
     totalTokens: usage.totalTokens || 0,
     isEstimated: usage.isEstimated === true,
-    route: 'heavy',
+    route: usage.route || 'heavy',
     latencyMs,
   })
 }
@@ -182,7 +182,13 @@ module.exports = cds.service.impl(function () {
     // grants nothing — it only puts them in the Admin list to be decided on.
     await policy.ensureUser(userID, { displayName: req.user.attr?.name, defaultWarehouse: warehouseID })
 
-    const { businessObjects, route, orgSettings } = await loadContext()
+    const { businessObjects, orgSettings } = await loadContext()
+
+    // Which model answers depends on what the question needs and how busy the
+    // system is — a lookup does not deserve a 550B model, and under load
+    // everything drops to the light route rather than timing out.
+    const routing = await router.pick({ question })
+    const route = routing.route
     if (!businessObjects.length) {
       return {
         status: 'ERROR',
@@ -309,7 +315,11 @@ module.exports = cds.service.impl(function () {
     // Settle the reservation whatever happened — a failed run must give back
     // everything it reserved.
     await quota.reconcile(userID, roles, reservation.reserved, result?.usage?.totalTokens || 0)
-    await recordTokenUsage({ userID, conversationID, usage: result?.usage, latencyMs: Date.now() - startedAt })
+    await recordTokenUsage({
+      userID, conversationID,
+      usage: { ...(result?.usage || {}), route: routing.chosen },
+      latencyMs: Date.now() - startedAt,
+    })
 
     if (!result) {
       const { logID } = await writeAudit({
@@ -392,6 +402,7 @@ module.exports = cds.service.impl(function () {
     const { logID, runID } = await writeAudit({
       result, userID, channel, question, conversationID, correlationId,
       quotaResult: 'ALLOWED', startedAt, objectCode, status, errorDetail, cacheResult,
+      routeUsed: routing.chosen,
     })
 
     return {

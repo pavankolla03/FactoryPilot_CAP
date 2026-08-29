@@ -759,3 +759,93 @@ describe('quota under heavy concurrency', () => {
     assert.equal(week.consumedCount, 5, 'refused requests must give back every window they reserved')
   })
 })
+
+describe('model routing', () => {
+  // "Use a big model when the question needs one" is only half of it. The
+  // other half is that a lookup must not cost what analysis costs, and that
+  // under load everything gets cheaper rather than slower.
+  let router
+  before(async () => { router = require('../srv/lib/route') })
+
+  test('a lookup is light, analysis is heavy', () => {
+    for (const q of [
+      'How much stock do we have?',
+      'What purchase orders are open?',
+      'deliveries today',
+    ]) assert.equal(router.complexityOf(q), 'light', q)
+
+    for (const q of [
+      'Compare stock this week versus last week',
+      'Why did goods movements drop in plant 1010?',
+      'Summarise purchase orders grouped by supplier',
+      'What changed across the last three counts?',
+    ]) assert.equal(router.complexityOf(q), 'heavy', q)
+  })
+
+  test('a write is never routed light', () => {
+    // The card a write produces is read by a human about to change a real
+    // system, so it is worth the better model regardless of sentence length.
+    assert.equal(router.complexityOf('Move 250 units of P123 to shipping'), 'heavy')
+  })
+
+  test('a rambling question is treated as analysis', () => {
+    const long = 'I want to understand ' + 'the situation with our stock levels and movements '.repeat(3) + 'please'
+    assert.equal(router.complexityOf(long), 'heavy')
+  })
+
+  test('picks a real seeded route and explains the choice', async () => {
+    // load is pinned: otherwise the suite's own audit traffic trips the
+    // busy-downgrade and this asserts against whatever ran before it.
+    const light = await router.pick({ question: 'How much stock do we have?', load: 0 })
+    assert.equal(light.chosen, 'light')
+    assert.match(light.route.model, /nemotron/i, 'the seeded light model')
+
+    const heavy = await router.pick({ question: 'Compare this week with last week and explain why', load: 0 })
+    assert.equal(heavy.chosen, 'heavy')
+    assert.notEqual(heavy.route.model, light.route.model, 'heavy must not resolve to the light model')
+  })
+
+  test('under load, analysis is answered by the light model instead of failing', async () => {
+    // Capacity is shared. Plainer prose for everyone beats timeouts for the
+    // unlucky — and the numbers come from the same tool output either way.
+    const q = 'Compare this week with last week and explain why'
+    const busy = await router.pick({ question: q, load: router.BUSY_THRESHOLD })
+    assert.equal(busy.chosen, 'light')
+    assert.match(busy.why, /requests in the last 5 minutes/)
+
+    const quiet = await router.pick({ question: q, load: router.BUSY_THRESHOLD - 1 })
+    assert.equal(quiet.chosen, 'heavy', 'just below the threshold must still get the better model')
+  })
+
+  test('an operator override wins over the heuristic', async () => {
+    const out = await router.pick({ question: 'How much stock do we have?', forced: 'heavy' })
+    assert.equal(out.chosen, 'heavy')
+    assert.match(out.why, /forced/i)
+  })
+})
+
+describe('reasoning leakage', () => {
+  // Nemotron and friends think out loud. Excluding reasoning at the API is
+  // ignored by some models once tools are in play, so the answer arrives
+  // opening with "We need to analyse the data returned…" — the operator reads
+  // the deliberation instead of the number.
+  test('a deliberation preamble is removed', () => {
+    const leaked = 'We have a large dataset. The user asks how much stock. ' +
+                   'We need to summarise across materials. Total stock is 2,182,001,094 units across 12 materials.'
+    const out = agent.stripDeliberation(leaked)
+    assert.match(out, /^Total stock is/)
+    assert.doesNotMatch(out, /We need to/)
+  })
+
+  test('a real answer that happens to start with "We" is left alone', () => {
+    // The strip must not eat a legitimate answer. "We have 42 open orders" is
+    // the answer, not a preamble.
+    const real = 'We have 42 open purchase orders worth 1.2M EUR.'
+    assert.equal(agent.stripDeliberation(real), real)
+  })
+
+  test('an answer that is entirely deliberation is returned rather than emptied', () => {
+    const allThinking = 'We need to check the data. I should look at the rows.'
+    assert.ok(agent.stripDeliberation(allThinking).length > 0, 'never return an empty answer')
+  })
+})

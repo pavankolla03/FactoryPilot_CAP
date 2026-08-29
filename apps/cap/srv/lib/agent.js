@@ -17,13 +17,77 @@ const PENDING_TTL_MS = 15 * 60 * 1000
 
 function systemPrompt(businessObjects) {
   return [
-    'You are FactoryPilot, an assistant for SAP S/4HANA manufacturing and warehouse operations.',
-    'Use the provided tools to fetch real data. Never invent record counts, material numbers or quantities.',
-    'If the tools return nothing, say so plainly rather than guessing.',
+    'You are Otto, a warehouse copilot for SAP S/4HANA manufacturing and warehouse operations.',
+    '',
+    'ANSWERING RULES — follow all of them:',
+    // Reasoning models otherwise open with "We need to analyse the data
+    // returned..." and the operator reads the deliberation instead of the
+    // answer. Excluding reasoning at the API is not reliable once tools are in
+    // play, so the instruction has to be here as well.
+    '1. Reply with the answer only. Never narrate your thinking, restate the question, or describe what you are about to do.',
+    '2. Open with the figure or finding. No preamble such as "Based on the data" or "We have a large dataset".',
+    '3. Use the tools to fetch real data. Never invent record counts, material numbers, quantities or supplier names.',
+    '4. When a tool result says `truncated: true`, the rows are a sample — quote `rowCount` as the real total and say the detail is a sample.',
+    '5. If the tools return nothing, say so plainly rather than guessing.',
+    '6. Prefer a short markdown table when reporting more than three figures. Keep prose to two or three sentences.',
+    '',
     'Registered business objects:',
     ...businessObjects.map((b) => `- ${b.objectCode}: ${b.objectName || ''} (${b.keywords || ''})`),
   ].join('\n')
 }
+
+/**
+ * Strip a reasoning preamble that leaked into the answer.
+ *
+ * Belt and braces: the API's reasoning-exclusion is ignored by some models
+ * once tools are in play, and the system prompt is an instruction rather than
+ * a guarantee. This drops leading paragraphs that are visibly deliberation —
+ * conservatively, so a real answer is never truncated.
+ */
+const CUES = /\b(we|i|the user|let'?s|okay|first|the data(set)?|the question|the rows?|the result)\b/i
+const THINKING = /\b(need|should|must|want|asks?|asked|analyz|analys|look|check|figure|think|assume|likely|maybe|probably|summaris|summariz|provide|large dataset|truncated)\b/i
+
+/**
+ * Strip a reasoning preamble that leaked into the answer.
+ *
+ * Belt and braces: the API's reasoning-exclusion is ignored by some models
+ * once tools are in play, and the system prompt is an instruction rather than
+ * a guarantee.
+ *
+ * A leading sentence is deliberation when it carries a cue AND contains no
+ * figures. The digit test is what protects a real answer — "We have 42 open
+ * purchase orders" opens exactly like a preamble and must survive, while "We
+ * have a large dataset" must not.
+ */
+function stripDeliberation(text) {
+  const original = String(text || '').trim()
+  if (!original) return original
+
+  let rest = original
+  for (let i = 0; i < 6; i++) {
+    // Once a table, heading or list has started, the answer has started.
+    if (/^\s*[|#\-*]/.test(rest)) break
+    // A sentence may end inside quotes — "We need to answer: \"how much?\"" —
+    // so the terminator can be followed by a closing quote or bracket before
+    // the whitespace. Missing that left every leaked preamble in place.
+    const m = rest.match(/^([^.!?\n]{0,300}[.!?]+["'\u201d\u2019)\]]*)(\s+|$)/)
+    if (!m) break
+    const sentence = m[1]
+    // The thinking cue is what identifies deliberation. A real answer that
+    // opens "We have 42 open purchase orders" carries no such verb and
+    // survives, which is why no digit test is needed here.
+    // Either a pronoun cue plus a thinking verb ("we need to…"), or a bare
+    // imperative opening ("Need to summarise…") which these models emit when
+    // they drop the subject mid-stream.
+    const opensWithThinking = /^\s*(need|should|must|let'?s|first|next|now)\b/i.test(sentence)
+    if (!((CUES.test(sentence) && THINKING.test(sentence)) || opensWithThinking)) break
+    const remainder = rest.slice(m[0].length)
+    if (!remainder.trim()) break   // never strip away the whole answer
+    rest = remainder
+  }
+  return rest.trim() || original
+}
+
 
 /**
  * Drop assistant turns whose tool calls never got results.
@@ -260,6 +324,7 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
    * really fetched, and the caller can see the failed step in `steps`.
    */
   function settle(outcome) {
+    if (outcome.answer) outcome = { ...outcome, answer: stripDeliberation(outcome.answer) }
     if (degradedFrom) {
       outcome = { ...outcome, degradedFrom, usage: { ...outcome.usage, degradedFrom } }
     }
@@ -281,4 +346,4 @@ function describeWrite(args = {}) {
   return `Move ${quantity ?? '?'} of ${materialID ?? '?'} ${where} in warehouse ${warehouseID ?? '?'}`.replace(/\s+/g, ' ').trim()
 }
 
-module.exports = { run, sanitiseHistory, systemPrompt, describeWrite, MAX_ROUNDS, PENDING_TTL_MS }
+module.exports = { run, sanitiseHistory, systemPrompt, describeWrite, stripDeliberation, MAX_ROUNDS, PENDING_TTL_MS }

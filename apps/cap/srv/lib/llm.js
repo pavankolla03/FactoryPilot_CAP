@@ -23,6 +23,12 @@ class OpenRouterProvider {
       messages,
       max_tokens: maxTokens,
       temperature,
+      // Reasoning models otherwise spend the token budget thinking out loud
+      // and, when the budget runs out mid-thought, the deliberation lands in
+      // `content` — so an operator reads "We need to provide a summary of..."
+      // instead of the summary. Excluding it also stops paying for tokens
+      // nobody reads.
+      reasoning: { exclude: true },
     }
     if (tools?.length) {
       body.tools = tools
@@ -68,9 +74,22 @@ function parseCompletion(payload, { provider, model, vendor }) {
   if (!choice) throw new LLMError(`${vendor} returned no choices`)
   const usage = payload.usage || {}
 
+  // A reasoning model that exhausts its budget before writing an answer
+  // returns empty content and no tool calls. That is a failed completion, not
+  // a silent empty answer — say so, and let the caller fall back.
+  const text = choice.message?.content || ''
+  const calls = choice.message?.tool_calls || []
+  if (!text.trim() && !calls.length) {
+    throw new LLMError(
+      `${vendor} returned an empty answer` +
+        (choice.finish_reason ? ` (finish_reason: ${choice.finish_reason})` : '') +
+        '. The model likely ran out of tokens before answering.'
+    )
+  }
+
   return {
-    text: choice.message?.content || '',
-    toolCalls: (choice.message?.tool_calls || []).map((tc) => ({
+    text,
+    toolCalls: calls.map((tc) => ({
       id: tc.id,
       name: tc.function?.name,
       arguments: safeParse(tc.function?.arguments),

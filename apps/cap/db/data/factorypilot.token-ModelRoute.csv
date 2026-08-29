@@ -1,4 +1,4 @@
 ID;route;provider;model;fallbacks;maxTokens;temperature;isActive
-d0000000-0000-0000-0000-000000000001;heavy;openrouter;anthropic/claude-sonnet-4.5;anthropic/claude-haiku-4.5;800;0.20;true
-d0000000-0000-0000-0000-000000000002;light;openrouter;anthropic/claude-haiku-4.5;;400;0.10;true
-d0000000-0000-0000-0000-000000000003;intent;openrouter;anthropic/claude-haiku-4.5;;32;0.00;true
+d0000000-0000-0000-0000-000000000001;heavy;openrouter;nvidia/nemotron-3-ultra-550b-a55b:free;nvidia/nemotron-3-super-120b-a12b:free;1200;0.20;true
+d0000000-0000-0000-0000-000000000002;light;openrouter;nvidia/nemotron-3-super-120b-a12b:free;nvidia/nemotron-3-ultra-550b-a55b:free;800;0.10;true
+d0000000-0000-0000-0000-000000000003;intent;openrouter;nvidia/nemotron-3-super-120b-a12b:free;;64;0.00;true
