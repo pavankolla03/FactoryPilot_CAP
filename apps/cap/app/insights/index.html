@@ -135,12 +135,54 @@
       b.addEventListener("click", () => confirmAction(p.actionID, b.dataset.act === "approve", el)));
   }
 
+  // The approuter enforces CSRF on every non-GET route, so a POST without a
+  // token is rejected with 403 *before* it reaches CAP. That is indisputable
+  // in the router log: GETs arrive and are answered, and no POST has ever
+  // reached the service at all. It looks exactly like a missing scope from the
+  // browser, which is what made it so easy to mistake for one.
+  //
+  // The handshake is: ask any protected route for a token with
+  // `x-csrf-token: fetch`, then send what it returns on the POST. Tokens are
+  // tied to the session, so one is fetched lazily and refreshed when the
+  // approuter says it has gone stale.
+  let csrf = null;
+
+  async function fetchCsrf() {
+    try {
+      const res = await fetch("../../insights/whoami()", {
+        headers: { "x-csrf-token": "fetch" },
+        credentials: "same-origin",
+      });
+      csrf = res.headers.get("x-csrf-token") || null;
+    } catch {
+      csrf = null;   // running without an approuter (local dev) — none needed
+    }
+    return csrf;
+  }
+
   async function call(path, body) {
-    const res = await fetch(path, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    if (!csrf) await fetchCsrf();
+
+    const send = () =>
+      fetch(path, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(csrf && { "x-csrf-token": csrf }),
+        },
+        credentials: "same-origin",
+        body: JSON.stringify(body),
+      });
+
+    let res = await send();
+
+    // The approuter answers a stale or missing token with 403 and
+    // `x-csrf-token: Required`. Fetch a fresh one and try once more, so a
+    // session that has been open a while does not fail the first question.
+    if (res.status === 403 && /required/i.test(res.headers.get("x-csrf-token") || "")) {
+      await fetchCsrf();
+      res = await send();
+    }
     return { ok: res.ok, status: res.status, data: await res.json().catch(() => ({})) };
   }
 
@@ -201,10 +243,14 @@
               const raw = await probe.json();
               const who = JSON.parse(raw.value ?? raw);
               if (who.canAsk) {
+                // Permissions are fine, so the refusal came from in front of
+                // the service. Do not assert a cause that has already been
+                // wrong once — say what is known and what to check.
                 help =
-                  "Your permissions are correct, but this tab is using an older sign-in. " +
-                  "<b>Reload the page</b> (Cmd-Shift-R / Ctrl-F5) — the token is issued at sign-in, " +
-                  "so a tab opened before the change keeps the old one.";
+                  "Your permissions are correct (<code>InsightsQuery</code> is present), so this was " +
+                  "refused before it reached the service — most often a CSRF token the approuter " +
+                  "rejected. Reload the page; if it persists, check <code>cf logs factorypilot-srv</code> " +
+                  "for whether the request arrived at all.";
               } else {
                 help +=
                   " This token currently carries: <code>" +
