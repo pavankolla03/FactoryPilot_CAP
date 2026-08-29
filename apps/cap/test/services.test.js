@@ -243,14 +243,15 @@ describe('offline provider tool choice', () => {
     })
     assert.equal(res.toolCalls[0].arguments.materialID, undefined)
 
-    // The write tool still needs one: materialID is required there, so a
-    // missing value cannot be expressed and the confirmation card needs it.
+    // A write with no material named is no longer completed with a guess. It
+    // used to default to 'P123', so an operator could approve a goods movement
+    // against a material they had never mentioned.
     const write = await new llm.FakeProvider().complete({
       messages: [{ role: 'user', content: 'Move 40 units to shipping in warehouse 1000' }],
       tools: definitions,
     })
-    assert.equal(write.toolCalls[0].name, 'move_stock')
-    assert.ok(write.toolCalls[0].arguments.materialID, 'a write must carry a material')
+    assert.equal(write.toolCalls.length, 0, 'an incomplete write must not be proposed')
+    assert.match(write.text, /which material/i)
   })
 
   test('each business object is summarised from its own fields', async () => {
@@ -589,7 +590,9 @@ describe('InsightsService agent loop', () => {
     assert.equal(res.metadata.grounded, true, 'the answer came from a tool, not model recall')
     assert.equal(res.metadata.toolsCalled, 'query_delivery')
     assert.ok(res.metadata.tokensUsed > 0)
-    assert.match(res.answer, /record\(s\) matching/)
+    // The wording differs once a result is sampled — it then quotes the true
+    // total and says how many rows were examined — so match the stable part.
+    assert.match(res.answer, /record\(s\) match/)
   })
 
   test('a write is proposed, never executed inline', async () => {
@@ -893,5 +896,81 @@ describe('the fallback does not invent an intent', () => {
       tools: definitions(),
     })
     assert.equal(res.toolCalls.length, 1)
+  })
+})
+
+describe('a sample is never reported as a total', () => {
+  // agent.js caps the rows it sends the model, so every figure the offline
+  // summariser computes is a sample statistic. Presenting one as the
+  // population total understated stock roughly eightfold with no caveat —
+  // "2500 units on hand" for a 25-row sample of 200 matching records.
+  const rows = (n) => Array.from({ length: n }, (_, i) => ({
+    Material: 'M' + i, Plant: '1010', StorageLocation: '101B',
+    InventoryStockType: '01', MaterialBaseUnit: 'EA', MatlWrhsStkQtyInMatlBaseUnit: '100',
+  }))
+  const answer = (payload) => new llm.FakeProvider('offline').complete({
+    messages: [
+      { role: 'user', content: 'How much stock do we have?' },
+      { role: 'assistant', content: null, tool_calls: [{ id: 'c1' }] },
+      { role: 'tool', tool_call_id: 'c1', content: JSON.stringify(payload) },
+    ],
+    tools: [],
+  }).then((r) => r.text)
+
+  test('a truncated result says so and quotes the real total', async () => {
+    const text = await answer({ rows: rows(25), rowCount: 200, returned: 25, truncated: true })
+    assert.match(text, /25 of 200/)
+    assert.match(text, /sample, not the full total/i)
+  })
+
+  test('a complete result carries no caveat', async () => {
+    const text = await answer({ rows: rows(25), rowCount: 25, returned: 25, truncated: false })
+    assert.doesNotMatch(text, /sample/i)
+  })
+
+  test('an empty result names the query instead of asserting a period', async () => {
+    // "for the requested period and location" claimed a period and a location
+    // that may never have been part of the filter, so a plant with no stock
+    // and a plant nobody queried read identically.
+    const text = await answer({ rows: [], rowCount: 0, queriedWith: "Plant eq '1000'" })
+    assert.match(text, /Plant eq '1000'/)
+    assert.doesNotMatch(text, /requested period/i)
+  })
+})
+
+describe('a write is never proposed with invented values', () => {
+  const defs = () => tools.buildDefinitions([
+    { objectCode: 'MATERIAL_STOCK', objectName: 'Stock', keywords: 'stock' },
+  ])
+  const ask = (q) => new llm.FakeProvider('offline').complete({
+    messages: [{ role: 'user', content: q }], tools: defs(),
+  })
+
+  test('a plant number is not read as a quantity', async () => {
+    // "from plant 1010 to 1710" previously proposed moving 1010 units.
+    const r = await ask('Move stock of P123 from plant 1010 to 1710')
+    assert.equal(r.toolCalls.length, 0)
+    assert.match(r.text, /how many/i)
+  })
+
+  test('a missing quantity is asked for, not defaulted to 1', async () => {
+    const r = await ask('Move some P123 to shipping')
+    assert.equal(r.toolCalls.length, 0)
+    assert.match(r.text, /how many/i)
+  })
+
+  test('a missing material is asked for, not invented', async () => {
+    // This produced an approval card naming P123 — a material the operator
+    // never mentioned — which, approved, posts a goods movement against it.
+    const r = await ask('Move 50 units from 0001 to 0002')
+    assert.equal(r.toolCalls.length, 0)
+    assert.match(r.text, /which material/i)
+    assert.doesNotMatch(r.text, /P123/)
+  })
+
+  test('a fully stated write is still proposed', async () => {
+    const r = await ask('Move 250 units of P123 to shipping in warehouse 1010')
+    assert.equal(r.toolCalls[0].name, 'move_stock')
+    assert.deepEqual(r.toolCalls[0].arguments, { warehouseID: '1010', quantity: 250, materialID: 'P123' })
   })
 })

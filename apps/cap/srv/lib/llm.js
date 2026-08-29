@@ -345,9 +345,33 @@ class FakeProvider {
     if (!alreadyCalled && tools?.length) {
       const picked = pickTool(question, tools)
       if (picked) {
+        const args = inferArgs(question, picked, asked)
+
+        // A write whose required values were not stated is not proposed. The
+        // card a human approves must carry only what they actually said —
+        // filling a blank with a plausible material number or a quantity of 1
+        // is how an unnoticed goods movement gets approved.
+        const missing = missingRequired(picked, args)
+        if (missing.length) {
+          const need = missing
+            .map((k) => ({ materialID: 'which material', quantity: 'how many', warehouseID: 'which plant' }[k] || k))
+            .join(', ')
+          const reply = `I can prepare that, but I need ${need} before I can put it in front of you to approve.`
+          return {
+            text: reply,
+            toolCalls: [],
+            provider: this.name,
+            model: this.model,
+            promptTokens,
+            completionTokens: Math.ceil(reply.length / 4),
+            totalTokens: promptTokens + Math.ceil(reply.length / 4),
+            isEstimated: true,
+          }
+        }
+
         return {
           text: '',
-          toolCalls: [{ id: `call_${picked.function.name}`, name: picked.function.name, arguments: inferArgs(question, picked, asked) }],
+          toolCalls: [{ id: `call_${picked.function.name}`, name: picked.function.name, arguments: args }],
           provider: this.name,
           model: this.model,
           promptTokens,
@@ -405,30 +429,57 @@ function pickTool(question, tools) {
 function inferArgs(question, tool, original = question) {
   const args = {}
   const props = tool.function?.parameters?.properties || {}
+
   if ('warehouseID' in props) {
     // Only when the question actually names one. Defaulting to a literal
-    // plant here overrides the configured default warehouse, so a tenant whose
+    // plant overrides the configured default warehouse, so a tenant whose
     // plants are 1010 and 1710 had every question silently asked against a
     // plant that does not exist — and answered "no records matched".
     const named = question.match(/\b(\d{4})\b/)?.[1]
     if (named) args.warehouseID = named
   }
+
   if ('datePreset' in props) {
     args.datePreset = /yesterday/.test(question) ? 'yesterday' : /tomorrow/.test(question) ? 'tomorrow' : 'today'
   }
-  if ('quantity' in props) args.quantity = Number(question.match(/\b(\d+)\s*(units?|pcs)?\b/)?.[1] || 1)
+
+  // A quantity must be stated, and stated as a quantity. The old pattern took
+  // the first integer anywhere in the sentence, so "move stock of P123 from
+  // plant 1010 to 1710" proposed moving 1010 units — the plant number read as
+  // an amount — and a sentence with no number at all proposed moving 1. Both
+  // reached a human as a confirmation card carrying a figure they never said.
+  if ('quantity' in props) {
+    const stated =
+      question.match(/\b(\d+(?:\.\d+)?)\s*(?:units?|pcs|pieces|ea\b|kg\b|litres?|l\b)/i)?.[1] ||
+      question.match(/\bmove\s+(\d+(?:\.\d+)?)\b/i)?.[1] ||
+      question.match(/\btransfer\s+(\d+(?:\.\d+)?)\b/i)?.[1]
+    if (stated) args.quantity = Number(stated)
+  }
 
   if ('materialID' in props) {
-    const found = original.match(/\b([A-Z]{1,3}\d{2,})\b/)?.[1]
-    // Only default for the write tool, where materialID is required and a
-    // missing one cannot be expressed. Defaulting on a read silently narrows
-    // "how much stock do we have?" to one material nobody asked about, and the
-    // answer looks authoritative while covering a fraction of the data.
-    if (found) args.materialID = found
-    else if (tool.function?.parameters?.required?.includes('materialID')) args.materialID = 'P123'
+    const found = original.match(/\b([A-Za-z][A-Za-z0-9_-]*\d[A-Za-z0-9_-]*)\b/)?.[1]
+    // Never invent one. This previously fell back to the literal 'P123' for
+    // the write tool, so "move 50 units from 0001 to 0002" produced an
+    // approval card naming a specific material the operator had not mentioned
+    // — and approving it would have posted a goods movement against it.
+    if (found && /\d/.test(found)) args.materialID = found
   }
+
   return args
 }
+
+/**
+ * Which required arguments a proposed call is missing.
+ *
+ * A write that cannot be fully described must not be proposed at all: a
+ * confirmation card is only meaningful if every value on it came from the
+ * person who will approve it.
+ */
+function missingRequired(tool, args) {
+  const required = tool.function?.parameters?.required || []
+  return required.filter((k) => args[k] === undefined || args[k] === '' || args[k] === null)
+}
+
 
 function summarise(raw) {
   const parsed = safeParse(raw)
@@ -438,14 +489,34 @@ function summarise(raw) {
   // not check".
   if (parsed?.error) return `I could not reach the source system, so I have no data to answer that: ${parsed.error}`
   const rows = Array.isArray(parsed?.rows) ? parsed.rows : Array.isArray(parsed) ? parsed : []
-  if (!rows.length) return 'No records matched that question for the requested period and location.'
+
+  if (!rows.length) {
+    // Say what was asked. "No records matched … for the requested period and
+    // location" asserts a period and a location that may never have been part
+    // of the query, so a plant with no stock and a plant that was never
+    // queried read identically.
+    return parsed?.queriedWith && parsed.queriedWith !== '(no filter)'
+      ? `No records matched. The query sent to SAP was: ${parsed.queriedWith}.`
+      : 'No records matched that question.'
+  }
+
+  // The rows here are a sample — agent.js caps what it sends the model — so
+  // every figure computed from them is a sample statistic. Reporting one as a
+  // population total is the difference between "2,500 units on hand" and the
+  // truth of roughly eight times that. rowCount and truncated were put in the
+  // payload for exactly this and were not being read.
+  const total = Number(parsed?.rowCount)
+  const sampled = parsed?.truncated === true && Number.isFinite(total) && total > rows.length
+  const caveat = sampled
+    ? ` These figures cover ${rows.length} of ${total} matching records — a sample, not the full total.`
+    : ''
 
   const counts = {}
   // Shape-detect the object rather than counting a status field that only
   // deliveries have — every other object was reporting "N unknown", which is a
   // true statement that answers nothing.
   const shaped = summariseByShape(rows)
-  if (shaped) return shaped
+  if (shaped) return shaped + caveat
 
   for (const row of rows) {
     const key = String(row.OverallGoodsMovementStatus ?? row.status ?? 'unknown')
@@ -456,7 +527,9 @@ function summarise(raw) {
     .sort()
     .map(([code, n]) => `${n} ${labels[code] || code}`)
     .join(', ')
-  return `You have ${rows.length} record(s) matching that question. Breakdown by status: ${parts}.`
+  return sampled
+    ? `${total} record(s) match that question. Of the ${rows.length} examined, the breakdown by status is: ${parts}.`
+    : `You have ${rows.length} record(s) matching that question. Breakdown by status: ${parts}.`
 }
 
 const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0)
