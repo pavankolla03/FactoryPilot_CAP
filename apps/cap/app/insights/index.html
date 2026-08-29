@@ -1,127 +1,294 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Otto — FactoryPilot</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="assets/otto.css">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FactoryPilot — Insights</title>
+<link rel="stylesheet" href="../shared/fiori.css" />
+<style>
+  .turn { margin-bottom: 0.75rem; }
+  .turn__role {
+    font-size: 0.75rem; color: var(--sapContentLabelColor);
+    text-transform: uppercase; letter-spacing: .04em; margin-bottom: 0.25rem;
+  }
+  .turn__body { font-size: 0.9375rem; }
+  .turn--me .fd-card { border-style: dashed; box-shadow: none; background: transparent; }
+  .badges { display: flex; gap: 0.375rem; flex-wrap: wrap; margin-top: 0.75rem; }
+  .metrics { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.75rem 0 0; }
+  .metric {
+    background: var(--sapBackgroundColor); border: 1px solid var(--sapList_BorderColor);
+    border-radius: 0.25rem; padding: 0.5rem 0.75rem; min-width: 5rem;
+  }
+  .metric__n { font-size: 1.25rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .metric__k { font-size: 0.6875rem; color: var(--sapContentLabelColor); text-transform: uppercase; letter-spacing: .03em; }
+  .approve { border-left: 0.25rem solid var(--sapCriticalColor); }
+  .approve--anomalous { border-left-color: var(--sapNegativeColor); }
+  .approve dl { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 1rem; margin: 0.75rem 0; font-size: 0.875rem; }
+  .approve dt { color: var(--sapContentLabelColor); }
+  .approve dd { margin: 0; font-variant-numeric: tabular-nums; }
+  .suggest { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+  .suggest button { font-size: 0.8125rem; border-radius: 1rem; padding: 0.3125rem 0.75rem; }
+</style>
 </head>
 <body>
 
-<aside class="rail">
-  <div class="brand">
-    <div class="brand__mark" aria-hidden="true">FP</div>
-    <div>
-      <div class="brand__name">FactoryPilot</div>
-      <div class="brand__org" id="orgname">FactoryPilot Demo Org</div>
-    </div>
-  </div>
-
-  <div class="rail__label">Workspace</div>
-  <nav class="nav">
-    <a href="#" class="is-active" aria-current="page">
-      <svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-4.1A8.4 8.4 0 0 1 4 11.5a8.5 8.5 0 0 1 17 0Z"/></svg>
-      Otto
-    </a>
-    <a href="../dashboard/index.html">
-      <svg viewBox="0 0 24 24"><path d="M3 21V9l9-6 9 6v12"/><path d="M9 21v-7h6v7"/></svg>
-      Operations Board
-    </a>
-    <a href="../dashboard/index.html">
-      <svg viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.9 4.9l2.9 2.9M16.2 16.2l2.9 2.9M2 12h4M18 12h4M4.9 19.1l2.9-2.9M16.2 7.8l2.9-2.9"/></svg>
-      Insights <span class="beta">BETA</span>
-    </a>
-    <a href="../admin/index.html">
-      <svg viewBox="0 0 24 24"><path d="M13 2 3 14h8l-1 8 10-12h-8l1-8Z"/></svg>
-      Autonomy <span class="beta">BETA</span>
-    </a>
-    <a href="../admin/index.html">
-      <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></svg>
-      Approvals
-    </a>
-    <a href="../dashboard/index.html">
-      <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 15v-4M12 15V7M17 15v-6"/></svg>
-      Usage &amp; Cost
-    </a>
-    <a href="../sessionlogs/index.html">
-      <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h11"/></svg>
-      Activity
-    </a>
-    <a href="../integrationendpoints/index.html">
-      <svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
-      Connections
-    </a>
-    <a href="../users/index.html">
-      <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M17 11.2a3.2 3.2 0 0 0 0-6.4M18 20a6.4 6.4 0 0 0-2-4.6"/></svg>
-      Access Control
-    </a>
+<div class="fd-shellbar">
+  <span class="fd-shellbar__logo">FP</span>
+  <span class="fd-shellbar__title">FactoryPilot</span>
+  <span class="fd-shellbar__subtitle">Insights</span>
+  <span class="fd-shellbar__spacer"></span>
+  <nav class="fd-shellbar__nav">
+    <a href="../insights/" aria-current="page">Insights</a>
+    <a href="../admin/">Admin</a>
+    <a href="../dashboard/">Monitoring</a>
   </nav>
+  <span class="fd-shellbar__user"><span class="fd-avatar" id="initials">–</span><span id="usage"></span></span>
+</div>
 
-  <div class="rail__foot">
-    <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:#64748b;fill:none;stroke-width:1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18Z"/></svg>
-    <div class="lang" role="group" aria-label="Language">
-      <button class="is-active" aria-pressed="true">EN</button>
-      <button aria-pressed="false">DE</button>
-    </div>
-  </div>
-</aside>
+<main class="fd-page fd-page--narrow">
 
-<main class="main">
-  <header class="top">
-    <div>
-      <h1>Otto</h1>
-      <p>Your warehouse copilot — ask, analyze, or operate.</p>
-    </div>
-    <div class="top__right">
-      <span class="pill" id="conn"><span class="dot dot--off" id="conndot"></span><span id="conntext">Checking…</span></span>
-      <span class="pill">
-        <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:var(--ink-faint);fill:none;stroke-width:1.7"><circle cx="12" cy="12" r="3.6"/><path d="M12 3v2.4M12 18.6V21M3 12h2.4M18.6 12H21M5.6 5.6l1.7 1.7M16.7 16.7l1.7 1.7M5.6 18.4l1.7-1.7M16.7 7.3l1.7-1.7"/></svg>
-        <b id="usednum" style="font-weight:700">0</b>
-        <span style="color:var(--ink-faint)">/ <span id="limitnum">—</span></span>
-        <span class="meter"><i id="usedbar"></i></span>
-      </span>
-      <button class="bell" aria-label="Notifications">
-        <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
-        <span class="bell__count" id="bellcount">0</span>
-      </button>
-    </div>
-  </header>
-
-  <div class="stage">
-    <section class="convs" aria-label="Conversations">
-      <div class="convs__head">
-        <span>Conversations</span>
-        <button class="newchat" id="newchat">+ New chat</button>
-      </div>
-      <div class="convs__list" id="convlist"><div class="convs__empty">Loading…</div></div>
-    </section>
-
-    <section class="chat">
-      <div class="thread" id="thread"></div>
-      <div class="composer">
-        <div class="composer__box">
-          <select class="wh" id="warehouse" aria-label="Plant / warehouse">
-            <option value="1010">Plant 1010</option>
-            <option value="1710">Plant 1710</option>
-            <option value="1000">Plant 1000</option>
-          </select>
-          <textarea id="q" rows="1" placeholder="Message Otto…" aria-label="Message Otto"></textarea>
-          <button class="iconbtn" id="srcbtn" title="Connected data sources" aria-label="Data sources">
-            <svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
-          </button>
-          <button class="send" id="send" aria-label="Send">
-            <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-          </button>
+  <section class="fd-card">
+    <div class="fd-card__content">
+      <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1 1 20rem">
+          <label class="fd-label" for="q">Ask about your operational data</label>
+          <input class="fd-input" id="q" type="text" autocomplete="off"
+                 placeholder="How many deliveries today in my warehouse?" />
         </div>
-        <div class="composer__note">Write operations always require your confirmation before touching SAP.</div>
+        <div style="flex:0 0 8rem">
+          <label class="fd-label" for="wh">Warehouse</label>
+          <select class="fd-select" id="wh"><option>1000</option><option>1010</option><option>2000</option></select>
+        </div>
+        <button class="fd-button" id="ask">Ask</button>
       </div>
-    </section>
-  </div>
+      <div class="suggest">
+        <button class="fd-button fd-button--transparent" data-q="How many deliveries today in warehouse 1000?">Deliveries today</button>
+        <button class="fd-button fd-button--transparent" data-q="How much stock do we have?">Material stock</button>
+        <button class="fd-button fd-button--transparent" data-q="Move 250 units of P123 from packing to shipping in warehouse 1000">Move stock</button>
+        <button class="fd-button fd-button--transparent" data-q="What is the weather in Berlin?">Unmatched question</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="demo-banner" hidden></div>
+  <div id="thread"></div>
 </main>
 
-<script src="assets/otto.js" defer></script>
+<footer class="fd-footer" id="provenance">Answers come from live S/4HANA data via the registered business objects. Writes always require confirmation.</footer>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const qEl = $("q"), whEl = $("wh"), askEl = $("ask"), thread = $("thread");
+  let conversationID = null;
+
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+
+  function add(html, cls = "") {
+    const el = document.createElement("section");
+    el.className = "fd-card " + cls;
+    el.style.marginBottom = "0.75rem";
+    el.innerHTML = html;
+    thread.prepend(el);
+    return el;
+  }
+
+  /** Fiori object status — semantic colour carries the meaning, not decoration. */
+  function badges(m = {}) {
+    const bits = [];
+    if (m.objectCode) bits.push(`<span class="fd-status fd-status--information">${esc(m.objectCode)}</span>`);
+    if (m.toolsCalled) bits.push(`<span class="fd-status">${esc(m.toolsCalled)}</span>`);
+    bits.push(`<span class="fd-status ${m.grounded ? "fd-status--positive" : "fd-status--critical"}">${
+      m.grounded ? "Grounded in data" : "Not grounded"}</span>`);
+    if (m.quotaResult) bits.push(`<span class="fd-status ${m.quotaResult === "DENIED" ? "fd-status--negative" : ""}">Quota ${esc(m.quotaResult)}</span>`);
+    if (m.cacheResult && m.cacheResult !== "NOT_APPLICABLE") {
+      bits.push(`<span class="fd-status ${m.cacheResult === "HIT" ? "fd-status--positive" : ""}">Cache ${esc(m.cacheResult)}</span>`);
+    }
+    if (m.rounds != null) bits.push(`<span class="fd-status">${esc(m.rounds)} rounds</span>`);
+    bits.push(`<span class="fd-status">${esc(m.tokensUsed ?? 0)} tokens</span>`);
+    bits.push(`<span class="fd-status">${esc(m.totalResponseTimeMs ?? 0)} ms</span>`);
+    return `<div class="badges">${bits.join("")}</div>`;
+  }
+
+  function renderApproval(p, meta) {
+    const args = (() => { try { return JSON.parse(p.arguments || "{}"); } catch { return {}; } })();
+    const rows = Object.entries(args).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
+    const el = add(`
+      <div class="fd-card__header">
+        <h3 class="fd-card__title">Confirmation required</h3>
+        <p class="fd-card__subtitle">${esc(p.summary)}</p>
+      </div>
+      <div class="fd-card__content">
+        ${p.anomalous ? `<div class="fd-message-strip fd-message-strip--error" style="margin-bottom:0.75rem">
+          <span><span class="fd-message-strip__title">Anomaly.</span> ${esc(p.anomalyReason)}</span></div>` : ""}
+        <dl>${rows}</dl>
+        <div style="display:flex;gap:0.5rem">
+          <button class="fd-button" data-act="approve">Approve and run</button>
+          <button class="fd-button fd-button--transparent" data-act="reject">Reject</button>
+        </div>
+        ${badges(meta)}
+      </div>`, `approve${p.anomalous ? " approve--anomalous" : ""}`);
+
+    el.querySelectorAll("button[data-act]").forEach((b) =>
+      b.addEventListener("click", () => confirmAction(p.actionID, b.dataset.act === "approve", el)));
+  }
+
+  async function call(path, body) {
+    const res = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return { ok: res.ok, status: res.status, data: await res.json().catch(() => ({})) };
+  }
+
+  async function confirmAction(actionID, approve, cardEl) {
+    cardEl.querySelectorAll("button").forEach((b) => (b.disabled = true));
+    const { data } = await call("../../insights/confirmAction", { actionID, approve });
+    if (data.status === "SUCCESS") {
+      add(`<div class="fd-card__content"><div class="turn__role">Result</div>
+           <div class="turn__body">${esc(data.answer)}</div></div>`);
+    } else {
+      add(`<div class="fd-card__content">
+             <div class="fd-message-strip fd-message-strip--error">
+               <span><span class="fd-message-strip__title">Refused.</span> ${esc(data.message)}
+               ${data.errorCode ? `<code>${esc(data.errorCode)}</code>` : ""}</span>
+             </div></div>`);
+    }
+    refreshUsage();
+  }
+
+  async function ask() {
+    const question = qEl.value.trim();
+    if (!question) { qEl.focus(); return; }
+
+    askEl.disabled = true;
+    askEl.innerHTML = '<span class="fd-busy"></span>Asking';
+    add(`<div class="fd-card__content turn turn--me">
+           <div class="turn__role">You</div><div class="turn__body">${esc(question)}</div></div>`, "");
+
+    try {
+      const { data } = await call("../../insights/ask", {
+        question, warehouseID: whEl.value, channel: "Web",
+        ...(conversationID && { conversationID }),
+      });
+      // An HTTP failure here is almost always authorisation, and "request
+      // failed" sends the reader looking in the wrong place. 401 means the
+      // session lapsed; 403 means the token carries no FactoryPilot scopes —
+      // a role collection that is missing, or was granted after this sign-in.
+      // The token is issued at sign-in, so granting it now changes nothing
+      // until the user signs in again, and that is the part people miss.
+      if (!ok) {
+        const help =
+          status === 403
+            ? "This sign-in carries no FactoryPilot permissions. Assign the " +
+              "<code>FactoryPilot_Administrator</code> role collection in the BTP cockpit " +
+              "(Security &rarr; Users &rarr; your user), then <b>log out and sign in again</b> — " +
+              "the token is issued at sign-in, so assigning it alone is not enough."
+            : status === 401
+            ? "Your session has expired. Reload the page to sign in again."
+            : "The service returned HTTP " + status + ".";
+        add(`<div class="fd-card__content">
+               <div class="fd-message-strip fd-message-strip--error">
+                 <span><span class="fd-message-strip__title">Could not ask.</span> ${help}</span>
+               </div></div>`);
+        return;
+      }
+
+      const meta = data.metadata || {};
+      if (meta.conversationID) conversationID = meta.conversationID;
+
+      if (data.status === "AWAITING_APPROVAL" && data.pendingAction) {
+        renderApproval(data.pendingAction, meta);
+      } else if (data.status === "RATE_LIMITED") {
+        add(`<div class="fd-card__content">
+               <div class="fd-message-strip fd-message-strip--warning">
+                 <span><span class="fd-message-strip__title">Quota reached.</span> ${esc(data.message)}</span></div>
+               ${badges(meta)}</div>`);
+      } else if (data.status === "FAILED") {
+        // A run that reached the model but grounded nothing. Rendering this as
+        // an ordinary answer bubble is how "I could not check" gets read as
+        // "there is nothing there" — it has to look like a failure.
+        add(`<div class="fd-card__content">
+               <div class="fd-message-strip fd-message-strip--error">
+                 <span><span class="fd-message-strip__title">No data retrieved.</span> ${esc(data.answer)}</span></div>
+               ${badges(meta)}</div>`);
+      } else if (data.status === "ERROR") {
+        add(`<div class="fd-card__content">
+               <div class="fd-message-strip fd-message-strip--error">
+                 <span><span class="fd-message-strip__title">Could not answer.</span> ${esc(data.message)}
+                 ${data.errorCode ? `<code>${esc(data.errorCode)}</code>` : ""}</span></div>
+               ${badges(meta)}</div>`);
+      } else {
+        // Pipeline internals (rounds, tool calls) are already in the badges;
+        // repeating them as tiles reads as "0 rounds, 0 tool calls" on a cache
+        // hit — true, and useless. Only business numbers earn a tile.
+        add(`<div class="fd-card__content">
+               <div class="turn__role">FactoryPilot</div>
+               <div class="turn__body">${esc(data.answer)}</div>
+               ${badges(meta)}</div>`);
+      }
+    } catch (err) {
+      add(`<div class="fd-card__content">
+             <div class="fd-message-strip fd-message-strip--error">
+               <span><span class="fd-message-strip__title">Service unreachable.</span> ${esc(err.message)}</span>
+             </div></div>`);
+    } finally {
+      askEl.disabled = false;
+      askEl.textContent = "Ask";
+      qEl.value = "";
+      refreshUsage();
+    }
+  }
+
+  async function refreshUsage() {
+    try {
+      const res = await fetch("../../odata/token/myUsage()");
+      if (!res.ok) return;
+      const u = await res.json();
+      $("usage").textContent = u.limitDay == null
+        ? String(u.userID || "")
+        : `${u.userID} · ${u.usedDay}/${u.limitDay} today`;
+      $("initials").textContent = ((u.userID || "?")[0] || "?").toUpperCase();
+    } catch { /* the usage chip is decoration; never block the page on it */ }
+  }
+
+  /**
+   * Say where the data actually comes from.
+   *
+   * The footer claimed live S/4HANA data unconditionally. In demo mode that is
+   * false — every answer is replayed from a fixture — and it is exactly the
+   * claim someone in the room might read off the screen.
+   */
+  async function declareProvenance() {
+    try {
+      const res = await fetch("../../insights/health()");
+      if (!res.ok) return;
+      const raw = await res.json();
+      const h = JSON.parse(raw.value ?? raw);
+      if (!h.demoMode) return;
+
+      $("provenance").textContent =
+        "Demo mode: answers are replayed from synthetic fixtures, not a live S/4HANA system. Writes always require confirmation.";
+      const banner = $("demo-banner");
+      banner.innerHTML =
+        '<div class="fd-message-strip fd-message-strip--information">' +
+        '<span><span class="fd-message-strip__title">Demo mode.</span> ' +
+        'Answers come from synthetic fixtures — no S/4, iFlow or credential is involved. ' +
+        'Everything else, including approvals and the audit trail, is running for real.</span></div>';
+      banner.hidden = false;
+    } catch { /* if we cannot tell, leave the default text rather than guess */ }
+  }
+
+  askEl.addEventListener("click", ask);
+  qEl.addEventListener("keydown", (e) => { if (e.key === "Enter") ask(); });
+  document.querySelectorAll("button[data-q]").forEach((c) =>
+    c.addEventListener("click", () => { qEl.value = c.dataset.q; ask(); }));
+  refreshUsage();
+  declareProvenance();
+})();
+</script>
 </body>
 </html>

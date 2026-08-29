@@ -198,6 +198,67 @@ class AICoreProvider {
 }
 
 /**
+ * OpenAI chat-completions.
+ *
+ * Kept separate from OpenRouter rather than parameterised, because the GPT-5
+ * family rejects two things the OpenAI-compatible shape normally accepts, and
+ * both are hard errors rather than warnings:
+ *   - `max_tokens` is refused; it wants `max_completion_tokens`
+ *   - `temperature` may only be the default, so it is not sent at all
+ *
+ * These models also spend reasoning tokens out of the same completion budget —
+ * a 300-token budget was 128 tokens of thinking and very little answer — so
+ * the budget is widened before it is sent.
+ */
+class OpenAIProvider {
+  constructor({ apiKey, baseUrl = 'https://api.openai.com/v1', model, timeoutMs = 60000 }) {
+    if (!apiKey) throw new LLMError('OPENAI_API_KEY is not set')
+    Object.assign(this, { apiKey, baseUrl: baseUrl.replace(/\/$/, ''), model, timeoutMs })
+    this.name = 'openai'
+  }
+
+  async complete({ messages, tools, model, maxTokens = 800 }) {
+    const body = {
+      model: model || this.model,
+      messages,
+      // Reasoning is billed and budgeted here, so asking for exactly the
+      // answer length leaves nothing to answer with: at 1600 the model spent
+      // the lot thinking and returned finish_reason "length" with no text.
+      max_completion_tokens: Math.max(2500, maxTokens * 3),
+      // "low" was measured at ~256 reasoning tokens and still produced a
+      // markdown table; "minimal" is cheaper but drops to bullet lists, and
+      // the default overruns the budget on a 25-row tool result.
+      reasoning_effort: process.env.OPENAI_REASONING_EFFORT || 'low',
+    }
+    if (tools?.length) {
+      body.tools = tools
+      body.tool_choice = 'auto'
+    }
+
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs)
+    let res
+    try {
+      res = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${this.apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
+    } catch (err) {
+      throw new LLMError(
+        err.name === 'AbortError' ? `OpenAI timed out after ${this.timeoutMs}ms` : `OpenAI request failed: ${err.message}`
+      )
+    } finally {
+      clearTimeout(timer)
+    }
+
+    if (!res.ok) throw new LLMError(`OpenAI returned ${res.status}: ${(await res.text()).slice(0, 300)}`)
+    return parseCompletion(await res.json(), { provider: this.name, model: body.model, vendor: 'OpenAI' })
+  }
+}
+
+/**
  * Deterministic offline provider.
  *
  * Not a canned-response stub: it reads the registered tool list, picks the tool
@@ -205,6 +266,10 @@ class AICoreProvider {
  * summarises whatever that tool actually returned. The loop, the confirm flow
  * and token accounting all run for real without an API key.
  */
+/** Greetings, thanks and other conversational openers — matched whole, so
+ *  "hi" is small talk but "hi, how much stock of HI100" is not. */
+const SMALL_TALK = /^(hi|hey|hello|yo|good (morning|afternoon|evening)|thanks|thank you|ok(ay)?|cheers|bye|who are you|what can you do)( there| otto| again)?[\s!.?]*$/i
+
 class FakeProvider {
   constructor() {
     this.name = 'fake'
@@ -224,6 +289,25 @@ class FakeProvider {
     const alreadyCalled = turn.some((m) => m.role === 'tool')
 
     const promptTokens = Math.ceil(messages.reduce((n, m) => n + (m.content?.length || 0), 0) / 4)
+
+    // "hi" is not a query. Sending it hunting for a business object produces
+    // "I could not match that question to a registered business object",
+    // which reads as a malfunction rather than a greeting.
+    if (!alreadyCalled && SMALL_TALK.test(question.trim())) {
+      const reply =
+        'Hello. Ask me about stock, goods movements, physical inventory counts, ' +
+        'deliveries or purchase orders — or tell me to move stock and I will prepare it for your approval.'
+      return {
+        text: reply,
+        toolCalls: [],
+        provider: this.name,
+        model: this.model,
+        promptTokens,
+        completionTokens: Math.ceil(reply.length / 4),
+        totalTokens: promptTokens + Math.ceil(reply.length / 4),
+        isEstimated: true,
+      }
+    }
 
     if (!alreadyCalled && tools?.length) {
       const picked = pickTool(question, tools)
@@ -473,6 +557,18 @@ function safeParse(value) {
 function getProvider(route = {}) {
   const explicit = process.env.LLM_PROVIDER
   const hasOpenRouterKey = Boolean(process.env.OPENROUTER_API_KEY)
+  const hasOpenAIKey = Boolean(process.env.OPENAI_API_KEY)
+
+  if (explicit === 'openai' || (!explicit && route.provider === 'openai' && hasOpenAIKey)) {
+    return new OpenAIProvider({
+      apiKey: process.env.OPENAI_API_KEY,
+      model: route.model || process.env.OPENAI_MODEL || 'gpt-5-nano',
+    })
+  }
+
+  if (!explicit && route.provider === 'openai' && !hasOpenAIKey) {
+    warnOnce('[llm] ModelRoute asks for openai but OPENAI_API_KEY is unset — using the offline provider.')
+  }
   const hasAICore = Boolean(process.env.AICORE_BASE_URL && process.env.AICORE_DEPLOYMENT_ID && process.env.AICORE_TOKEN_URL)
 
   if (explicit === 'aicore' || (!explicit && route.provider === 'aicore' && hasAICore)) {
@@ -517,4 +613,4 @@ function warnOnce(message) {
   console.warn(message)
 }
 
-module.exports = { LLMError, OpenRouterProvider, AICoreProvider, FakeProvider, getProvider, safeParse }
+module.exports = { LLMError, OpenRouterProvider, OpenAIProvider, AICoreProvider, FakeProvider, getProvider, safeParse }

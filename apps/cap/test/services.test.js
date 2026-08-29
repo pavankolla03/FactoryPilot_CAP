@@ -798,11 +798,17 @@ describe('model routing', () => {
     // busy-downgrade and this asserts against whatever ran before it.
     const light = await router.pick({ question: 'How much stock do we have?', load: 0 })
     assert.equal(light.chosen, 'light')
-    assert.match(light.route.model, /nemotron/i, 'the seeded light model')
+    assert.ok(light.route?.model, 'the light route must resolve to a configured model')
 
     const heavy = await router.pick({ question: 'Compare this week with last week and explain why', load: 0 })
     assert.equal(heavy.chosen, 'heavy')
-    assert.notEqual(heavy.route.model, light.route.model, 'heavy must not resolve to the light model')
+    assert.ok(heavy.route?.model, 'the heavy route must resolve to a configured model')
+    // The two routes may share a model — what must differ is the budget, since
+    // that is what makes a lookup cheaper than an analysis.
+    assert.ok(
+      heavy.route.maxTokens > light.route.maxTokens,
+      `heavy (${heavy.route.maxTokens}) must allow more than light (${light.route.maxTokens})`
+    )
   })
 
   test('under load, analysis is answered by the light model instead of failing', async () => {

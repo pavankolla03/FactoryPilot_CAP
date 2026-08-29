@@ -100,6 +100,7 @@ entity TokenUsage : cuid {
  *  a third party; `fake` is the deterministic offline provider. */
 type LLMProvider : String(40) enum {
   openrouter;
+  openai;
   aicore;
   fake;
 }
