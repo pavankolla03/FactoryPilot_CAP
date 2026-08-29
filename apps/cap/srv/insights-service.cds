@@ -74,4 +74,15 @@ service InsightsService {
 
   @requires: 'InsightsQuery'
   function health() returns String;
+
+  /**
+   * What the caller's token actually carries.
+   *
+   * Deliberately needs nothing but a valid sign-in, so it still answers when
+   * `ask` is refused — which is exactly when you need it. A 403 on `ask` is
+   * either a role collection that was never assigned, one that is assigned but
+   * empty, or a token minted before the assignment; those look identical from
+   * outside and this tells them apart.
+   */
+  function whoami() returns String;
 }

@@ -168,6 +168,32 @@ module.exports = cds.service.impl(function () {
     })
   )
 
+  this.on('whoami', async (req) => {
+    const roles = Object.keys(req.user?.roles || {}).filter((r) => !r.startsWith('$'))
+    // `is()` is what @requires consults, so it is the honest answer to "will
+    // ask be allowed?". Listing roles alone is not: a locally privileged user
+    // enumerates none yet passes every check.
+    const canAsk = typeof req.user?.is === 'function' ? req.user.is('InsightsQuery') : roles.includes('InsightsQuery')
+    return JSON.stringify(
+      {
+        user: req.user?.id || '(anonymous)',
+        scopes: roles.sort(),
+        canAsk,
+        // Named so the reader can check it against the app shown beside the
+        // role in the cockpit; a role from a different registration grants
+        // nothing here however correct it looks.
+        expectedScopeFrom: 'the role collection must contain a role of the app whose id is shown in the cockpit',
+        hint: canAsk
+          ? 'This token can ask. If ask still fails, the failure is not authorisation.'
+          : roles.length
+            ? 'Signed in, but no InsightsQuery scope. The assigned collection has no role granting it — check that FactoryPilot_Admin contains the Administrator role, not only ConfigAdministrator.'
+            : 'Signed in with no FactoryPilot scopes at all. Either no collection is assigned, or this token predates the assignment — sign out and in again.',
+      },
+      null,
+      2
+    )
+  })
+
   this.on('ask', async (req) => {
     const startedAt = Date.now()
     const userID = req.user.id

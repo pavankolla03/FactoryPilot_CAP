@@ -13,7 +13,7 @@
       "authenticationType": "xsuaa"
     },
     {
-      "source": "^/insights/(ask|confirmAction|health)(.*)$",
+      "source": "^/insights/(ask|confirmAction|health|whoami)(.*)$",
       "target": "/insights/$1$2",
       "destination": "srv-api",
       "authenticationType": "xsuaa",
