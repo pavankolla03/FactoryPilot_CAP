@@ -271,9 +271,25 @@ class OpenAIProvider {
 const SMALL_TALK = /^(hi|hey|hello|yo|good (morning|afternoon|evening)|thanks|thank you|ok(ay)?|cheers|bye|who are you|what can you do)( there| otto| again)?[\s!.?]*$/i
 
 class FakeProvider {
-  constructor() {
+  /**
+   * `role` distinguishes the two jobs this provider does, which want opposite
+   * behaviour.
+   *
+   * 'offline' is a deliberate choice — no key configured, or demo mode — and
+   * keyword tool-picking is the point: the product is demonstrable without a
+   * model.
+   *
+   * 'fallback' is a model that was supposed to answer and could not. Guessing
+   * an intent from keywords there produces confident nonsense: "what is your
+   * name" matched nothing and came back "I could not match that question to a
+   * registered business object", and anything brushing a keyword came back
+   * "0 records". Neither is an answer, and both look like the product is
+   * broken rather than the model being unavailable.
+   */
+  constructor(role = 'offline') {
     this.name = 'fake'
     this.model = 'fake/deterministic-v1'
+    this.role = role
   }
 
   async complete({ messages, tools, maxTokens = 800 }) {
@@ -293,6 +309,23 @@ class FakeProvider {
     // "hi" is not a query. Sending it hunting for a business object produces
     // "I could not match that question to a registered business object",
     // which reads as a malfunction rather than a greeting.
+    // Standing in for a model that failed: say so. Do not invent an intent.
+    if (this.role === 'fallback' && !alreadyCalled) {
+      const reply =
+        'The language model is unavailable right now, so I cannot interpret that question. ' +
+        'Your data and permissions are fine — please try again shortly.'
+      return {
+        text: reply,
+        toolCalls: [],
+        provider: this.name,
+        model: this.model,
+        promptTokens,
+        completionTokens: Math.ceil(reply.length / 4),
+        totalTokens: promptTokens + Math.ceil(reply.length / 4),
+        isEstimated: true,
+      }
+    }
+
     if (!alreadyCalled && SMALL_TALK.test(question.trim())) {
       const reply =
         'Hello. Ask me about stock, goods movements, physical inventory counts, ' +

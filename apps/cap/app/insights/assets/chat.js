@@ -210,7 +210,11 @@
         pending.innerHTML = `<div class="turn__role">FactoryPilot</div>
           <div class="turn__body"><div class="md">${md(data.answer)}</div>${badges(meta)}</div>`;
       }
-      refreshUsage(); loadSessions();
+      refreshUsage();
+      // Not loadSessions(): refetching re-sorts by modifiedAt, so the chat you
+      // are in jumps to the top of the rail under your cursor every time it
+      // answers. A conversation is added once, when it first appears.
+      noteSession(meta.conversationID, question);
     } catch (err) {
       pending.innerHTML = strip("error", "Service unreachable.", err.message, {});
     } finally {
@@ -254,6 +258,28 @@
   }
 
   // --- sessions ------------------------------------------------------------
+  /**
+   * Record a conversation the moment it is created, and leave it alone after.
+   *
+   * The rail is navigation: it should be stable while you are reading and
+   * typing. Re-sorting it on every answer moves the row you are looking at.
+   */
+  function noteSession(id, title) {
+    if (!id) return;
+    if (sessions.some((c) => c.ID === id)) {
+      markActive();
+      return;
+    }
+    sessions.unshift({ ID: id, title: String(title || "").slice(0, 120), modifiedAt: new Date().toISOString() });
+    paintSessions();
+  }
+
+  /** Move the highlight without repainting — no reflow, no scroll jump. */
+  function markActive() {
+    $("sessionlist").querySelectorAll(".session").forEach((b) =>
+      b.classList.toggle("is-active", b.dataset.id === conversationID));
+  }
+
   async function loadSessions() {
     try {
       const res = await fetch("../../insights/Conversations?$orderby=modifiedAt desc&$top=60");
@@ -263,9 +289,10 @@
   }
 
   function paintSessions() {
+    const list = $("sessionlist");
+    const keepScroll = list.scrollTop;      // a repaint must not scroll the rail
     const term = ($("search").value || "").toLowerCase();
     const rows = sessions.filter((c) => !term || (c.title || "").toLowerCase().includes(term));
-    const list = $("sessionlist");
     if (!rows.length) {
       list.innerHTML = `<p class="sessions__empty">${term ? "No chat matches that." : "No conversations yet."}</p>`;
       return;
@@ -278,6 +305,7 @@
       </button>`).join("");
     list.querySelectorAll(".session").forEach((b) =>
       b.addEventListener("click", () => openSession(b.dataset.id)));
+    list.scrollTop = keepScroll;
   }
 
   /** Replay a past conversation in the order it happened. */
@@ -299,7 +327,7 @@
         }
       }
       threadEl.scrollTop = threadEl.scrollHeight;
-      paintSessions();
+      markActive();
     } catch {
       threadEl.innerHTML = "";
       add(strip("warning", "Could not load that conversation.", "", {}));

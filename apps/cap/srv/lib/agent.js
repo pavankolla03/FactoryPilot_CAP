@@ -177,7 +177,9 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
       if (active instanceof llm.FakeProvider) throw err
       degradedFrom = `${active.name}: ${err.message}`
       console.warn(`[agent] ${active.name} failed (${err.message}) — answering from the offline provider instead`)
-      active = new llm.FakeProvider()
+      // 'fallback', not 'offline': this stands in for a model that failed, so
+      // it must say so rather than keyword-guess an intent it cannot know.
+      active = new llm.FakeProvider('fallback')
       return active.complete(payload)
     }
   }

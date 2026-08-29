@@ -855,3 +855,43 @@ describe('reasoning leakage', () => {
     assert.ok(agent.stripDeliberation(allThinking).length > 0, 'never return an empty answer')
   })
 })
+
+describe('the fallback does not invent an intent', () => {
+  // The deterministic provider does two jobs. Offline it is a feature: keyword
+  // tool-picking makes the product demonstrable with no key. Standing in for a
+  // model that failed it is a liability — "what is your name" came back
+  // "I could not match that question to a registered business object", and
+  // anything brushing a keyword came back "0 records". Both read as a broken
+  // product rather than an unavailable model.
+  const definitions = () => tools.buildDefinitions([
+    { objectCode: 'MATERIAL_STOCK', objectName: 'Material Stock', keywords: 'stock,inventory,how much' },
+  ])
+
+  test('offline still picks a tool — that is what makes the demo work', async () => {
+    const res = await new llm.FakeProvider('offline').complete({
+      messages: [{ role: 'user', content: 'How much stock do we have?' }],
+      tools: definitions(),
+    })
+    assert.equal(res.toolCalls[0].name, 'query_material_stock')
+  })
+
+  test('as a fallback it calls no tool and says the model is unavailable', async () => {
+    for (const q of ['whats your name?', 'How much stock do we have?', 'who built you?']) {
+      const res = await new llm.FakeProvider('fallback').complete({
+        messages: [{ role: 'user', content: q }],
+        tools: definitions(),
+      })
+      assert.equal(res.toolCalls.length, 0, `${q} must not fabricate a tool call`)
+      assert.match(res.text, /model is unavailable/i)
+      assert.doesNotMatch(res.text, /could not match that question/i)
+    }
+  })
+
+  test('the default role stays offline, so nothing else changes behaviour', async () => {
+    const res = await new llm.FakeProvider().complete({
+      messages: [{ role: 'user', content: 'How much stock do we have?' }],
+      tools: definitions(),
+    })
+    assert.equal(res.toolCalls.length, 1)
+  })
+})
