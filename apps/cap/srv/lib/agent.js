@@ -15,7 +15,7 @@ const policy = require('./policy')
 const MAX_ROUNDS = 8
 const PENDING_TTL_MS = 15 * 60 * 1000
 
-function systemPrompt(businessObjects) {
+function systemPrompt(businessObjects, defaults = {}) {
   return [
     'You are Otto, a warehouse copilot for SAP S/4HANA manufacturing and warehouse operations.',
     '',
@@ -30,7 +30,9 @@ function systemPrompt(businessObjects) {
     '4. When a tool result says `truncated: true`, the rows are a sample — quote `rowCount` as the real total and say the detail is a sample.',
     '5. If a tool returns no rows, say which filter was used — quote `queriedWith` — so the reader can see whether the plant or material was the problem rather than the data.',
     '6. Only call a tool when the question is about the registered business objects below. Anything else — a greeting, a general question, something outside SAP — answer directly and do not call a tool.',
-    '7. When a question names no plant, pass the warehouseID you were given rather than omitting it.',
+    defaults.warehouse
+      ? `7. The user is currently working in plant ${defaults.warehouse}. Pass warehouseID="${defaults.warehouse}" on every tool call unless the question names a different plant. Never ask the user which plant — you have been told.`
+      : '7. No plant is selected. If a question needs one and names none, say so rather than guessing.',
     '8. Prefer a short markdown table when reporting more than three figures. Keep prose to two or three sentences.',
     '',
     'Registered business objects:',
@@ -148,7 +150,7 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
   const defaults = { warehouse: warehouseID || orgSettings?.defaultWarehouse || '' }
 
   const messages = [
-    { role: 'system', content: systemPrompt(businessObjects) },
+    { role: 'system', content: systemPrompt(businessObjects, defaults) },
     ...(await loadHistory(conversationID)),
     { role: 'user', content: question },
   ]
