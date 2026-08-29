@@ -73,3 +73,6 @@ htmlcov/
 .cap_mta_build_tmp/
 Makefile_*.mta
 mta_archives/
+
+# Generated knowledge graph — rebuilt by `graphify update .`, never reviewed as source.
+graphify-out/

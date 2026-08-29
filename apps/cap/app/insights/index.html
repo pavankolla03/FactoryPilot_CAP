@@ -181,15 +181,38 @@
       // The token is issued at sign-in, so granting it now changes nothing
       // until the user signs in again, and that is the part people miss.
       if (!ok) {
-        const help =
-          status === 403
-            ? "This sign-in carries no FactoryPilot permissions. Assign the " +
-              "<code>FactoryPilot_Administrator</code> role collection in the BTP cockpit " +
-              "(Security &rarr; Users &rarr; your user), then <b>log out and sign in again</b> — " +
-              "the token is issued at sign-in, so assigning it alone is not enough."
-            : status === 401
-            ? "Your session has expired. Reload the page to sign in again."
-            : "The service returned HTTP " + status + ".";
+        // A 403 has two very different causes that used to produce the same
+        // advice: the token genuinely lacks the scope, or the tab is running
+        // on a token minted before the role collection was assigned. Sending
+        // someone to the cockpit when their permissions are already correct
+        // wastes their time, so ask the service what this token actually
+        // carries and say which it is.
+        let help = "The service returned HTTP " + status + ".";
+        if (status === 401) {
+          help = "Your session has expired. Reload the page to sign in again.";
+        } else if (status === 403) {
+          help =
+            "This sign-in has no permission to ask. Assign the " +
+            "<code>FactoryPilot_Administrator</code> role collection in the BTP cockpit, " +
+            "then <b>log out and sign in again</b>.";
+          try {
+            const probe = await fetch("../../insights/whoami()");
+            if (probe.ok) {
+              const raw = await probe.json();
+              const who = JSON.parse(raw.value ?? raw);
+              if (who.canAsk) {
+                help =
+                  "Your permissions are correct, but this tab is using an older sign-in. " +
+                  "<b>Reload the page</b> (Cmd-Shift-R / Ctrl-F5) — the token is issued at sign-in, " +
+                  "so a tab opened before the change keeps the old one.";
+              } else {
+                help +=
+                  " This token currently carries: <code>" +
+                  esc((who.scopes || []).join(", ") || "none") + "</code>.";
+              }
+            }
+          } catch { /* the probe is a courtesy; keep the general advice */ }
+        }
         add(`<div class="fd-card__content">
                <div class="fd-message-strip fd-message-strip--error">
                  <span><span class="fd-message-strip__title">Could not ask.</span> ${help}</span>

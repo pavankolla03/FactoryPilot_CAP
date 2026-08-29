@@ -155,8 +155,7 @@ apps/cap/                # The application: 8 CAP services, Fiori apps, agent lo
   app/                   #   Insights, Admin, Monitoring + Fiori Elements apps
   test/                  #   unit, service and concurrency tests
 infra/                   # Terraform, client onboarding and deploy scripts
-integration/cpi/         # Thin generic CPI iFlow
-deploy/                  # Cloud Foundry and Kyma targets
+deploy/cf/               # How the MTA is deployed
 docs/api/hub/            # Hub EDMX, catalog, and the synthetic fixtures
 docs/architecture/       # Design pack and decisions log
 docs/requirements/       # Source requirements

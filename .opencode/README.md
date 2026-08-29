@@ -14,7 +14,6 @@ Same specialist split as Cursor/Copilot:
 
 - CAP Admin — `apps/admin-cap`
 - Orchestrator — `services/orchestrator`
-- CPI Thin — `integration/cpi`
 - Infra — `infra`, `deploy`, workflows
 - Hub APIs — `docs/api/hub`
 

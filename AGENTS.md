@@ -37,7 +37,7 @@ Requirements thick-CPI doc is **baseline only**, not the default build path unle
 | --- | --- | --- |
 | CAP Admin | CDS, Fiori, XSUAA, seeds | `apps/admin-cap/**` |
 | Orchestrator | FastAPI, LangGraph, Redis, LLM, Hub client | `services/orchestrator/**` |
-| CPI | Thin iFlow only | `integration/cpi/**` |
+| CPI | An endpoint kind, implemented in `apps/cap/srv/lib/backend.js` (CpiBackend) |
 | Infra | Terraform, CF/Kyma deploy, scripts | `infra/**`, `deploy/**`, `.github/workflows/**` |
 | Hub APIs | Catalog, EDMX, Destination docs | `docs/api/hub/**` |
 
