@@ -342,20 +342,39 @@ function tally(rows, pick) {
 function summariseByShape(rows) {
   const r0 = rows[0] || {}
 
-  if ('MatlStkQtyInMatlBaseUnitUnrestricted' in r0) {
-    const free = sum(rows, 'MatlStkQtyInMatlBaseUnitUnrestricted')
-    const blocked = sum(rows, 'MatlStkQtyInMatlBaseUnitBlocked')
-    const quality = sum(rows, 'MatlStkQtyInMatlBaseUnitInQualityInsp')
-    const materials = new Set(rows.map((r) => r.Material)).size
-    const plants = new Set(rows.map((r) => r.Plant)).size
+  if ('MatlWrhsStkQtyInMatlBaseUnit' in r0) {
+    // A_MatlStkInAcctMod carries one quantity per row; what kind of stock it is
+    // comes from InventoryStockType, not from separate columns. Verified
+    // against the live Hub — the split columns this once read do not exist.
+    const STOCK_TYPE = { '01': 'unrestricted', '02': 'quality inspection', '03': 'blocked', '04': 'blocked' }
+    const held = rows.filter((r) => num(r.MatlWrhsStkQtyInMatlBaseUnit) > 0)
+    const total = sum(rows, 'MatlWrhsStkQtyInMatlBaseUnit')
+    const materials = new Set(rows.map((r) => r.Material).filter(Boolean)).size
+    const plants = new Set(rows.map((r) => r.Plant).filter(Boolean)).size
+
+    const byType = {}
+    for (const r of rows) {
+      const label = STOCK_TYPE[r.InventoryStockType] || 'unclassified'
+      byType[label] = (byType[label] || 0) + num(r.MatlWrhsStkQtyInMatlBaseUnit)
+    }
+    const split = Object.entries(byType)
+      .filter(([, q]) => q > 0)
+      .map(([label, q]) => `${round(q)} ${label}`)
+      .join(', ')
+
     const top = [...rows].sort(
-      (a, b) => num(b.MatlStkQtyInMatlBaseUnitUnrestricted) - num(a.MatlStkQtyInMatlBaseUnitUnrestricted)
+      (a, b) => num(b.MatlWrhsStkQtyInMatlBaseUnit) - num(a.MatlWrhsStkQtyInMatlBaseUnit)
     )[0]
+
+    if (!held.length) {
+      return `${rows.length} stock record(s) across ${materials} material(s) in ${plants} plant(s), but every one is at zero quantity.`
+    }
     return (
-      `${round(free)} units are unrestricted across ${materials} material(s) in ${plants} plant(s), ` +
-      `with ${round(quality)} in quality inspection and ${round(blocked)} blocked. ` +
-      `Largest single holding: ${top.Material}${top.MaterialName ? ` (${top.MaterialName})` : ''} ` +
-      `at ${round(num(top.MatlStkQtyInMatlBaseUnitUnrestricted))} ${top.MaterialBaseUnit || ''} in plant ${top.Plant}.`
+      `${round(total)} units on hand across ${materials} material(s) in ${plants} plant(s)` +
+      `${split ? ` — ${split}` : ''}. ` +
+      `Largest single holding: ${top.Material || '(unnamed)'} at ` +
+      `${round(num(top.MatlWrhsStkQtyInMatlBaseUnit))} ${top.MaterialBaseUnit || ''} in plant ${top.Plant}` +
+      `${top.StorageLocation ? `, location ${top.StorageLocation}` : ''}.`
     )
   }
 
@@ -372,25 +391,34 @@ function summariseByShape(rows) {
   }
 
   if ('PhysicalInventoryDocument' in r0) {
-    const counted = rows.filter((r) => r.PhysInventoryCountIsCompleted === true || r.PhysInventoryCountIsCompleted === 'true').length
-    const posted = rows.filter((r) => r.PhysicalInventoryIsPosted === true || r.PhysicalInventoryIsPosted === 'true').length
+    // Real field names: PhysicalInventoryCountStatus and
+    // PhysInvtryAdjustmentPostingSts. Both are single-character codes where
+    // 'X' or 'A' mean done; anything else means outstanding.
+    const done = (v) => v === 'X' || v === 'A' || v === true || v === 'true'
+    const counted = rows.filter((r) => done(r.PhysicalInventoryCountStatus)).length
+    const posted = rows.filter((r) => done(r.PhysInvtryAdjustmentPostingSts)).length
     const open = rows.length - counted
+    const plants = new Set(rows.map((r) => r.Plant).filter(Boolean)).size
     return (
-      `${rows.length} physical inventory document(s): ${open} still to count, ${counted} counted, ` +
-      `${posted} posted. ${open ? `The ${open} uncounted document(s) are what block period close.` : 'Nothing is outstanding.'}`
+      `${rows.length} physical inventory document(s) across ${plants} plant(s): ${open} still to count, ` +
+      `${counted} counted, ${posted} posted. ` +
+      `${open ? `The ${open} uncounted document(s) are what block period close.` : 'Nothing is outstanding.'}`
     )
   }
 
   if ('PurchaseOrder' in r0) {
+    // No net amount on the header — that lives on the items. Reporting a
+    // total here would mean summing a column that does not exist, which OData
+    // answers with nothing rather than an error.
     const deleted = rows.filter((r) => r.PurchasingDocumentDeletionCode).length
     const live = rows.filter((r) => !r.PurchasingDocumentDeletionCode)
     const open = live.filter((r) => !r.PurchasingCompletenessStatus)
-    const value = sum(open, 'PurchaseOrderNetAmount')
     const bySupplier = tally(open, (r) => r.SupplierName || r.Supplier)
+    const orgs = new Set(live.map((r) => r.PurchasingOrganization).filter(Boolean)).size
     return (
-      `${open.length} of ${live.length} purchase order(s) are still open, worth ${round(value)} ` +
-      `${r0.DocumentCurrency || ''}`.trim() +
-      `.${bySupplier.length ? ` Most are with ${bySupplier[0][0]} (${bySupplier[0][1]}).` : ''}` +
+      `${open.length} of ${live.length} purchase order(s) are still open` +
+      `${orgs ? ` across ${orgs} purchasing organisation(s)` : ''}.` +
+      `${bySupplier.length ? ` Most are with supplier ${bySupplier[0][0]} (${bySupplier[0][1]}).` : ''}` +
       (deleted ? ` ${deleted} deleted order(s) were excluded.` : '')
     )
   }

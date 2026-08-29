@@ -82,26 +82,26 @@ function write(dir, entitySet, service, rows, extra = {}) {
 function materialStock() {
   const r = rng(11)
   const rows = []
+  // Field names mirror A_MatlStkInAcctMod as the live Hub returns it: a single
+  // MatlWrhsStkQtyInMatlBaseUnit per row, with InventoryStockType saying what
+  // kind of stock it is. 01 unrestricted, 02 quality inspection, 03 blocked.
   for (const m of MATERIALS) {
     for (const plant of PLANTS) {
-      const unrestricted = Math.round(r() * 900) + 20
-      const blocked = Math.round(r() * 30)
-      const inQuality = Math.round(r() * 45)
-      rows.push({
-        __metadata: { type: 'API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType' },
-        Material: m.id,
-        MaterialName: m.text,
-        Plant: plant,
-        StorageLocation: r() > 0.5 ? '0001' : '0002',
-        MaterialBaseUnit: m.uom,
-        MatlWrhsStkQtyInMatlBaseUnit: String(unrestricted + blocked + inQuality),
-        InventoryStockType: '01',
-        InventorySpecialStockType: '',
-        MatlStkQtyInMatlBaseUnitUnrestricted: String(unrestricted),
-        MatlStkQtyInMatlBaseUnitBlocked: String(blocked),
-        MatlStkQtyInMatlBaseUnitInQualityInsp: String(inQuality),
-        LastChangeDate: odataDate(day(BASE_DATE, -Math.floor(r() * 5))),
-      })
+      for (const [type, share] of [['01', 1], ['02', 0.06], ['03', 0.04]]) {
+        const qty = Math.round((r() * 900 + 20) * share)
+        if (!qty) continue
+        rows.push({
+          __metadata: { type: 'API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType' },
+          Material: m.id,
+          Plant: plant,
+          StorageLocation: r() > 0.5 ? '0001' : '0002',
+          Batch: '',
+          InventoryStockType: type,
+          InventorySpecialStockType: '',
+          MaterialBaseUnit: m.uom,
+          MatlWrhsStkQtyInMatlBaseUnit: String(qty) + '.000',
+        })
+      }
     }
   }
   write('material_stock', 'A_MatlStkInAcctMod', 'API_MATERIAL_STOCK_SRV', rows)
@@ -111,35 +111,29 @@ function materialStock() {
 function materialDocuments() {
   const r = rng(23)
   const rows = []
-  // 101 = goods receipt, 261 = issue to order, 311 = transfer, 601 = delivery
   const types = ['101', '261', '311', '601']
   for (let i = 0; i < 60; i++) {
     const m = MATERIALS[Math.floor(r() * MATERIALS.length)]
     const movement = types[Math.floor(r() * types.length)]
-    // Weighted toward recent days: squaring the draw puts roughly a third of
-    // the week's movements on today, which is what a real shift log looks like
-    // and what "goods movements today" needs in order to say anything.
-    const offset = -Math.floor(r() * r() * 7)
+    const cancelled = r() > 0.92
     rows.push({
-      __metadata: { type: 'API_MATERIAL_DOCUMENT_SRV.A_MaterialDocumentHeaderType' },
+      __metadata: { type: 'API_MATERIAL_DOCUMENT_SRV.A_MaterialDocumentItemType' },
       MaterialDocument: String(4900000000 + i),
       MaterialDocumentYear: BASE_DATE.slice(0, 4),
-      DocumentDate: odataDate(day(BASE_DATE, offset)),
-      PostingDate: odataDate(day(BASE_DATE, offset)),
-      GoodsMovementType: movement,
+      MaterialDocumentItem: '0001',
       Material: m.id,
-      MaterialName: m.text,
       Plant: PLANTS[Math.floor(r() * PLANTS.length)],
       StorageLocation: r() > 0.5 ? '0001' : '0002',
+      GoodsMovementType: movement,
       QuantityInEntryUnit: String(Math.round(r() * 250) + 5),
       EntryUnit: m.uom,
-      // The reversal flag matters: a demo question about goods movements that
-      // silently counts reversed documents gives a number nobody can tie out.
-      ReversedMaterialDocument: r() > 0.92 ? String(4900000000 + i - 1) : '',
-      CreatedByUser: r() > 0.5 ? 'WH_OPERATOR' : 'PRODUCTION',
+      // A reversal is recorded on the item that reverses it, so a net figure
+      // that ignores this double-counts.
+      ReversedMaterialDocument: cancelled ? String(4900000000 + i - 1) : '',
+      GoodsMovementIsCancelled: cancelled,
     })
   }
-  write('material_document', 'A_MaterialDocumentHeader', 'API_MATERIAL_DOCUMENT_SRV', rows)
+  write('material_document', 'A_MaterialDocumentItem', 'API_MATERIAL_DOCUMENT_SRV', rows)
 }
 
 // --- Physical inventory ------------------------------------------------------
@@ -153,15 +147,18 @@ function physicalInventory() {
       __metadata: { type: 'API_PHYSICAL_INVENTORY_DOC_SRV.A_PhysInventoryDocHeaderType' },
       FiscalYear: BASE_DATE.slice(0, 4),
       PhysicalInventoryDocument: String(100000000 + i),
+      InventoryTransactionType: 'IB',
       Plant: PLANTS[Math.floor(r() * PLANTS.length)],
       StorageLocation: r() > 0.5 ? '0001' : '0002',
+      InventorySpecialStockType: '',
       DocumentDate: odataDate(day(BASE_DATE, offset)),
-      PlannedCountDate: odataDate(day(BASE_DATE, offset + 2)),
-      PhysicalInventoryDocumentStatus: counted ? 'C' : 'A', // A = open, C = counted
-      PhysInventoryCountIsCompleted: counted,
-      PhysicalInventoryIsPosted: counted && r() > 0.4,
-      InventoryTransactionType: 'IB',
-      CreatedByUser: 'INV_CLERK',
+      PhysInventoryPlannedCountDate: odataDate(day(BASE_DATE, offset + 2)),
+      PhysicalInventoryLastCountDate: counted ? odataDate(day(BASE_DATE, offset + 2)) : null,
+      PostingDate: odataDate(day(BASE_DATE, offset)),
+      // 'X' means done; empty means outstanding. Same convention as S/4.
+      PhysicalInventoryCountStatus: counted ? 'X' : '',
+      PhysInvtryAdjustmentPostingSts: counted && r() > 0.4 ? 'X' : '',
+      PhysInvtryDeletionStatus: '',
     })
   }
   write('physical_inventory', 'A_PhysInventoryDocHeader', 'API_PHYSICAL_INVENTORY_DOC_SRV', rows)
@@ -174,23 +171,20 @@ function purchaseOrders() {
   for (let i = 0; i < 40; i++) {
     const s = SUPPLIERS[Math.floor(r() * SUPPLIERS.length)]
     const offset = -Math.floor(r() * 21)
-    const net = Math.round((r() * 48000 + 500) * 100) / 100
     rows.push({
       __metadata: { type: 'API_PURCHASEORDER_PROCESS_SRV.A_PurchaseOrderType' },
       PurchaseOrder: String(4500000000 + i),
       PurchaseOrderType: 'NB',
       PurchaseOrderDate: odataDate(day(BASE_DATE, offset)),
       Supplier: s.id,
-      SupplierName: s.name,
-      PurchasingOrganization: '1000',
+      PurchasingOrganization: '1010',
       PurchasingGroup: r() > 0.5 ? '001' : '002',
-      CompanyCode: '1000',
+      CompanyCode: '1010',
       DocumentCurrency: 'EUR',
-      PurchaseOrderNetAmount: String(net),
-      // Deliberately mixed so "which POs are still open?" has a real answer.
+      PurchasingProcessingStatus: r() > 0.55 ? '02' : '01',
+      // Empty means still open; 'X' means complete.
       PurchasingCompletenessStatus: r() > 0.55 ? 'X' : '',
       PurchasingDocumentDeletionCode: r() > 0.95 ? 'L' : '',
-      CreatedByUser: 'BUYER01',
     })
   }
   write('purchasing', 'A_PurchaseOrder', 'API_PURCHASEORDER_PROCESS_SRV', rows)

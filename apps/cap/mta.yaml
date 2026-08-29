@@ -99,21 +99,23 @@ resources:
   # the subaccount, either switch to HANA Cloud (see the block below — the CDS
   # model is portable, only this resource and the deployer path change) or
   # register an external Postgres as a user-provided service with the same name.
+  # Reuses the instance already provisioned in this space. Trial allows one
+  # PostgreSQL instance, so declaring a managed-service here would ask for a
+  # second and fail the whole deploy. `service-name` is the real instance;
+  # `factorypilot-db` stays the name the modules bind to.
   - name: factorypilot-db
-    type: org.cloudfoundry.managed-service
+    type: org.cloudfoundry.existing-service
     parameters:
-      service: postgresql-db
-      service-plan: trial
+      service-name: factorypilot-postgres
 
   # Answer cache. Optional by design: with no Redis bound the runtime falls back
   # to an in-process cache, which is correct for a single instance and simply
   # loses hit-rate across replicas. A client without a Redis entitlement can
   # still run the product.
   - name: factorypilot-redis
-    type: org.cloudfoundry.managed-service
+    type: org.cloudfoundry.existing-service
     parameters:
-      service: redis-cache
-      service-plan: trial
+      service-name: factorypilot-redis
 
   # --- HANA alternative -------------------------------------------------------
   # Replace factorypilot-db above with this, and point the deployer module at

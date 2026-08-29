@@ -88,7 +88,7 @@ function applyFilter(rows, filter) {
 const FIXTURES = {
   A_OutbDeliveryHeader: FIXTURE,
   A_MatlStkInAcctMod: fixture('material_stock'),
-  A_MaterialDocumentHeader: fixture('material_document'),
+  A_MaterialDocumentItem: fixture('material_document'),
   A_PhysInventoryDocHeader: fixture('physical_inventory'),
   A_PurchaseOrder: fixture('purchasing'),
 }

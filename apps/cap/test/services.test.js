@@ -257,12 +257,13 @@ describe('offline provider tool choice', () => {
     // Every object except DELIVERY used to report "N unknown", because the
     // summariser only knew the delivery status field.
     const cases = [
-      [{ Material: 'P123', MaterialName: 'Pump', Plant: '1000', MaterialBaseUnit: 'EA',
-         MatlStkQtyInMatlBaseUnitUnrestricted: '600', MatlStkQtyInMatlBaseUnitBlocked: '10',
-         MatlStkQtyInMatlBaseUnitInQualityInsp: '5' }, /600 units are unrestricted/],
+      // Field names as the live Hub returns them: one quantity column, with
+      // InventoryStockType saying what kind of stock it is.
+      [{ Material: 'P123', Plant: '1000', MaterialBaseUnit: 'EA', StorageLocation: '0001',
+         InventoryStockType: '01', MatlWrhsStkQtyInMatlBaseUnit: '600' }, /600 units on hand/],
       [{ GoodsMovementType: '101', ReversedMaterialDocument: '' }, /goods receipts/],
-      [{ PhysicalInventoryDocument: '1', PhysInventoryCountIsCompleted: false, PhysicalInventoryIsPosted: false }, /still to count/],
-      [{ PurchaseOrder: '45', SupplierName: 'Nordic Steel AB', PurchaseOrderNetAmount: '1000',
+      [{ PhysicalInventoryDocument: '1', Plant: '1010', PhysicalInventoryCountStatus: '', PhysInvtryAdjustmentPostingSts: '' }, /still to count/],
+      [{ PurchaseOrder: '45', Supplier: '100002', PurchasingOrganization: '1010',
          PurchasingCompletenessStatus: '', PurchasingDocumentDeletionCode: '', DocumentCurrency: 'EUR' }, /still open/],
     ]
     for (const [row, expected] of cases) {

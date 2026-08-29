@@ -17,15 +17,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786665600000)/",
         "Supplier": "100001",
-        "SupplierName": "Bergmann Industrieteile GmbH",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "001",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "002",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "4220.34",
+        "PurchasingProcessingStatus": "02",
         "PurchasingCompletenessStatus": "",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -35,15 +33,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1785715200000)/",
         "Supplier": "100003",
-        "SupplierName": "Precision Components Ltd",
-        "PurchasingOrganization": "1000",
+        "PurchasingOrganization": "1010",
         "PurchasingGroup": "002",
-        "CompanyCode": "1000",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "23001.3",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -53,15 +49,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1787097600000)/",
         "Supplier": "100003",
-        "SupplierName": "Precision Components Ltd",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "002",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "001",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "46249.46",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "X",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -71,15 +65,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1787097600000)/",
         "Supplier": "100002",
-        "SupplierName": "Nordic Steel AB",
-        "PurchasingOrganization": "1000",
+        "PurchasingOrganization": "1010",
         "PurchasingGroup": "002",
-        "CompanyCode": "1000",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "1136.57",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -89,15 +81,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786406400000)/",
         "Supplier": "100003",
-        "SupplierName": "Precision Components Ltd",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "001",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "002",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "13194.86",
+        "PurchasingProcessingStatus": "02",
         "PurchasingCompletenessStatus": "",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -107,15 +97,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1787011200000)/",
         "Supplier": "100003",
-        "SupplierName": "Precision Components Ltd",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "001",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "002",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "6362",
+        "PurchasingProcessingStatus": "02",
         "PurchasingCompletenessStatus": "X",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -125,15 +113,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1785456000000)/",
         "Supplier": "100001",
-        "SupplierName": "Bergmann Industrieteile GmbH",
-        "PurchasingOrganization": "1000",
+        "PurchasingOrganization": "1010",
         "PurchasingGroup": "001",
-        "CompanyCode": "1000",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "30182.21",
+        "PurchasingProcessingStatus": "02",
         "PurchasingCompletenessStatus": "",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -143,15 +129,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786752000000)/",
         "Supplier": "100003",
-        "SupplierName": "Precision Components Ltd",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "001",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "002",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "7802.08",
+        "PurchasingProcessingStatus": "02",
         "PurchasingCompletenessStatus": "",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -161,15 +145,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786233600000)/",
         "Supplier": "100001",
-        "SupplierName": "Bergmann Industrieteile GmbH",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "002",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "001",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "34009.31",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "X",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -179,15 +161,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786665600000)/",
         "Supplier": "100001",
-        "SupplierName": "Bergmann Industrieteile GmbH",
-        "PurchasingOrganization": "1000",
+        "PurchasingOrganization": "1010",
         "PurchasingGroup": "001",
-        "CompanyCode": "1000",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "44608.51",
+        "PurchasingProcessingStatus": "02",
         "PurchasingCompletenessStatus": "",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -197,15 +177,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1785801600000)/",
         "Supplier": "100001",
-        "SupplierName": "Bergmann Industrieteile GmbH",
-        "PurchasingOrganization": "1000",
+        "PurchasingOrganization": "1010",
         "PurchasingGroup": "001",
-        "CompanyCode": "1000",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "45020.42",
+        "PurchasingProcessingStatus": "02",
         "PurchasingCompletenessStatus": "",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -215,15 +193,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786147200000)/",
         "Supplier": "100003",
-        "SupplierName": "Precision Components Ltd",
-        "PurchasingOrganization": "1000",
+        "PurchasingOrganization": "1010",
         "PurchasingGroup": "001",
-        "CompanyCode": "1000",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "46620.03",
+        "PurchasingProcessingStatus": "02",
         "PurchasingCompletenessStatus": "X",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -233,15 +209,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1785628800000)/",
         "Supplier": "100003",
-        "SupplierName": "Precision Components Ltd",
-        "PurchasingOrganization": "1000",
+        "PurchasingOrganization": "1010",
         "PurchasingGroup": "002",
-        "CompanyCode": "1000",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "23422.77",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -251,15 +225,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1785369600000)/",
         "Supplier": "100002",
-        "SupplierName": "Nordic Steel AB",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "002",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "001",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "24688.61",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "X",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -269,15 +241,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1785369600000)/",
         "Supplier": "100003",
-        "SupplierName": "Precision Components Ltd",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "001",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "002",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "13493.99",
+        "PurchasingProcessingStatus": "02",
         "PurchasingCompletenessStatus": "",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -287,15 +257,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786665600000)/",
         "Supplier": "100001",
-        "SupplierName": "Bergmann Industrieteile GmbH",
-        "PurchasingOrganization": "1000",
+        "PurchasingOrganization": "1010",
         "PurchasingGroup": "002",
-        "CompanyCode": "1000",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "20349.43",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "X",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -305,15 +273,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786838400000)/",
         "Supplier": "100003",
-        "SupplierName": "Precision Components Ltd",
-        "PurchasingOrganization": "1000",
+        "PurchasingOrganization": "1010",
         "PurchasingGroup": "002",
-        "CompanyCode": "1000",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "20625.6",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "X",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -323,15 +289,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786492800000)/",
         "Supplier": "100002",
-        "SupplierName": "Nordic Steel AB",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "002",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "001",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "30581.85",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -341,15 +305,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1787097600000)/",
         "Supplier": "100001",
-        "SupplierName": "Bergmann Industrieteile GmbH",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "002",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "001",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "41895.68",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -359,15 +321,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786924800000)/",
         "Supplier": "100001",
-        "SupplierName": "Bergmann Industrieteile GmbH",
-        "PurchasingOrganization": "1000",
+        "PurchasingOrganization": "1010",
         "PurchasingGroup": "001",
-        "CompanyCode": "1000",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "41432.65",
+        "PurchasingProcessingStatus": "02",
         "PurchasingCompletenessStatus": "",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -377,15 +337,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786060800000)/",
         "Supplier": "100002",
-        "SupplierName": "Nordic Steel AB",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "001",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "002",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "22142.61",
+        "PurchasingProcessingStatus": "02",
         "PurchasingCompletenessStatus": "",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -395,15 +353,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786320000000)/",
         "Supplier": "100003",
-        "SupplierName": "Precision Components Ltd",
-        "PurchasingOrganization": "1000",
+        "PurchasingOrganization": "1010",
         "PurchasingGroup": "001",
-        "CompanyCode": "1000",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "37995.69",
+        "PurchasingProcessingStatus": "02",
         "PurchasingCompletenessStatus": "X",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -413,15 +369,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1785888000000)/",
         "Supplier": "100002",
-        "SupplierName": "Nordic Steel AB",
-        "PurchasingOrganization": "1000",
+        "PurchasingOrganization": "1010",
         "PurchasingGroup": "002",
-        "CompanyCode": "1000",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "6770.21",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -431,15 +385,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786147200000)/",
         "Supplier": "100003",
-        "SupplierName": "Precision Components Ltd",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "002",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "001",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "25234.26",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "X",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -449,15 +401,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1785542400000)/",
         "Supplier": "100001",
-        "SupplierName": "Bergmann Industrieteile GmbH",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "001",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "002",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "5549.17",
+        "PurchasingProcessingStatus": "02",
         "PurchasingCompletenessStatus": "",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -467,15 +417,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786838400000)/",
         "Supplier": "100003",
-        "SupplierName": "Precision Components Ltd",
-        "PurchasingOrganization": "1000",
+        "PurchasingOrganization": "1010",
         "PurchasingGroup": "001",
-        "CompanyCode": "1000",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "46621.89",
+        "PurchasingProcessingStatus": "02",
         "PurchasingCompletenessStatus": "X",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -485,15 +433,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1785542400000)/",
         "Supplier": "100003",
-        "SupplierName": "Precision Components Ltd",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "002",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "001",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "43077.31",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "",
-        "PurchasingDocumentDeletionCode": "L",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": "L"
       },
       {
         "__metadata": {
@@ -503,15 +449,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786665600000)/",
         "Supplier": "100001",
-        "SupplierName": "Bergmann Industrieteile GmbH",
-        "PurchasingOrganization": "1000",
+        "PurchasingOrganization": "1010",
         "PurchasingGroup": "002",
-        "CompanyCode": "1000",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "3198.04",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "X",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -521,15 +465,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786320000000)/",
         "Supplier": "100001",
-        "SupplierName": "Bergmann Industrieteile GmbH",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "002",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "001",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "45357.3",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -539,15 +481,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1785628800000)/",
         "Supplier": "100002",
-        "SupplierName": "Nordic Steel AB",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "001",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "002",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "13125.91",
+        "PurchasingProcessingStatus": "02",
         "PurchasingCompletenessStatus": "",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -557,15 +497,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786924800000)/",
         "Supplier": "100001",
-        "SupplierName": "Bergmann Industrieteile GmbH",
-        "PurchasingOrganization": "1000",
+        "PurchasingOrganization": "1010",
         "PurchasingGroup": "001",
-        "CompanyCode": "1000",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "38682.44",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "X",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -575,15 +513,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786752000000)/",
         "Supplier": "100002",
-        "SupplierName": "Nordic Steel AB",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "001",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "002",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "19570.29",
+        "PurchasingProcessingStatus": "02",
         "PurchasingCompletenessStatus": "X",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -593,15 +529,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1787097600000)/",
         "Supplier": "100003",
-        "SupplierName": "Precision Components Ltd",
-        "PurchasingOrganization": "1000",
+        "PurchasingOrganization": "1010",
         "PurchasingGroup": "002",
-        "CompanyCode": "1000",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "5225.94",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "X",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -611,15 +545,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786838400000)/",
         "Supplier": "100002",
-        "SupplierName": "Nordic Steel AB",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "002",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "001",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "26420.72",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -629,15 +561,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786838400000)/",
         "Supplier": "100003",
-        "SupplierName": "Precision Components Ltd",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "001",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "002",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "1206.54",
+        "PurchasingProcessingStatus": "02",
         "PurchasingCompletenessStatus": "X",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -647,15 +577,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1785456000000)/",
         "Supplier": "100001",
-        "SupplierName": "Bergmann Industrieteile GmbH",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "001",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "002",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "8591.2",
+        "PurchasingProcessingStatus": "02",
         "PurchasingCompletenessStatus": "X",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -665,15 +593,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1785456000000)/",
         "Supplier": "100003",
-        "SupplierName": "Precision Components Ltd",
-        "PurchasingOrganization": "1000",
+        "PurchasingOrganization": "1010",
         "PurchasingGroup": "002",
-        "CompanyCode": "1000",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "1991.27",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "X",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -683,15 +609,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1785628800000)/",
         "Supplier": "100003",
-        "SupplierName": "Precision Components Ltd",
-        "PurchasingOrganization": "1000",
+        "PurchasingOrganization": "1010",
         "PurchasingGroup": "002",
-        "CompanyCode": "1000",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "1961.59",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "X",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -701,15 +625,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1785369600000)/",
         "Supplier": "100001",
-        "SupplierName": "Bergmann Industrieteile GmbH",
-        "PurchasingOrganization": "1000",
-        "PurchasingGroup": "001",
-        "CompanyCode": "1000",
+        "PurchasingOrganization": "1010",
+        "PurchasingGroup": "002",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "20819.6",
+        "PurchasingProcessingStatus": "02",
         "PurchasingCompletenessStatus": "X",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       },
       {
         "__metadata": {
@@ -719,15 +641,13 @@
         "PurchaseOrderType": "NB",
         "PurchaseOrderDate": "/Date(1786665600000)/",
         "Supplier": "100003",
-        "SupplierName": "Precision Components Ltd",
-        "PurchasingOrganization": "1000",
+        "PurchasingOrganization": "1010",
         "PurchasingGroup": "002",
-        "CompanyCode": "1000",
+        "CompanyCode": "1010",
         "DocumentCurrency": "EUR",
-        "PurchaseOrderNetAmount": "13303.16",
+        "PurchasingProcessingStatus": "01",
         "PurchasingCompletenessStatus": "X",
-        "PurchasingDocumentDeletionCode": "",
-        "CreatedByUser": "BUYER01"
+        "PurchasingDocumentDeletionCode": ""
       }
     ]
   }

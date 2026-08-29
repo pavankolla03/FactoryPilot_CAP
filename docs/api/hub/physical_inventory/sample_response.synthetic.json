@@ -15,15 +15,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000000",
+        "InventoryTransactionType": "IB",
         "Plant": "2000",
         "StorageLocation": "0002",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1786060800000)/",
-        "PlannedCountDate": "/Date(1786233600000)/",
-        "PhysicalInventoryDocumentStatus": "A",
-        "PhysInventoryCountIsCompleted": false,
-        "PhysicalInventoryIsPosted": false,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1786233600000)/",
+        "PhysicalInventoryLastCountDate": null,
+        "PostingDate": "/Date(1786060800000)/",
+        "PhysicalInventoryCountStatus": "",
+        "PhysInvtryAdjustmentPostingSts": "",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -31,15 +33,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000001",
+        "InventoryTransactionType": "IB",
         "Plant": "2000",
         "StorageLocation": "0001",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1786579200000)/",
-        "PlannedCountDate": "/Date(1786752000000)/",
-        "PhysicalInventoryDocumentStatus": "C",
-        "PhysInventoryCountIsCompleted": true,
-        "PhysicalInventoryIsPosted": true,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1786752000000)/",
+        "PhysicalInventoryLastCountDate": "/Date(1786752000000)/",
+        "PostingDate": "/Date(1786579200000)/",
+        "PhysicalInventoryCountStatus": "X",
+        "PhysInvtryAdjustmentPostingSts": "X",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -47,15 +51,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000002",
+        "InventoryTransactionType": "IB",
         "Plant": "2000",
         "StorageLocation": "0001",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1787097600000)/",
-        "PlannedCountDate": "/Date(1787270400000)/",
-        "PhysicalInventoryDocumentStatus": "C",
-        "PhysInventoryCountIsCompleted": true,
-        "PhysicalInventoryIsPosted": true,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1787270400000)/",
+        "PhysicalInventoryLastCountDate": "/Date(1787270400000)/",
+        "PostingDate": "/Date(1787097600000)/",
+        "PhysicalInventoryCountStatus": "X",
+        "PhysInvtryAdjustmentPostingSts": "X",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -63,15 +69,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000003",
+        "InventoryTransactionType": "IB",
         "Plant": "1010",
         "StorageLocation": "0002",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1786924800000)/",
-        "PlannedCountDate": "/Date(1787097600000)/",
-        "PhysicalInventoryDocumentStatus": "C",
-        "PhysInventoryCountIsCompleted": true,
-        "PhysicalInventoryIsPosted": true,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1787097600000)/",
+        "PhysicalInventoryLastCountDate": "/Date(1787097600000)/",
+        "PostingDate": "/Date(1786924800000)/",
+        "PhysicalInventoryCountStatus": "X",
+        "PhysInvtryAdjustmentPostingSts": "X",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -79,15 +87,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000004",
+        "InventoryTransactionType": "IB",
         "Plant": "1000",
         "StorageLocation": "0001",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1786406400000)/",
-        "PlannedCountDate": "/Date(1786579200000)/",
-        "PhysicalInventoryDocumentStatus": "C",
-        "PhysInventoryCountIsCompleted": true,
-        "PhysicalInventoryIsPosted": true,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1786579200000)/",
+        "PhysicalInventoryLastCountDate": "/Date(1786579200000)/",
+        "PostingDate": "/Date(1786406400000)/",
+        "PhysicalInventoryCountStatus": "X",
+        "PhysInvtryAdjustmentPostingSts": "X",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -95,15 +105,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000005",
+        "InventoryTransactionType": "IB",
         "Plant": "1010",
         "StorageLocation": "0002",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1787011200000)/",
-        "PlannedCountDate": "/Date(1787184000000)/",
-        "PhysicalInventoryDocumentStatus": "C",
-        "PhysInventoryCountIsCompleted": true,
-        "PhysicalInventoryIsPosted": false,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1787184000000)/",
+        "PhysicalInventoryLastCountDate": "/Date(1787184000000)/",
+        "PostingDate": "/Date(1787011200000)/",
+        "PhysicalInventoryCountStatus": "X",
+        "PhysInvtryAdjustmentPostingSts": "",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -111,15 +123,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000006",
+        "InventoryTransactionType": "IB",
         "Plant": "1010",
         "StorageLocation": "0002",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1786147200000)/",
-        "PlannedCountDate": "/Date(1786320000000)/",
-        "PhysicalInventoryDocumentStatus": "C",
-        "PhysInventoryCountIsCompleted": true,
-        "PhysicalInventoryIsPosted": true,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1786320000000)/",
+        "PhysicalInventoryLastCountDate": "/Date(1786320000000)/",
+        "PostingDate": "/Date(1786147200000)/",
+        "PhysicalInventoryCountStatus": "X",
+        "PhysInvtryAdjustmentPostingSts": "X",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -127,15 +141,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000007",
+        "InventoryTransactionType": "IB",
         "Plant": "1000",
         "StorageLocation": "0001",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1786492800000)/",
-        "PlannedCountDate": "/Date(1786665600000)/",
-        "PhysicalInventoryDocumentStatus": "A",
-        "PhysInventoryCountIsCompleted": false,
-        "PhysicalInventoryIsPosted": false,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1786665600000)/",
+        "PhysicalInventoryLastCountDate": null,
+        "PostingDate": "/Date(1786492800000)/",
+        "PhysicalInventoryCountStatus": "",
+        "PhysInvtryAdjustmentPostingSts": "",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -143,15 +159,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000008",
+        "InventoryTransactionType": "IB",
         "Plant": "1010",
         "StorageLocation": "0001",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1785974400000)/",
-        "PlannedCountDate": "/Date(1786147200000)/",
-        "PhysicalInventoryDocumentStatus": "C",
-        "PhysInventoryCountIsCompleted": true,
-        "PhysicalInventoryIsPosted": true,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1786147200000)/",
+        "PhysicalInventoryLastCountDate": "/Date(1786147200000)/",
+        "PostingDate": "/Date(1785974400000)/",
+        "PhysicalInventoryCountStatus": "X",
+        "PhysInvtryAdjustmentPostingSts": "X",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -159,15 +177,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000009",
+        "InventoryTransactionType": "IB",
         "Plant": "2000",
         "StorageLocation": "0001",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1786838400000)/",
-        "PlannedCountDate": "/Date(1787011200000)/",
-        "PhysicalInventoryDocumentStatus": "C",
-        "PhysInventoryCountIsCompleted": true,
-        "PhysicalInventoryIsPosted": false,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1787011200000)/",
+        "PhysicalInventoryLastCountDate": "/Date(1787011200000)/",
+        "PostingDate": "/Date(1786838400000)/",
+        "PhysicalInventoryCountStatus": "X",
+        "PhysInvtryAdjustmentPostingSts": "",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -175,15 +195,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000010",
+        "InventoryTransactionType": "IB",
         "Plant": "1000",
         "StorageLocation": "0001",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1786579200000)/",
-        "PlannedCountDate": "/Date(1786752000000)/",
-        "PhysicalInventoryDocumentStatus": "A",
-        "PhysInventoryCountIsCompleted": false,
-        "PhysicalInventoryIsPosted": false,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1786752000000)/",
+        "PhysicalInventoryLastCountDate": null,
+        "PostingDate": "/Date(1786579200000)/",
+        "PhysicalInventoryCountStatus": "",
+        "PhysInvtryAdjustmentPostingSts": "",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -191,15 +213,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000011",
+        "InventoryTransactionType": "IB",
         "Plant": "1010",
         "StorageLocation": "0001",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1786147200000)/",
-        "PlannedCountDate": "/Date(1786320000000)/",
-        "PhysicalInventoryDocumentStatus": "A",
-        "PhysInventoryCountIsCompleted": false,
-        "PhysicalInventoryIsPosted": false,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1786320000000)/",
+        "PhysicalInventoryLastCountDate": null,
+        "PostingDate": "/Date(1786147200000)/",
+        "PhysicalInventoryCountStatus": "",
+        "PhysInvtryAdjustmentPostingSts": "",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -207,15 +231,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000012",
+        "InventoryTransactionType": "IB",
         "Plant": "1000",
         "StorageLocation": "0002",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1786060800000)/",
-        "PlannedCountDate": "/Date(1786233600000)/",
-        "PhysicalInventoryDocumentStatus": "A",
-        "PhysInventoryCountIsCompleted": false,
-        "PhysicalInventoryIsPosted": false,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1786233600000)/",
+        "PhysicalInventoryLastCountDate": null,
+        "PostingDate": "/Date(1786060800000)/",
+        "PhysicalInventoryCountStatus": "",
+        "PhysInvtryAdjustmentPostingSts": "",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -223,15 +249,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000013",
+        "InventoryTransactionType": "IB",
         "Plant": "2000",
         "StorageLocation": "0001",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1787097600000)/",
-        "PlannedCountDate": "/Date(1787270400000)/",
-        "PhysicalInventoryDocumentStatus": "C",
-        "PhysInventoryCountIsCompleted": true,
-        "PhysicalInventoryIsPosted": true,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1787270400000)/",
+        "PhysicalInventoryLastCountDate": "/Date(1787270400000)/",
+        "PostingDate": "/Date(1787097600000)/",
+        "PhysicalInventoryCountStatus": "X",
+        "PhysInvtryAdjustmentPostingSts": "X",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -239,15 +267,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000014",
+        "InventoryTransactionType": "IB",
         "Plant": "2000",
         "StorageLocation": "0001",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1786665600000)/",
-        "PlannedCountDate": "/Date(1786838400000)/",
-        "PhysicalInventoryDocumentStatus": "C",
-        "PhysInventoryCountIsCompleted": true,
-        "PhysicalInventoryIsPosted": true,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1786838400000)/",
+        "PhysicalInventoryLastCountDate": "/Date(1786838400000)/",
+        "PostingDate": "/Date(1786665600000)/",
+        "PhysicalInventoryCountStatus": "X",
+        "PhysInvtryAdjustmentPostingSts": "X",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -255,15 +285,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000015",
+        "InventoryTransactionType": "IB",
         "Plant": "2000",
         "StorageLocation": "0001",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1786233600000)/",
-        "PlannedCountDate": "/Date(1786406400000)/",
-        "PhysicalInventoryDocumentStatus": "C",
-        "PhysInventoryCountIsCompleted": true,
-        "PhysicalInventoryIsPosted": true,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1786406400000)/",
+        "PhysicalInventoryLastCountDate": "/Date(1786406400000)/",
+        "PostingDate": "/Date(1786233600000)/",
+        "PhysicalInventoryCountStatus": "X",
+        "PhysInvtryAdjustmentPostingSts": "X",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -271,15 +303,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000016",
+        "InventoryTransactionType": "IB",
         "Plant": "1010",
         "StorageLocation": "0001",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1786233600000)/",
-        "PlannedCountDate": "/Date(1786406400000)/",
-        "PhysicalInventoryDocumentStatus": "C",
-        "PhysInventoryCountIsCompleted": true,
-        "PhysicalInventoryIsPosted": false,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1786406400000)/",
+        "PhysicalInventoryLastCountDate": "/Date(1786406400000)/",
+        "PostingDate": "/Date(1786233600000)/",
+        "PhysicalInventoryCountStatus": "X",
+        "PhysInvtryAdjustmentPostingSts": "",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -287,15 +321,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000017",
+        "InventoryTransactionType": "IB",
         "Plant": "1000",
         "StorageLocation": "0001",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1786060800000)/",
-        "PlannedCountDate": "/Date(1786233600000)/",
-        "PhysicalInventoryDocumentStatus": "A",
-        "PhysInventoryCountIsCompleted": false,
-        "PhysicalInventoryIsPosted": false,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1786233600000)/",
+        "PhysicalInventoryLastCountDate": null,
+        "PostingDate": "/Date(1786060800000)/",
+        "PhysicalInventoryCountStatus": "",
+        "PhysInvtryAdjustmentPostingSts": "",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -303,15 +339,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000018",
+        "InventoryTransactionType": "IB",
         "Plant": "2000",
         "StorageLocation": "0002",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1785974400000)/",
-        "PlannedCountDate": "/Date(1786147200000)/",
-        "PhysicalInventoryDocumentStatus": "A",
-        "PhysInventoryCountIsCompleted": false,
-        "PhysicalInventoryIsPosted": false,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1786147200000)/",
+        "PhysicalInventoryLastCountDate": null,
+        "PostingDate": "/Date(1785974400000)/",
+        "PhysicalInventoryCountStatus": "",
+        "PhysInvtryAdjustmentPostingSts": "",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -319,15 +357,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000019",
+        "InventoryTransactionType": "IB",
         "Plant": "2000",
         "StorageLocation": "0002",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1786060800000)/",
-        "PlannedCountDate": "/Date(1786233600000)/",
-        "PhysicalInventoryDocumentStatus": "C",
-        "PhysInventoryCountIsCompleted": true,
-        "PhysicalInventoryIsPosted": false,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1786233600000)/",
+        "PhysicalInventoryLastCountDate": "/Date(1786233600000)/",
+        "PostingDate": "/Date(1786060800000)/",
+        "PhysicalInventoryCountStatus": "X",
+        "PhysInvtryAdjustmentPostingSts": "",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -335,15 +375,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000020",
+        "InventoryTransactionType": "IB",
         "Plant": "1000",
         "StorageLocation": "0001",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1786838400000)/",
-        "PlannedCountDate": "/Date(1787011200000)/",
-        "PhysicalInventoryDocumentStatus": "C",
-        "PhysInventoryCountIsCompleted": true,
-        "PhysicalInventoryIsPosted": false,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1787011200000)/",
+        "PhysicalInventoryLastCountDate": "/Date(1787011200000)/",
+        "PostingDate": "/Date(1786838400000)/",
+        "PhysicalInventoryCountStatus": "X",
+        "PhysInvtryAdjustmentPostingSts": "",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -351,15 +393,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000021",
+        "InventoryTransactionType": "IB",
         "Plant": "1000",
         "StorageLocation": "0001",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1786406400000)/",
-        "PlannedCountDate": "/Date(1786579200000)/",
-        "PhysicalInventoryDocumentStatus": "C",
-        "PhysInventoryCountIsCompleted": true,
-        "PhysicalInventoryIsPosted": true,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1786579200000)/",
+        "PhysicalInventoryLastCountDate": "/Date(1786579200000)/",
+        "PostingDate": "/Date(1786406400000)/",
+        "PhysicalInventoryCountStatus": "X",
+        "PhysInvtryAdjustmentPostingSts": "X",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -367,15 +411,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000022",
+        "InventoryTransactionType": "IB",
         "Plant": "2000",
         "StorageLocation": "0001",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1787011200000)/",
-        "PlannedCountDate": "/Date(1787184000000)/",
-        "PhysicalInventoryDocumentStatus": "C",
-        "PhysInventoryCountIsCompleted": true,
-        "PhysicalInventoryIsPosted": false,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1787184000000)/",
+        "PhysicalInventoryLastCountDate": "/Date(1787184000000)/",
+        "PostingDate": "/Date(1787011200000)/",
+        "PhysicalInventoryCountStatus": "X",
+        "PhysInvtryAdjustmentPostingSts": "",
+        "PhysInvtryDeletionStatus": ""
       },
       {
         "__metadata": {
@@ -383,15 +429,17 @@
         },
         "FiscalYear": "2026",
         "PhysicalInventoryDocument": "100000023",
+        "InventoryTransactionType": "IB",
         "Plant": "1000",
         "StorageLocation": "0002",
+        "InventorySpecialStockType": "",
         "DocumentDate": "/Date(1787011200000)/",
-        "PlannedCountDate": "/Date(1787184000000)/",
-        "PhysicalInventoryDocumentStatus": "C",
-        "PhysInventoryCountIsCompleted": true,
-        "PhysicalInventoryIsPosted": true,
-        "InventoryTransactionType": "IB",
-        "CreatedByUser": "INV_CLERK"
+        "PhysInventoryPlannedCountDate": "/Date(1787184000000)/",
+        "PhysicalInventoryLastCountDate": "/Date(1787184000000)/",
+        "PostingDate": "/Date(1787011200000)/",
+        "PhysicalInventoryCountStatus": "X",
+        "PhysInvtryAdjustmentPostingSts": "X",
+        "PhysInvtryDeletionStatus": ""
       }
     ]
   }

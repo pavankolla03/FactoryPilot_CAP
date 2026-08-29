@@ -143,7 +143,7 @@ describe('MockBackend fixture routing', () => {
     const orders = await mock.query({ entitySet: 'A_PurchaseOrder' })
 
     assert.ok(stock.rows.length, 'material stock fixture must have rows')
-    assert.ok('MatlStkQtyInMatlBaseUnitUnrestricted' in stock.rows[0])
+    assert.ok('MatlWrhsStkQtyInMatlBaseUnit' in stock.rows[0])
     assert.ok('PurchaseOrder' in orders.rows[0])
   })
 

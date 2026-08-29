@@ -5,7 +5,7 @@
     "baseDate": "2026-08-19",
     "entitySet": "A_MatlStkInAcctMod",
     "service": "API_MATERIAL_STOCK_SRV",
-    "rowCount": 18
+    "rowCount": 54
   },
   "d": {
     "results": [
@@ -14,306 +14,702 @@
           "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
         },
         "Material": "P123",
-        "MaterialName": "Hydraulic Pump Assembly",
         "Plant": "1000",
         "StorageLocation": "0002",
-        "MaterialBaseUnit": "EA",
-        "MatlWrhsStkQtyInMatlBaseUnit": "655",
+        "Batch": "",
         "InventoryStockType": "01",
         "InventorySpecialStockType": "",
-        "MatlStkQtyInMatlBaseUnitUnrestricted": "607",
-        "MatlStkQtyInMatlBaseUnitBlocked": "11",
-        "MatlStkQtyInMatlBaseUnitInQualityInsp": "37",
-        "LastChangeDate": "/Date(1787011200000)/"
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "607.000"
       },
       {
         "__metadata": {
           "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
         },
         "Material": "P123",
-        "MaterialName": "Hydraulic Pump Assembly",
-        "Plant": "1010",
+        "Plant": "1000",
         "StorageLocation": "0002",
-        "MaterialBaseUnit": "EA",
-        "MatlWrhsStkQtyInMatlBaseUnit": "689",
-        "InventoryStockType": "01",
+        "Batch": "",
+        "InventoryStockType": "02",
         "InventorySpecialStockType": "",
-        "MatlStkQtyInMatlBaseUnitUnrestricted": "633",
-        "MatlStkQtyInMatlBaseUnitBlocked": "24",
-        "MatlStkQtyInMatlBaseUnitInQualityInsp": "32",
-        "LastChangeDate": "/Date(1786838400000)/"
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "46.000"
       },
       {
         "__metadata": {
           "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
         },
         "Material": "P123",
-        "MaterialName": "Hydraulic Pump Assembly",
-        "Plant": "2000",
-        "StorageLocation": "0002",
+        "Plant": "1000",
+        "StorageLocation": "0001",
+        "Batch": "",
+        "InventoryStockType": "03",
+        "InventorySpecialStockType": "",
         "MaterialBaseUnit": "EA",
-        "MatlWrhsStkQtyInMatlBaseUnit": "796",
+        "MatlWrhsStkQtyInMatlBaseUnit": "15.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "P123",
+        "Plant": "1010",
+        "StorageLocation": "0001",
+        "Batch": "",
         "InventoryStockType": "01",
         "InventorySpecialStockType": "",
-        "MatlStkQtyInMatlBaseUnitUnrestricted": "749",
-        "MatlStkQtyInMatlBaseUnitBlocked": "10",
-        "MatlStkQtyInMatlBaseUnitInQualityInsp": "37",
-        "LastChangeDate": "/Date(1786838400000)/"
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "748.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "P123",
+        "Plant": "1010",
+        "StorageLocation": "0001",
+        "Batch": "",
+        "InventoryStockType": "02",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "5.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "P123",
+        "Plant": "1010",
+        "StorageLocation": "0002",
+        "Batch": "",
+        "InventoryStockType": "03",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "30.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "P123",
+        "Plant": "2000",
+        "StorageLocation": "0002",
+        "Batch": "",
+        "InventoryStockType": "01",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "752.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "P123",
+        "Plant": "2000",
+        "StorageLocation": "0001",
+        "Batch": "",
+        "InventoryStockType": "02",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "42.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "P123",
+        "Plant": "2000",
+        "StorageLocation": "0001",
+        "Batch": "",
+        "InventoryStockType": "03",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "1.000"
       },
       {
         "__metadata": {
           "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
         },
         "Material": "P456",
-        "MaterialName": "Steel Bearing 40mm",
         "Plant": "1000",
-        "StorageLocation": "0002",
-        "MaterialBaseUnit": "EA",
-        "MatlWrhsStkQtyInMatlBaseUnit": "636",
+        "StorageLocation": "0001",
+        "Batch": "",
         "InventoryStockType": "01",
         "InventorySpecialStockType": "",
-        "MatlStkQtyInMatlBaseUnitUnrestricted": "593",
-        "MatlStkQtyInMatlBaseUnitBlocked": "0",
-        "MatlStkQtyInMatlBaseUnitInQualityInsp": "43",
-        "LastChangeDate": "/Date(1786752000000)/"
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "417.000"
       },
       {
         "__metadata": {
           "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
         },
         "Material": "P456",
-        "MaterialName": "Steel Bearing 40mm",
-        "Plant": "1010",
+        "Plant": "1000",
         "StorageLocation": "0001",
-        "MaterialBaseUnit": "EA",
-        "MatlWrhsStkQtyInMatlBaseUnit": "756",
-        "InventoryStockType": "01",
+        "Batch": "",
+        "InventoryStockType": "02",
         "InventorySpecialStockType": "",
-        "MatlStkQtyInMatlBaseUnitUnrestricted": "726",
-        "MatlStkQtyInMatlBaseUnitBlocked": "17",
-        "MatlStkQtyInMatlBaseUnitInQualityInsp": "13",
-        "LastChangeDate": "/Date(1786838400000)/"
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "44.000"
       },
       {
         "__metadata": {
           "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
         },
         "Material": "P456",
-        "MaterialName": "Steel Bearing 40mm",
-        "Plant": "2000",
-        "StorageLocation": "0002",
+        "Plant": "1000",
+        "StorageLocation": "0001",
+        "Batch": "",
+        "InventoryStockType": "03",
+        "InventorySpecialStockType": "",
         "MaterialBaseUnit": "EA",
-        "MatlWrhsStkQtyInMatlBaseUnit": "538",
+        "MatlWrhsStkQtyInMatlBaseUnit": "11.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "P456",
+        "Plant": "1010",
+        "StorageLocation": "0001",
+        "Batch": "",
         "InventoryStockType": "01",
         "InventorySpecialStockType": "",
-        "MatlStkQtyInMatlBaseUnitUnrestricted": "509",
-        "MatlStkQtyInMatlBaseUnitBlocked": "16",
-        "MatlStkQtyInMatlBaseUnitInQualityInsp": "13",
-        "LastChangeDate": "/Date(1786838400000)/"
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "580.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "P456",
+        "Plant": "1010",
+        "StorageLocation": "0002",
+        "Batch": "",
+        "InventoryStockType": "02",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "30.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "P456",
+        "Plant": "1010",
+        "StorageLocation": "0001",
+        "Batch": "",
+        "InventoryStockType": "03",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "8.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "P456",
+        "Plant": "2000",
+        "StorageLocation": "0002",
+        "Batch": "",
+        "InventoryStockType": "01",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "431.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "P456",
+        "Plant": "2000",
+        "StorageLocation": "0002",
+        "Batch": "",
+        "InventoryStockType": "02",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "2.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "P456",
+        "Plant": "2000",
+        "StorageLocation": "0001",
+        "Batch": "",
+        "InventoryStockType": "03",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "32.000"
       },
       {
         "__metadata": {
           "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
         },
         "Material": "P789",
-        "MaterialName": "Conveyor Belt 2m",
         "Plant": "1000",
         "StorageLocation": "0002",
-        "MaterialBaseUnit": "M",
-        "MatlWrhsStkQtyInMatlBaseUnit": "437",
+        "Batch": "",
         "InventoryStockType": "01",
         "InventorySpecialStockType": "",
-        "MatlStkQtyInMatlBaseUnitUnrestricted": "431",
-        "MatlStkQtyInMatlBaseUnitBlocked": "5",
-        "MatlStkQtyInMatlBaseUnitInQualityInsp": "1",
-        "LastChangeDate": "/Date(1786752000000)/"
+        "MaterialBaseUnit": "M",
+        "MatlWrhsStkQtyInMatlBaseUnit": "256.000"
       },
       {
         "__metadata": {
           "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
         },
         "Material": "P789",
-        "MaterialName": "Conveyor Belt 2m",
-        "Plant": "1010",
-        "StorageLocation": "0002",
-        "MaterialBaseUnit": "M",
-        "MatlWrhsStkQtyInMatlBaseUnit": "795",
-        "InventoryStockType": "01",
+        "Plant": "1000",
+        "StorageLocation": "0001",
+        "Batch": "",
+        "InventoryStockType": "02",
         "InventorySpecialStockType": "",
-        "MatlStkQtyInMatlBaseUnitUnrestricted": "783",
-        "MatlStkQtyInMatlBaseUnitBlocked": "8",
-        "MatlStkQtyInMatlBaseUnitInQualityInsp": "4",
-        "LastChangeDate": "/Date(1786838400000)/"
+        "MaterialBaseUnit": "M",
+        "MatlWrhsStkQtyInMatlBaseUnit": "2.000"
       },
       {
         "__metadata": {
           "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
         },
         "Material": "P789",
-        "MaterialName": "Conveyor Belt 2m",
-        "Plant": "2000",
+        "Plant": "1000",
         "StorageLocation": "0002",
+        "Batch": "",
+        "InventoryStockType": "03",
+        "InventorySpecialStockType": "",
         "MaterialBaseUnit": "M",
-        "MatlWrhsStkQtyInMatlBaseUnit": "495",
+        "MatlWrhsStkQtyInMatlBaseUnit": "19.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "P789",
+        "Plant": "1010",
+        "StorageLocation": "0002",
+        "Batch": "",
         "InventoryStockType": "01",
         "InventorySpecialStockType": "",
-        "MatlStkQtyInMatlBaseUnitUnrestricted": "474",
-        "MatlStkQtyInMatlBaseUnitBlocked": "8",
-        "MatlStkQtyInMatlBaseUnitInQualityInsp": "13",
-        "LastChangeDate": "/Date(1786924800000)/"
+        "MaterialBaseUnit": "M",
+        "MatlWrhsStkQtyInMatlBaseUnit": "273.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "P789",
+        "Plant": "1010",
+        "StorageLocation": "0002",
+        "Batch": "",
+        "InventoryStockType": "02",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "M",
+        "MatlWrhsStkQtyInMatlBaseUnit": "24.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "P789",
+        "Plant": "1010",
+        "StorageLocation": "0002",
+        "Batch": "",
+        "InventoryStockType": "03",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "M",
+        "MatlWrhsStkQtyInMatlBaseUnit": "3.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "P789",
+        "Plant": "2000",
+        "StorageLocation": "0002",
+        "Batch": "",
+        "InventoryStockType": "01",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "M",
+        "MatlWrhsStkQtyInMatlBaseUnit": "565.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "P789",
+        "Plant": "2000",
+        "StorageLocation": "0001",
+        "Batch": "",
+        "InventoryStockType": "02",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "M",
+        "MatlWrhsStkQtyInMatlBaseUnit": "50.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "P789",
+        "Plant": "2000",
+        "StorageLocation": "0001",
+        "Batch": "",
+        "InventoryStockType": "03",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "M",
+        "MatlWrhsStkQtyInMatlBaseUnit": "32.000"
       },
       {
         "__metadata": {
           "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
         },
         "Material": "RM100",
-        "MaterialName": "Cold Rolled Steel Sheet",
         "Plant": "1000",
-        "StorageLocation": "0001",
-        "MaterialBaseUnit": "KG",
-        "MatlWrhsStkQtyInMatlBaseUnit": "310",
+        "StorageLocation": "0002",
+        "Batch": "",
         "InventoryStockType": "01",
         "InventorySpecialStockType": "",
-        "MatlStkQtyInMatlBaseUnitUnrestricted": "301",
-        "MatlStkQtyInMatlBaseUnitBlocked": "2",
-        "MatlStkQtyInMatlBaseUnitInQualityInsp": "7",
-        "LastChangeDate": "/Date(1787011200000)/"
+        "MaterialBaseUnit": "KG",
+        "MatlWrhsStkQtyInMatlBaseUnit": "483.000"
       },
       {
         "__metadata": {
           "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
         },
         "Material": "RM100",
-        "MaterialName": "Cold Rolled Steel Sheet",
-        "Plant": "1010",
-        "StorageLocation": "0001",
-        "MaterialBaseUnit": "KG",
-        "MatlWrhsStkQtyInMatlBaseUnit": "893",
-        "InventoryStockType": "01",
+        "Plant": "1000",
+        "StorageLocation": "0002",
+        "Batch": "",
+        "InventoryStockType": "02",
         "InventorySpecialStockType": "",
-        "MatlStkQtyInMatlBaseUnitUnrestricted": "833",
-        "MatlStkQtyInMatlBaseUnitBlocked": "21",
-        "MatlStkQtyInMatlBaseUnitInQualityInsp": "39",
-        "LastChangeDate": "/Date(1786924800000)/"
+        "MaterialBaseUnit": "KG",
+        "MatlWrhsStkQtyInMatlBaseUnit": "17.000"
       },
       {
         "__metadata": {
           "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
         },
         "Material": "RM100",
-        "MaterialName": "Cold Rolled Steel Sheet",
-        "Plant": "2000",
+        "Plant": "1000",
         "StorageLocation": "0002",
+        "Batch": "",
+        "InventoryStockType": "03",
+        "InventorySpecialStockType": "",
         "MaterialBaseUnit": "KG",
-        "MatlWrhsStkQtyInMatlBaseUnit": "58",
-        "InventoryStockType": "01",
-        "InventorySpecialStockType": "",
-        "MatlStkQtyInMatlBaseUnitUnrestricted": "45",
-        "MatlStkQtyInMatlBaseUnitBlocked": "9",
-        "MatlStkQtyInMatlBaseUnitInQualityInsp": "4",
-        "LastChangeDate": "/Date(1787097600000)/"
+        "MatlWrhsStkQtyInMatlBaseUnit": "5.000"
       },
       {
         "__metadata": {
           "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
         },
-        "Material": "RM200",
-        "MaterialName": "Industrial Lubricant",
-        "Plant": "1000",
-        "StorageLocation": "0002",
-        "MaterialBaseUnit": "L",
-        "MatlWrhsStkQtyInMatlBaseUnit": "412",
-        "InventoryStockType": "01",
-        "InventorySpecialStockType": "",
-        "MatlStkQtyInMatlBaseUnitUnrestricted": "368",
-        "MatlStkQtyInMatlBaseUnitBlocked": "4",
-        "MatlStkQtyInMatlBaseUnitInQualityInsp": "40",
-        "LastChangeDate": "/Date(1786924800000)/"
-      },
-      {
-        "__metadata": {
-          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
-        },
-        "Material": "RM200",
-        "MaterialName": "Industrial Lubricant",
+        "Material": "RM100",
         "Plant": "1010",
         "StorageLocation": "0002",
-        "MaterialBaseUnit": "L",
-        "MatlWrhsStkQtyInMatlBaseUnit": "594",
+        "Batch": "",
         "InventoryStockType": "01",
         "InventorySpecialStockType": "",
-        "MatlStkQtyInMatlBaseUnitUnrestricted": "584",
-        "MatlStkQtyInMatlBaseUnitBlocked": "10",
-        "MatlStkQtyInMatlBaseUnitInQualityInsp": "0",
-        "LastChangeDate": "/Date(1786924800000)/"
+        "MaterialBaseUnit": "KG",
+        "MatlWrhsStkQtyInMatlBaseUnit": "368.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "RM100",
+        "Plant": "1010",
+        "StorageLocation": "0002",
+        "Batch": "",
+        "InventoryStockType": "02",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "KG",
+        "MatlWrhsStkQtyInMatlBaseUnit": "50.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "RM100",
+        "Plant": "1010",
+        "StorageLocation": "0001",
+        "Batch": "",
+        "InventoryStockType": "03",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "KG",
+        "MatlWrhsStkQtyInMatlBaseUnit": "19.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "RM100",
+        "Plant": "2000",
+        "StorageLocation": "0002",
+        "Batch": "",
+        "InventoryStockType": "01",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "KG",
+        "MatlWrhsStkQtyInMatlBaseUnit": "320.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "RM100",
+        "Plant": "2000",
+        "StorageLocation": "0001",
+        "Batch": "",
+        "InventoryStockType": "02",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "KG",
+        "MatlWrhsStkQtyInMatlBaseUnit": "3.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "RM100",
+        "Plant": "2000",
+        "StorageLocation": "0001",
+        "Batch": "",
+        "InventoryStockType": "03",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "KG",
+        "MatlWrhsStkQtyInMatlBaseUnit": "6.000"
       },
       {
         "__metadata": {
           "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
         },
         "Material": "RM200",
-        "MaterialName": "Industrial Lubricant",
-        "Plant": "2000",
+        "Plant": "1000",
         "StorageLocation": "0001",
-        "MaterialBaseUnit": "L",
-        "MatlWrhsStkQtyInMatlBaseUnit": "169",
+        "Batch": "",
         "InventoryStockType": "01",
         "InventorySpecialStockType": "",
-        "MatlStkQtyInMatlBaseUnitUnrestricted": "147",
-        "MatlStkQtyInMatlBaseUnitBlocked": "20",
-        "MatlStkQtyInMatlBaseUnitInQualityInsp": "2",
-        "LastChangeDate": "/Date(1787011200000)/"
+        "MaterialBaseUnit": "L",
+        "MatlWrhsStkQtyInMatlBaseUnit": "56.000"
       },
       {
         "__metadata": {
           "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
         },
-        "Material": "FG500",
-        "MaterialName": "Gearbox Unit GX-500",
+        "Material": "RM200",
         "Plant": "1000",
         "StorageLocation": "0002",
-        "MaterialBaseUnit": "EA",
-        "MatlWrhsStkQtyInMatlBaseUnit": "361",
-        "InventoryStockType": "01",
+        "Batch": "",
+        "InventoryStockType": "02",
         "InventorySpecialStockType": "",
-        "MatlStkQtyInMatlBaseUnitUnrestricted": "302",
-        "MatlStkQtyInMatlBaseUnitBlocked": "18",
-        "MatlStkQtyInMatlBaseUnitInQualityInsp": "41",
-        "LastChangeDate": "/Date(1786752000000)/"
+        "MaterialBaseUnit": "L",
+        "MatlWrhsStkQtyInMatlBaseUnit": "18.000"
       },
       {
         "__metadata": {
           "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
         },
-        "Material": "FG500",
-        "MaterialName": "Gearbox Unit GX-500",
+        "Material": "RM200",
+        "Plant": "1000",
+        "StorageLocation": "0001",
+        "Batch": "",
+        "InventoryStockType": "03",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "L",
+        "MatlWrhsStkQtyInMatlBaseUnit": "23.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "RM200",
+        "Plant": "1010",
+        "StorageLocation": "0001",
+        "Batch": "",
+        "InventoryStockType": "01",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "L",
+        "MatlWrhsStkQtyInMatlBaseUnit": "300.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "RM200",
+        "Plant": "1010",
+        "StorageLocation": "0001",
+        "Batch": "",
+        "InventoryStockType": "02",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "L",
+        "MatlWrhsStkQtyInMatlBaseUnit": "54.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "RM200",
         "Plant": "1010",
         "StorageLocation": "0002",
-        "MaterialBaseUnit": "EA",
-        "MatlWrhsStkQtyInMatlBaseUnit": "972",
+        "Batch": "",
+        "InventoryStockType": "03",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "L",
+        "MatlWrhsStkQtyInMatlBaseUnit": "35.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "RM200",
+        "Plant": "2000",
+        "StorageLocation": "0002",
+        "Batch": "",
         "InventoryStockType": "01",
         "InventorySpecialStockType": "",
-        "MatlStkQtyInMatlBaseUnitUnrestricted": "907",
-        "MatlStkQtyInMatlBaseUnitBlocked": "22",
-        "MatlStkQtyInMatlBaseUnitInQualityInsp": "43",
-        "LastChangeDate": "/Date(1786838400000)/"
+        "MaterialBaseUnit": "L",
+        "MatlWrhsStkQtyInMatlBaseUnit": "613.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "RM200",
+        "Plant": "2000",
+        "StorageLocation": "0001",
+        "Batch": "",
+        "InventoryStockType": "02",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "L",
+        "MatlWrhsStkQtyInMatlBaseUnit": "55.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "RM200",
+        "Plant": "2000",
+        "StorageLocation": "0002",
+        "Batch": "",
+        "InventoryStockType": "03",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "L",
+        "MatlWrhsStkQtyInMatlBaseUnit": "27.000"
       },
       {
         "__metadata": {
           "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
         },
         "Material": "FG500",
-        "MaterialName": "Gearbox Unit GX-500",
-        "Plant": "2000",
+        "Plant": "1000",
         "StorageLocation": "0001",
-        "MaterialBaseUnit": "EA",
-        "MatlWrhsStkQtyInMatlBaseUnit": "215",
+        "Batch": "",
         "InventoryStockType": "01",
         "InventorySpecialStockType": "",
-        "MatlStkQtyInMatlBaseUnitUnrestricted": "158",
-        "MatlStkQtyInMatlBaseUnitBlocked": "30",
-        "MatlStkQtyInMatlBaseUnitInQualityInsp": "27",
-        "LastChangeDate": "/Date(1787011200000)/"
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "613.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "FG500",
+        "Plant": "1000",
+        "StorageLocation": "0001",
+        "Batch": "",
+        "InventoryStockType": "02",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "27.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "FG500",
+        "Plant": "1000",
+        "StorageLocation": "0002",
+        "Batch": "",
+        "InventoryStockType": "03",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "25.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "FG500",
+        "Plant": "1010",
+        "StorageLocation": "0001",
+        "Batch": "",
+        "InventoryStockType": "01",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "799.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "FG500",
+        "Plant": "1010",
+        "StorageLocation": "0002",
+        "Batch": "",
+        "InventoryStockType": "02",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "47.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "FG500",
+        "Plant": "1010",
+        "StorageLocation": "0002",
+        "Batch": "",
+        "InventoryStockType": "03",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "16.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "FG500",
+        "Plant": "2000",
+        "StorageLocation": "0002",
+        "Batch": "",
+        "InventoryStockType": "01",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "782.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "FG500",
+        "Plant": "2000",
+        "StorageLocation": "0001",
+        "Batch": "",
+        "InventoryStockType": "02",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "28.000"
+      },
+      {
+        "__metadata": {
+          "type": "API_MATERIAL_STOCK_SRV.A_MatlStkInAcctModType"
+        },
+        "Material": "FG500",
+        "Plant": "2000",
+        "StorageLocation": "0002",
+        "Batch": "",
+        "InventoryStockType": "03",
+        "InventorySpecialStockType": "",
+        "MaterialBaseUnit": "EA",
+        "MatlWrhsStkQtyInMatlBaseUnit": "17.000"
       }
     ]
   }
