@@ -61,7 +61,76 @@
   // --- markdown ------------------------------------------------------------
   // The model writes tables and lists. Rendering them as flat text throws away
   // exactly the structure that makes a set of figures readable.
-  function md(src) {
+  /**
+   * A horizontal bar chart of one label column against one value column.
+   *
+   * Horizontal because the labels are material numbers and supplier ids —
+   * strings long enough that vertical bars would need rotated text, which
+   * nobody reads. Hand-authored SVG rather than a charting library: the page is
+   * served under a strict CSP, and a bar chart is a hundred lines of geometry.
+   *
+   * Returns null when the table is not worth charting, and the caller then
+   * renders the table alone rather than an empty frame.
+   */
+  function chartFrom(head, rows, num) {
+    const labelCol = head.findIndex((_, i) => !num[i]);
+    const valueCol = head.findIndex((h, i) => num[i] && !/\b(year|item|no\.?)\b/i.test(h));
+    if (labelCol === -1 || valueCol === -1 || rows.length < 2) return null;
+
+    const points = rows
+      .map((r) => ({ label: String(r[labelCol] ?? "").trim(), value: parseFloat(String(r[valueCol] ?? "").replace(/,/g, "")) }))
+      .filter((p) => p.label && Number.isFinite(p.value) && p.value >= 0);
+    if (points.length < 2 || new Set(points.map((p) => p.value)).size < 2) return null;
+
+    // Too many bars stops being a chart and becomes a wall. The rest are still
+    // in the table, and the caption says how many were left out rather than
+    // quietly dropping them.
+    const LIMIT = 16;
+    const shown = points.slice(0, LIMIT);
+    const hidden = points.length - shown.length;
+
+    const max = Math.max(...shown.map((p) => p.value));
+    const ROW = 26, PAD = 8, GUTTER = 118, VALUE = 52;
+    const W = 640;
+    const H = PAD * 2 + shown.length * ROW;
+    const trackX = GUTTER + 8;
+    const trackW = W - trackX - VALUE;
+
+    const fmt = (n) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    const bars = shown.map((p, i) => {
+      const y = PAD + i * ROW;
+      const w = max > 0 ? Math.max(2, (p.value / max) * trackW) : 2;
+      const label = p.label.length > 18 ? p.label.slice(0, 17) + "…" : p.label;
+      return `<g>
+        <title>${esc(p.label)}: ${esc(fmt(p.value))}</title>
+        <text class="viz__label" x="${GUTTER}" y="${y + 15}" text-anchor="end">${esc(label)}</text>
+        <rect class="viz__track" x="${trackX}" y="${y + 5}" width="${trackW}" height="14" rx="7"/>
+        <rect class="viz__bar" x="${trackX}" y="${y + 5}" width="${w.toFixed(1)}" height="14" rx="7"/>
+        <text class="viz__value" x="${trackX + trackW + 8}" y="${y + 15}">${esc(fmt(p.value))}</text>
+      </g>`;
+    }).join("");
+
+    const caption = `${esc(head[valueCol])} by ${esc(head[labelCol])}` +
+      (hidden ? ` · top ${shown.length} of ${points.length}` : "");
+    return `<figure class="viz__chart">
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${caption}" preserveAspectRatio="xMidYMin meet">${bars}</svg>
+      <figcaption>${caption}</figcaption>
+    </figure>`;
+  }
+
+  /** Table and chart in one block, with a switch between them. */
+  function vizBlock(tableHtml, chartHtml, prefer) {
+    const bar = prefer === "bar";
+    return `<div class="viz" data-view="${bar ? "bar" : "table"}">
+      <div class="viz__switch" role="group" aria-label="How to show this data">
+        <button type="button" data-view="table"${bar ? "" : ' aria-pressed="true"'}>Table</button>
+        <button type="button" data-view="bar"${bar ? ' aria-pressed="true"' : ""}>Chart</button>
+      </div>
+      <div class="viz__panes">${tableHtml}${chartHtml}</div>
+    </div>`;
+  }
+
+  function md(src, prefer = "table") {
     const out = [];
     let table = null, list = null;
 
@@ -100,7 +169,7 @@
         return max > 0 && new Set(values).size > 1 ? max : null;
       });
 
-      out.push('<div class="tablewrap"><table><thead><tr>' +
+      const tableHtml = '<div class="tablewrap"><table><thead><tr>' +
         head.map((h, i) => `<th class="${num[i] ? "num" : ""}">${inline(h)}</th>`).join("") +
         "</tr></thead><tbody>" +
         rows.map((r) => "<tr>" + head.map((_, i) => {
@@ -111,7 +180,17 @@
           return `<td class="num has-bar"><span class="bar" style="--fill:${pct.toFixed(1)}%"></span>` +
                  `<span class="bar__v">${cell}</span></td>`;
         }).join("") + "</tr>").join("") +
-        "</tbody></table></div>");
+        "</tbody></table></div>";
+
+      // A chart is a *view* of this table, not a different answer.
+      //
+      // The alternative — asking the model to emit chart markup — makes every
+      // visualisation depend on it getting a second format right, and it can
+      // then draw a chart whose numbers disagree with its own table. Charting
+      // the parsed table means there is one set of figures and two ways to look
+      // at them, and the switch works on replayed conversations too.
+      const chart = chartFrom(head, rows, num);
+      out.push(chart ? vizBlock(tableHtml, chart, prefer) : tableHtml);
       table = null;
     };
     const flushList = () => {
@@ -152,6 +231,19 @@
     if (!el) { el = document.createElement("div"); el.className = "thread__inner"; threadEl.appendChild(el); }
     return el;
   }
+
+  // Delegated once at the thread, not bound per answer: replies arrive as
+  // innerHTML — from a live answer and from a replayed transcript — and
+  // rebinding after every insertion is how a switch silently stops working on
+  // the one path nobody re-tested.
+  threadEl.addEventListener("click", (e) => {
+    const btn = e.target.closest(".viz__switch button");
+    if (!btn) return;
+    const viz = btn.closest(".viz");
+    viz.dataset.view = btn.dataset.view;
+    viz.querySelectorAll(".viz__switch button").forEach((b) =>
+      b.toggleAttribute("aria-pressed", b === btn));
+  });
 
   /** Appended, never prepended: the answer belongs under the question. */
   function add(html, kind) {
@@ -265,6 +357,16 @@
       btn.addEventListener("click", () => { whEl.value = btn.dataset.w; ask(btn.dataset.q); }));
   }
 
+  /**
+   * Which view to open on.
+   *
+   * Asking "show me a chart" and getting a table is the system ignoring you.
+   * The data is identical either way, so this only picks the first thing you
+   * see — the switch is always there to change it.
+   */
+  const CHART_WORDS = /\b(chart|graph|plot|visuali[sz]e|visuali[sz]ation|dashboard|bar chart|breakdown by)\b/i;
+  const preferredView = (q) => (CHART_WORDS.test(String(q || "")) ? "bar" : "table");
+
   // --- asking --------------------------------------------------------------
   async function ask(question, shownAs) {
     if (busy || !question.trim()) return;
@@ -317,7 +419,7 @@
         pending.innerHTML = strip("error", "Could not answer.", data.message, meta);
       } else {
         pending.innerHTML = `${who()}
-          <div class="turn__body">${sources(meta)}<div class="md">${md(data.answer)}</div>${badges(meta)}</div>`;
+          <div class="turn__body">${sources(meta)}<div class="md">${md(data.answer, preferredView(question))}</div>${badges(meta)}</div>`;
       }
       refreshUsage();
       // Not loadSessions(): refetching re-sorts by modifiedAt, so the chat you
@@ -458,6 +560,9 @@
       // A transcript runs user → assistant(tool_calls) → tool… → assistant(answer),
       // so tool results accumulate until the answer they produced arrives.
       let pendingSources = [];
+      // A replayed answer opens on the view its own question asked for, so
+      // reopening a chart conversation does not silently show a table.
+      let lastAsked = "";
       for (const m of rows) {
         if (m.role === "tool") {
           pendingSources.push(sourceFromToolResult(m));
@@ -465,11 +570,12 @@
         }
         if (!m.content) continue;
         if (m.role === "user") {
+          lastAsked = m.content;
           add(`<div class="turn__role">You</div><div class="turn__body">${esc(m.content)}</div>`, "me");
         } else if (m.role === "assistant") {
           const meta = { sources: pendingSources.filter(Boolean), replayed: true };
           pendingSources = [];
-          add(`${who()}<div class="turn__body">${sources(meta)}<div class="md">${md(m.content)}</div></div>`);
+          add(`${who()}<div class="turn__body">${sources(meta)}<div class="md">${md(m.content, preferredView(lastAsked))}</div></div>`);
         }
       }
       if (!threadEl.querySelector(".turn")) { welcome(); return; }
@@ -594,6 +700,39 @@
              Attach a CSV or text extract with 📎, or dictate with 🎤 — both are sent to the model.</span>
            </div></div>`);
   });
+
+  // --- theme ---------------------------------------------------------------
+  // Three states, and the third one matters: "system" is the default and must
+  // stay available, or someone whose OS switches at sunset is stuck on
+  // whichever they last clicked. The cycle is system → light → dark → system.
+  (() => {
+    const btn = $("theme");
+    if (!btn) return;
+    const ORDER = ["system", "light", "dark"];
+    const FACE = { system: "🌗", light: "☀️", dark: "🌙" };
+    const NAME = { system: "Theme: follow system", light: "Theme: light", dark: "Theme: dark" };
+
+    // A private window can throw on read, so a missing preference is normal
+    // and must not stop the page rendering.
+    let mode = "system";
+    try { mode = localStorage.getItem("fp.theme") || "system"; } catch { /* no storage */ }
+    if (!ORDER.includes(mode)) mode = "system";
+
+    const apply = () => {
+      if (mode === "system") document.documentElement.removeAttribute("data-theme");
+      else document.documentElement.setAttribute("data-theme", mode);
+      btn.textContent = FACE[mode];
+      btn.title = NAME[mode];
+      btn.setAttribute("aria-label", NAME[mode]);
+    };
+
+    btn.addEventListener("click", () => {
+      mode = ORDER[(ORDER.indexOf(mode) + 1) % ORDER.length];
+      try { localStorage.setItem("fp.theme", mode); } catch { /* nothing to do */ }
+      apply();
+    });
+    apply();
+  })();
 
   welcome();
   refreshUsage();

@@ -9,6 +9,25 @@ Versioning follows [SemVer](https://semver.org/) for tagged releases (`v0.1.0-tr
 
 ### Added
 
+- **A table and a chart are two views of one answer.** Any table with a label
+  column and a comparable number column now carries a Table/Chart switch, and a
+  question that asks for a chart, graph or dashboard opens on the chart. The
+  model is told to keep answering with a normal markdown table and never to
+  attempt ASCII art — the interface draws it. That is deliberate: asking a model
+  to emit chart markup makes every visualisation depend on a second format it
+  can get wrong, and lets it draw a chart whose numbers disagree with its own
+  table. One set of figures, two renderings, and the switch works on replayed
+  conversations too. Bars are hand-authored SVG — the page is served under a
+  strict CSP and a bar chart is a hundred lines of geometry.
+
+- **A theme control with three states, not two.** System stays the default and
+  stays available, so someone whose machine switches at sunset is not stuck on
+  whichever they last clicked. The choice is stored per browser and applied
+  before first paint, so a light preference on a dark machine no longer flashes
+  dark on every navigation. The shared Fiori palette was OS-only; it now honours
+  an explicit choice in both directions.
+
+
 - **The answer reads as a document, not a widget.** A bordered card around every
   reply made a page of them read as a stack of boxes, and it competed with the
   one thing that should have a frame: the table. Replies now flow on the page
@@ -130,6 +149,14 @@ Versioning follows [SemVer](https://semver.org/) for tagged releases (`v0.1.0-tr
   a second language and a second deployable for no benefit. Nothing had been
   released, so this supersedes rather than deprecates.
 ### Fixed
+
+- **Free models fell through to the paid key over an arithmetic mistake.** The
+  OpenRouter request asked for exactly the answer length, and these models
+  reason before they answer against the same budget — so the log filled with
+  `finish_reason: length` and an empty message, and the run degraded to OpenAI
+  for no better reason. The budget now leaves room to answer, the way the
+  OpenAI provider already did.
+
 
 - **Reopening a conversation lost the sources.** The replay filtered the
   transcript to user and assistant turns and discarded the `tool` turns — which

@@ -55,8 +55,20 @@
   --sapShadowHover: 0 0 0.25rem 0 rgba(34, 54, 73, .16), 0 0.5rem 1rem 0 rgba(34, 54, 73, .16);
 }
 
+/*
+ * Three states, not two.
+ *
+ * "System" is the default and stamps nothing, so only the media query
+ * separates light from dark there. An explicit choice stamps data-theme on
+ * <html>, and each block below is written so that choice wins in *both*
+ * directions: :not([data-theme="light"]) stops a dark OS overriding someone
+ * who picked light, and the [data-theme="dark"] block does the reverse.
+ *
+ * Tokens only. A component colour defined inside one of these blocks would
+ * simply not exist in the unstamped state.
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     /* Horizon (Evening) */
     --sapBrandColor: #4db1ff;
     --sapLinkColor: #7cc4ff;
@@ -80,6 +92,31 @@
     --sapField_Background: #12171c;
     --sapField_BorderColor: #8396a8;
   }
+}
+
+:root[data-theme="dark"] {
+    /* Horizon (Evening) */
+    --sapBrandColor: #4db1ff;
+    --sapLinkColor: #7cc4ff;
+    --sapBackgroundColor: #12171c;
+    --sapTileBackground: #1c2228;
+    --sapGroupContentBackground: #1c2228;
+    --sapShellColor: #1c2228;
+    --sapShellBorderColor: #3a4552;
+    --sapTextColor: #eaecee;
+    --sapTitleColor: #eaecee;
+    --sapContentLabelColor: #a9b4bf;
+    --sapNeutralColor: #a9b4bf;
+    --sapPositiveColor: #71e08b;
+    --sapCriticalColor: #f5a623;
+    --sapNegativeColor: #ff8798;
+    --sapPositiveBackground: #1c3d2a;
+    --sapCriticalBackground: #3d3117;
+    --sapNegativeBackground: #47212b;
+    --sapInformativeBackground: #1c3049;
+    --sapList_BorderColor: #3a4552;
+    --sapField_Background: #12171c;
+    --sapField_BorderColor: #8396a8;
 }
 
 * { box-sizing: border-box; }

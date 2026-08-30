@@ -525,3 +525,86 @@ body > .fd-shellbar { flex: none; }
 }
 .source__url { opacity: .75; }
 .source--error .source__tool { color: var(--sapNegativeColor, #bb0000); }
+
+/* --- table or chart, same figures ---------------------------------------- */
+
+.viz { margin: 0.75rem 0 1rem; }
+
+.viz__switch {
+  display: inline-flex;
+  gap: 0.125rem;
+  padding: 0.125rem;
+  margin-bottom: 0.4375rem;
+  border: 1px solid var(--sapList_BorderColor);
+  border-radius: 0.5rem;
+  background: var(--sapTileBackground);
+}
+.viz__switch button {
+  border: 0;
+  background: none;
+  color: var(--sapContentLabelColor);
+  font: inherit;
+  font-size: 0.6875rem;
+  letter-spacing: .03em;
+  padding: 0.1875rem 0.625rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+}
+.viz__switch button:hover { color: var(--sapTextColor); }
+.viz__switch button[aria-pressed] {
+  background: var(--sapBrandColor);
+  color: #fff;
+  font-weight: 600;
+}
+.viz__switch button:focus-visible {
+  outline: 0.125rem solid var(--sapContent_FocusColor);
+  outline-offset: 0.0625rem;
+}
+
+/* One pane at a time. Both stay in the DOM so switching costs nothing and the
+   table remains selectable and searchable by the browser. */
+.viz[data-view="table"] .viz__chart,
+.viz[data-view="bar"]   .tablewrap { display: none; }
+
+.viz .tablewrap { margin: 0; }
+
+.viz__chart {
+  margin: 0;
+  padding: 0.75rem 0.5rem 0.5rem;
+  border: 1px solid var(--sapList_BorderColor);
+  border-radius: 0.5rem;
+  background: var(--sapTileBackground);
+}
+.viz__chart svg { width: 100%; height: auto; display: block; }
+.viz__chart figcaption {
+  font-size: 0.6875rem;
+  color: var(--sapContentLabelColor);
+  margin-top: 0.5rem;
+  padding-left: 0.25rem;
+}
+
+/* Chart colours come from the theme, so the same markup reads on either
+   ground — an SVG fill pinned to a literal is the classic dark-mode bug. */
+.viz__label { fill: var(--sapContentLabelColor); font-size: 11px; }
+.viz__value { fill: var(--sapTextColor); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.viz__track { fill: var(--sapBackgroundColor); }
+.viz__bar   { fill: var(--sapBrandColor); }
+
+/* --- theme -------------------------------------------------------------- */
+
+.theme {
+  border: 1px solid var(--sapList_BorderColor);
+  background: var(--sapBackgroundColor);
+  color: var(--sapContentLabelColor);
+  border-radius: var(--sapElement_BorderCornerRadius);
+  cursor: pointer;
+  font-size: 0.875rem;
+  line-height: 1;
+  padding: 0.3125rem 0.4375rem;
+  margin-right: 0.5rem;
+}
+.theme:hover { color: var(--sapTextColor); border-color: var(--sapBrandColor); }
+.theme:focus-visible {
+  outline: 0.125rem solid var(--sapContent_FocusColor);
+  outline-offset: 0.0625rem;
+}

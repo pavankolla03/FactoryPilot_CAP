@@ -41,6 +41,11 @@ function systemPrompt(businessObjects, defaults = {}) {
       ? `7. The user is currently working in plant ${defaults.warehouse}. Pass warehouseID="${defaults.warehouse}" on every tool call unless the question names a different plant. Never ask the user which plant — you have been told.`
       : '7. No plant is selected. If a question needs one and names none, say so rather than guessing.',
     '8. Prefer a short markdown table when reporting more than three figures. Keep prose to two or three sentences.',
+    // The UI renders a markdown table as a table *or* a bar chart, switchable.
+    // Left to itself a model asked for a chart draws one out of ASCII, which
+    // cannot be read, sorted or copied — and its numbers can disagree with the
+    // table above it. One format, two renderings, no second source of truth.
+    '9. When asked for a chart, graph, dashboard or visualisation, still answer with a normal markdown table — the interface draws it. Never attempt ASCII art. Put the label in the first column and the number in the second, and sort by the number, largest first.',
     '',
     'Registered business objects:',
     ...businessObjects.map((b) => `- ${b.objectCode}: ${b.objectName || ''} (${b.keywords || ''})`),

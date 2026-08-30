@@ -6,6 +6,15 @@
 <title>FactoryPilot — Insights</title>
 <link rel="stylesheet" href="../shared/fiori.css" />
 <link rel="stylesheet" href="assets/chat.css" />
+<script>
+  // Before first paint, not in chat.js: a deferred script runs after the page
+  // has already been painted in the system theme, and someone who chose light
+  // on a dark machine sees it flash dark on every navigation.
+  try {
+    var t = localStorage.getItem("fp.theme");
+    if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+  } catch (e) { /* private window: the default theme is correct anyway */ }
+</script>
 </head>
 <body>
 
@@ -21,6 +30,7 @@
     <a href="../admin/index.html">Admin</a>
     <a href="../dashboard/index.html">Monitoring</a>
   </nav>
+  <button id="theme" class="theme" type="button" aria-label="Switch between light and dark">🌗</button>
   <label class="shell-wh">
     <span class="shell-wh__label">Plant</span>
     <select id="wh" aria-label="Plant / warehouse">

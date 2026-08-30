@@ -21,7 +21,12 @@ class OpenRouterProvider {
     const body = {
       model: model || this.model,
       messages,
-      max_tokens: maxTokens,
+      // Free models reason before they answer, and the reasoning is billed
+      // against the same budget. Asking for exactly the answer length leaves
+      // nothing to answer *with*: the log fills with `finish_reason: length`
+      // and an empty message, and the run falls through to the paid key for no
+      // reason other than an arithmetic mistake here.
+      max_tokens: Math.max(2000, maxTokens * 3),
       temperature,
       // Reasoning models otherwise spend the token budget thinking out loud
       // and, when the budget runs out mid-thought, the deliberation lands in
