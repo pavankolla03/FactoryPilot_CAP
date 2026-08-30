@@ -16,6 +16,29 @@ const router = require('./lib/route')
  */
 const ASK_BUDGET_MS = Number(process.env.FACTORYPILOT_ASK_BUDGET_MS || 75000)
 
+/**
+ * What a person needs to see to trust an answer: which object, which system,
+ * how many rows, and the query that was actually sent.
+ *
+ * The URL is the important one. An empty answer reads as "there is no stock"
+ * until you can see it asked plant 1000, and that a question went to SAP Graph
+ * rather than the Hub is invisible without it.
+ */
+function sourcesFrom(steps = []) {
+  return steps
+    .filter((s) => s.url || s.error)
+    .map((s) => ({
+      tool: s.toolName || '',
+      rows: typeof s.result === 'string' ? Number((s.result.match(/^(\d+)/) || [])[1] ?? 0) : 0,
+      ms: s.backendMs ?? s.durationMs ?? null,
+      url: s.url || '',
+      // The filter is inside the URL; pulling it out saves the reader parsing
+      // a query string to answer "which plant did it actually ask about".
+      filter: decodeURIComponent((String(s.url || '').match(/\$filter=([^&]*)/) || [])[1] || ''),
+      error: s.error || '',
+    }))
+}
+
 const rolesOf = (req) => Object.keys(req.user?.roles || {}).filter((r) => !r.startsWith('$'))
 const uuid = () => cds.utils.uuid()
 
@@ -299,7 +322,13 @@ module.exports = cds.service.impl(function () {
         return {
           status: 'SUCCESS',
           answer: hit.answer,
-          metrics: JSON.stringify({ rounds: 0, toolCalls: 0, grounded: hit.grounded, servedFromCache: true }),
+          metrics: JSON.stringify({
+          rounds: 0,
+          toolCalls: 0,
+          grounded: hit.grounded,
+          servedFromCache: true,
+          sources: hit.sources || [],
+        }),
           metadata: {
             conversationID, logID, correlationId,
             objectCode: hit.objectCode || '',
@@ -434,6 +463,9 @@ module.exports = cds.service.impl(function () {
             grounded: result.grounded === true,
             tokensUsed: result.usage?.totalTokens || 0,
             model: result.usage?.model || '',
+            // Kept with the answer: a cache hit that cannot say where the data
+            // came from is a figure with no provenance.
+            sources: sourcesFrom(result.steps),
           },
           ttl
         )
@@ -450,7 +482,12 @@ module.exports = cds.service.impl(function () {
     return {
       status: result.status,
       answer: (result.answer || '').slice(0, 4000),
-      metrics: JSON.stringify({ rounds: result.rounds, toolCalls: result.toolsCalled.length, grounded: result.grounded }),
+      metrics: JSON.stringify({
+        rounds: result.rounds,
+        toolCalls: result.toolsCalled.length,
+        grounded: result.grounded,
+        sources: sourcesFrom(result.steps),
+      }),
       pendingAction: pendingCard,
       metadata: {
         conversationID,

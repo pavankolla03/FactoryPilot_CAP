@@ -131,6 +131,82 @@
     return el;
   }
 
+  // Inlined rather than fetched: it appears on every reply, and an <img> would
+  // be a second request that can fail independently of the page.
+  const MARK =
+    '<span class="turn__mark" aria-hidden="true"><svg viewBox="0 0 32 32">' +
+    '<path d="M16 5 20.4 10.2 11.6 10.2 Z" fill="currentColor"/>' +
+    '<path d="M7 25 V17.5 L11 20 V17.5 L15 20 V17.5 L19 20 V15 H25 V25 Z" fill="currentColor" fill-opacity=".88"/>' +
+    "</svg></span>";
+
+  const who = () => `<div class="turn__who">${MARK}<span class="turn__role">FactoryPilot</span></div>`;
+
+  /**
+   * The stages a question actually passes through, in order.
+   *
+   * Named rather than generic, because "Working…" for eleven seconds is
+   * indistinguishable from a hung request. The captions advance on a timer
+   * rather than from real events — the server sends one response, not a
+   * stream — so they are deliberately about what the request is *doing*, never
+   * a claim about progress the browser cannot know.
+   */
+  const STAGES = [
+    "Reading your question",
+    "Choosing where to look",
+    "Querying SAP",
+    "Reading the records",
+    "Composing the answer",
+  ];
+
+  function thinking(host) {
+    host.innerHTML =
+      `<div class="turn__body"><div class="thinking">${MARK}` +
+      `<span class="thinking__text"><span data-stage>${STAGES[0]}</span>` +
+      '<span class="thinking__dots"><i></i><i></i><i></i></span></span></div></div>';
+    const label = host.querySelector("[data-stage]");
+    let i = 0;
+    // Slows as it goes: the last stage is the long one, and cycling back to
+    // "Reading your question" would suggest it had started over.
+    const timer = setInterval(() => {
+      if (i >= STAGES.length - 1) return;
+      label.textContent = STAGES[++i];
+    }, 2200);
+    return () => clearInterval(timer);
+  }
+
+  /**
+   * Where the answer came from — one row per tool call, collapsed.
+   *
+   * This is the antidote to the failure that keeps recurring: an empty result
+   * reads as "there is no stock" until you can see that it asked plant 1000.
+   * The filter and the URL are both here, so the question "did it really hit
+   * SAP Graph?" is answerable without reading a server log.
+   */
+  function sources(meta = {}) {
+    const list = Array.isArray(meta.sources) ? meta.sources : [];
+    if (!list.length) return "";
+    const rows = list.map((s) => {
+      const host = (() => { try { return new URL(s.url).host; } catch { return ""; } })();
+      const system = /integration\.cloud\.sap/.test(s.url) ? "SAP Graph"
+                   : /sandbox\.api\.sap\.com/.test(s.url) ? "Accelerator Hub"
+                   : /^mock:/.test(s.url) ? "fixture"
+                   : host || "backend";
+      return `<div class="source${s.error ? " source--error" : ""}">
+        <div class="source__head">
+          <span class="source__tool">${esc(s.tool || "query")}</span>
+          <span class="source__system">${esc(system)}</span>
+          <span class="source__meta">${s.error ? esc(s.error)
+            : `${esc(s.rows)} row${Number(s.rows) === 1 ? "" : "s"}${s.ms != null ? ` · ${esc(s.ms)} ms` : ""}`}</span>
+        </div>
+        ${s.filter ? `<div class="source__filter">${esc(s.filter)}</div>` : ""}
+        ${s.url && !/^mock:/.test(s.url) ? `<div class="source__url">${esc(s.url)}</div>` : ""}
+      </div>`;
+    }).join("");
+    const n = list.length;
+    return `<details class="sources"><summary><span class="sources__caret">›</span>` +
+      `${meta.servedFromCache ? "Sources (from cache)" : `${n} source${n === 1 ? "" : "s"}`}</summary>${rows}</details>`;
+  }
+
   function badges(meta = {}) {
     const b = [];
     if (meta.objectCode) b.push(`<span class="fd-status fd-status--information">${esc(meta.objectCode)}</span>`);
@@ -164,7 +240,8 @@
     if (threadEl.querySelector(".welcome")) threadEl.innerHTML = "";
 
     add(`<div class="turn__role">You</div><div class="turn__body">${esc(shownAs || question)}</div>`, "me");
-    const pending = add('<div class="turn__role">FactoryPilot</div><div class="turn__body">Working through SAP…</div>');
+    const pending = add("");
+    const stopThinking = thinking(pending);
 
     try {
       const { ok, status, data } = await call("../../insights/ask", {
@@ -189,7 +266,7 @@
             }
           } catch { /* the probe is a courtesy */ }
         }
-        pending.innerHTML = `<div class="turn__role">FactoryPilot</div>
+        pending.innerHTML = `${who()}
           <div class="turn__body"><div class="fd-message-strip fd-message-strip--error">
           <span><span class="fd-message-strip__title">Could not ask.</span> ${help}</span></div></div>`;
         return;
@@ -207,8 +284,8 @@
       } else if (data.status === "ERROR") {
         pending.innerHTML = strip("error", "Could not answer.", data.message, meta);
       } else {
-        pending.innerHTML = `<div class="turn__role">FactoryPilot</div>
-          <div class="turn__body"><div class="md">${md(data.answer)}</div>${badges(meta)}</div>`;
+        pending.innerHTML = `${who()}
+          <div class="turn__body"><div class="md">${md(data.answer)}</div>${badges(meta)}${sources(meta)}</div>`;
       }
       refreshUsage();
       // Not loadSessions(): refetching re-sorts by modifiedAt, so the chat you
@@ -218,6 +295,9 @@
     } catch (err) {
       pending.innerHTML = strip("error", "Service unreachable.", err.message, {});
     } finally {
+      // However this ended — answered, refused, or thrown — the caption timer
+      // must stop, or it keeps advancing under a finished reply.
+      stopThinking();
       busy = false; askEl.disabled = false;
       threadEl.scrollTop = threadEl.scrollHeight;
     }
@@ -225,15 +305,15 @@
 
   const safe = (s) => { try { return JSON.parse(s || "{}"); } catch { return {}; } };
   const strip = (kind, title, text, meta) =>
-    `<div class="turn__role">FactoryPilot</div><div class="turn__body">
+    `${who()}<div class="turn__body">
        <div class="fd-message-strip fd-message-strip--${kind}">
          <span><span class="fd-message-strip__title">${esc(title)}</span> ${esc(text || "")}</span>
-       </div>${badges(meta)}</div>`;
+       </div>${badges(meta)}${sources(meta)}</div>`;
 
   function renderApproval(host, p, meta) {
     const args = safe(p.arguments);
     host.innerHTML =
-      `<div class="turn__role">FactoryPilot</div>
+      `${who()}
        <div class="turn__body approve">
          <strong>Confirmation required</strong>
          <p>${esc(p.summary || "This write needs your approval.")}</p>
@@ -248,7 +328,7 @@
         const approve = btn.dataset.ok === "1";
         const { data } = await call("../../insights/confirmAction", { actionID: p.actionID, approve });
         if (data.status === "SUCCESS") {
-          add(`<div class="turn__role">FactoryPilot</div><div class="turn__body">
+          add(`${who()}<div class="turn__body">
                  <div class="md">${md(data.answer)}</div></div>`);
         } else {
           add(strip("error", data.errorCode || "Refused.", data.message, {}));
@@ -323,7 +403,7 @@
         if (m.role === "user") {
           add(`<div class="turn__role">You</div><div class="turn__body">${esc(m.content)}</div>`, "me");
         } else {
-          add(`<div class="turn__role">FactoryPilot</div><div class="turn__body"><div class="md">${md(m.content)}</div></div>`);
+          add(`${who()}<div class="turn__body"><div class="md">${md(m.content)}</div></div>`);
         }
       }
       threadEl.scrollTop = threadEl.scrollHeight;
@@ -440,7 +520,7 @@
   // A photograph needs a model that can see. Nothing here reads images yet, so
   // the button says so rather than opening a camera and dropping the result.
   $("cam").addEventListener("click", () => {
-    add(`<div class="turn__role">FactoryPilot</div><div class="turn__body">
+    add(`${who()}<div class="turn__body">
            <div class="fd-message-strip fd-message-strip--information">
              <span><span class="fd-message-strip__title">Photos are not read yet.</span>
              The question pipeline is text-only, so an image would be collected and ignored.

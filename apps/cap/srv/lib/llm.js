@@ -708,7 +708,7 @@ function getProvider(route = {}) {
   if (explicit === 'openrouter' || (!explicit && route.provider === 'openrouter' && hasOpenRouterKey)) {
     return new OpenRouterProvider({
       apiKey: process.env.OPENROUTER_API_KEY,
-      model: route.model || process.env.OPENROUTER_MODEL || 'anthropic/claude-sonnet-4.5',
+      model: route.model || process.env.OPENROUTER_MODEL || DEFAULT_OPENROUTER_MODEL,
     })
   }
 
@@ -722,6 +722,107 @@ function getProvider(route = {}) {
   return new FakeProvider()
 }
 
+/**
+ * The free OpenRouter model used when nothing names one.
+ *
+ * Free and tool-capable are both hard requirements: the whole architecture is a
+ * tool-calling loop, and a model that cannot call a tool answers warehouse
+ * questions from nothing. Verified against OpenRouter's own model list rather
+ * than picked from memory.
+ */
+const DEFAULT_OPENROUTER_MODEL = 'nvidia/nemotron-3.5-lightning:free'
+
+/**
+ * Every provider worth trying for one request, best first.
+ *
+ * A single provider is a single point of failure, and a *free* provider is the
+ * most likely one to fail — free quota runs out partway through a day, and it
+ * runs out mid-demo. So OpenRouter leads and the paid key catches the overflow
+ * automatically, rather than the run collapsing to the offline provider the
+ * moment a free tier says no.
+ *
+ * LLM_PROVIDER still pins whichever rung an operator names, but pinning one
+ * does not remove the rest: a pinned provider that fails still falls through.
+ * The offline provider is always last and always present, so there is no
+ * configuration in which a question gets no answer at all.
+ */
+function getProviderChain(route = {}) {
+  const pinned = process.env.LLM_PROVIDER || route.provider || ''
+  const chain = []
+  const seen = new Set()
+  // Keyed by provider *and* model: OpenRouter contributes several rungs, one
+  // per free model, and deduping on the provider name alone would collapse
+  // them into one.
+  const add = (provider) => {
+    if (!provider) return
+    const key = `${provider.name}:${provider.model || ''}`
+    if (seen.has(key)) return
+    seen.add(key)
+    chain.push(provider)
+  }
+
+  const build = {
+    // One rung per free model, primary then the route's fallbacks. A model
+    // that is rate-limited should cost the next *free* model, not the paid
+    // key — the point of leading with the free tier is to stay on it.
+    openrouter: () => {
+      if (!process.env.OPENROUTER_API_KEY) return []
+      // route.model only means something to the provider it was written for.
+      // Handing `nvidia/nemotron...` to OpenAI, or `gpt-5-nano` to OpenRouter,
+      // is a 400 on the rung that was supposed to be the safety net.
+      const mine = pinned === 'openrouter' || route.provider === 'openrouter'
+      const primary = (mine && route.model) || process.env.OPENROUTER_MODEL || DEFAULT_OPENROUTER_MODEL
+      const alternates = mine ? String(route.fallbacks || '').split(',') : []
+      return [primary, ...alternates]
+        .map((m) => String(m).trim())
+        .filter(Boolean)
+        .map((model) => new OpenRouterProvider({ apiKey: process.env.OPENROUTER_API_KEY, model }))
+    },
+    openai: () =>
+      process.env.OPENAI_API_KEY &&
+      new OpenAIProvider({
+        apiKey: process.env.OPENAI_API_KEY,
+        model:
+          pinned === 'openai' || route.provider === 'openai'
+            ? route.model || process.env.OPENAI_MODEL || 'gpt-5-nano'
+            : process.env.OPENAI_MODEL || 'gpt-5-nano',
+      }),
+    aicore: () =>
+      process.env.AICORE_BASE_URL &&
+      process.env.AICORE_DEPLOYMENT_ID &&
+      process.env.AICORE_TOKEN_URL &&
+      new AICoreProvider({
+        baseUrl: process.env.AICORE_BASE_URL,
+        deploymentId: route.model || process.env.AICORE_DEPLOYMENT_ID,
+        tokenUrl: process.env.AICORE_TOKEN_URL,
+        resourceGroup: process.env.AICORE_RESOURCE_GROUP || 'default',
+      }),
+  }
+
+  // Free first, then paid, then the customer's own tenant — cheapest capable
+  // rung leads. A pinned provider is promoted to the front of that order.
+  const order = ['openrouter', 'openai', 'aicore']
+  for (const name of [pinned, ...order]) {
+    if (!build[name]) continue
+    try {
+      const built = build[name]()
+      for (const provider of Array.isArray(built) ? built : [built]) add(provider)
+    } catch {
+      // A provider that refuses to construct (no key, half-set config) is
+      // simply not a rung. The next one is tried.
+    }
+  }
+
+  // Two different jobs, two different roles. With nothing else configured the
+  // app is genuinely offline, and the offline provider's keyword matching *is*
+  // the demo — it computes real answers from real tool output. Standing in for
+  // a model that failed is the opposite situation: the intent is unknown, and
+  // guessing it is how "what is your name" once got answered with an inventory
+  // count. Then it must say the model is unavailable instead.
+  add(new FakeProvider(chain.length ? 'fallback' : 'offline'))
+  return chain
+}
+
 /** Once per process, not once per request — this is config, and it does not
  *  change between two questions asked a second apart. */
 const warned = new Set()
@@ -731,4 +832,7 @@ function warnOnce(message) {
   console.warn(message)
 }
 
-module.exports = { LLMError, OpenRouterProvider, OpenAIProvider, AICoreProvider, FakeProvider, getProvider, safeParse }
+module.exports = {
+  LLMError, OpenRouterProvider, OpenAIProvider, AICoreProvider, FakeProvider,
+  getProvider, getProviderChain, DEFAULT_OPENROUTER_MODEL, safeParse,
+}

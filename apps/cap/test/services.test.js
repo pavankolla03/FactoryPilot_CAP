@@ -118,6 +118,70 @@ describe('filter templating', () => {
   })
 })
 
+describe('a provider that runs out of quota hands over, it does not give up', () => {
+  // Free OpenRouter quota runs out partway through a day, and it runs out
+  // mid-demo. The paid key has to be the next rung, not the last resort.
+
+  const stub = (name, behaviour) => ({ name, complete: behaviour })
+  const answers = (text) => async () => ({
+    text, toolCalls: [], promptTokens: 1, completionTokens: 1, totalTokens: 2, isEstimated: false,
+  })
+  const refuses = (message) => async () => { throw new llm.LLMError(message) }
+
+  const withChain = async (chain, fn) => {
+    const real = llm.getProviderChain
+    llm.getProviderChain = () => chain
+    try { return await fn() } finally { llm.getProviderChain = real }
+  }
+
+  const ask = (conversationID) => agent.run({
+    question: 'hello',
+    userID: 'tester',
+    roles: [],
+    conversationID,
+    correlationId: 'x-chain',
+    businessObjects: [{ objectCode: 'MATERIAL_STOCK', objectName: 'Material Stock', keywords: 'stock', isActive: true }],
+    route: null,
+    orgSettings: {},
+  })
+
+  test('a rate-limited free model falls through to the paid one', async () => {
+    const result = await withChain(
+      [stub('openrouter', refuses('OpenRouter returned 429: rate limit exceeded')),
+       stub('openai', answers('Answered by the paid key.')),
+       new llm.FakeProvider('fallback')],
+      () => ask('c-chain-1')
+    )
+    assert.equal(result.answer, 'Answered by the paid key.')
+    assert.match(result.degradedFrom, /openrouter.*429/i, 'the audit must say which provider failed and why')
+    assert.equal(result.status, 'SUCCESS')
+  })
+
+  test('it keeps descending rather than stopping at the first failure', async () => {
+    const result = await withChain(
+      [stub('openrouter', refuses('402 out of credits')),
+       stub('openai', refuses('429 insufficient_quota')),
+       new llm.FakeProvider('fallback')],
+      () => ask('c-chain-2')
+    )
+    // Both failures recorded — an operator reading this can see the paid key is
+    // also exhausted, which is the actionable half.
+    assert.match(result.degradedFrom, /openrouter/)
+    assert.match(result.degradedFrom, /openai/)
+    assert.match(result.answer, /unavailable/i, 'and it must not invent an intent it cannot know')
+  })
+
+  test('a healthy first provider is used and nothing is recorded as degraded', async () => {
+    const result = await withChain(
+      [stub('openrouter', answers('Answered by the free model.')),
+       stub('openai', answers('should not be reached'))],
+      () => ask('c-chain-3')
+    )
+    assert.equal(result.answer, 'Answered by the free model.')
+    assert.ok(!result.degradedFrom, 'nothing failed, so nothing to report')
+  })
+})
+
 describe('expand templating', () => {
   // SAP Graph exposes A_MaterialDocumentHeader but not A_MaterialDocumentItem,
   // and Plant lives on the item — so "movements in plant 1710" is only
@@ -570,8 +634,8 @@ describe('a question is bounded by wall-clock, not just by round count', () => {
         return { text: 'ok', toolCalls: [], promptTokens: 1, completionTokens: 1, totalTokens: 2, isEstimated: false }
       },
     }
-    const realGetProvider = llm.getProvider
-    llm.getProvider = () => stub
+    const realGetChain = llm.getProviderChain
+    llm.getProviderChain = () => [stub]
     try {
       await agent.run({
         question: 'hello',
@@ -588,7 +652,7 @@ describe('a question is bounded by wall-clock, not just by round count', () => {
       assert.ok(captured[0] < 20000, `expected a ceiling under the 20s budget, got ${captured[0]}`)
       assert.ok(captured[0] > 1000, `expected a usable ceiling, got ${captured[0]}`)
     } finally {
-      llm.getProvider = realGetProvider
+      llm.getProviderChain = realGetChain
     }
   })
 
@@ -601,8 +665,8 @@ describe('a question is bounded by wall-clock, not just by round count', () => {
         return { text: 'ok', toolCalls: [], promptTokens: 1, completionTokens: 1, totalTokens: 2, isEstimated: false }
       },
     }
-    const realGetProvider = llm.getProvider
-    llm.getProvider = () => stub
+    const realGetChain = llm.getProviderChain
+    llm.getProviderChain = () => [stub]
     try {
       await agent.run({
         question: 'hello',
@@ -616,7 +680,7 @@ describe('a question is bounded by wall-clock, not just by round count', () => {
       })
       assert.equal(captured[0], undefined, 'no deadline means no ceiling to impose')
     } finally {
-      llm.getProvider = realGetProvider
+      llm.getProviderChain = realGetChain
     }
   })
 })

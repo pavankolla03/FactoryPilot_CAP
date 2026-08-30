@@ -9,6 +9,36 @@ Versioning follows [SemVer](https://semver.org/) for tagged releases (`v0.1.0-tr
 
 ### Added
 
+- **A provider chain, so a free tier running dry does not end the conversation.**
+  Model traffic now walks an ordered list: each free OpenRouter model in turn,
+  then the paid OpenAI key, then the offline provider. Previously the first
+  failure dropped straight to offline. Free quota runs out partway through a
+  day — and it runs out mid-demo — so the paid key is the next rung rather than
+  a last resort, and a rate-limited free model costs the next *free* model
+  before it costs anything. Every hand-over is recorded in `degradedFrom`, so
+  the audit row says which provider failed and why. The default OpenRouter
+  model was `anthropic/claude-sonnet-4.5`; the routes now name free,
+  tool-capable models, checked against OpenRouter's own model list rather than
+  chosen from memory — tool calling is not optional here, since a model that
+  cannot call a tool answers warehouse questions from nothing.
+
+- **The chat says who is speaking, what it is doing, and where the answer came
+  from.** A FactoryPilot mark replaces the "FP" placeholder and labels each
+  reply. While an answer is being worked out, the mark breathes and a caption
+  names the stage — "Querying SAP", "Reading the records" — because "Working…"
+  for eleven seconds is indistinguishable from a hung request. Under each
+  answer, a collapsed **Sources** disclosure lists every tool call: the system
+  that served it (SAP Graph, Accelerator Hub, fixture), the row count, the
+  timing, the filter and the URL. That last part is the answer to a question
+  that kept needing a server log — *did this really hit Graph?* — and to the
+  one an empty result always raises: *what did it actually ask for?* Sources
+  are stored with the cached answer too, so a cache hit still has provenance.
+
+- **Per-call backend logging.** `cf logs factorypilot-srv` now shows
+  `MATERIAL_STOCK via graph → 25 row(s) in 340ms · <url>` for every tool call.
+  Until now the only record of which system answered was a database column.
+
+
 - **SAP Graph as a backend, alongside the Hub.** A new endpoint kind `graph`
   reaches SAP Graph on the customer's Integration Suite tenant with OAuth2
   client credentials. Graph puts one namespace (`sap.s4`) in front of many S/4

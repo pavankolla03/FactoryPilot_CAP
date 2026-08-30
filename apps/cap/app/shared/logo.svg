@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="FactoryPilot">
+  <title>FactoryPilot</title>
+  <!--
+    Two ideas, one mark: the sawtooth roofline of a factory, and above it the
+    navigator's chevron that makes it a *pilot* rather than a dashboard.
+
+    Drawn on a 32-unit grid with the roofline teeth on whole units, because the
+    mark is used at 24px in the shellbar and 26px as a chat avatar — at that
+    size a half-unit offset reads as a blurred edge, not as a detail.
+    `currentColor` on the plate lets one file sit on the brand tile in the
+    shellbar and on a tinted circle in the thread.
+  -->
+  <rect width="32" height="32" rx="7.5" fill="currentColor"/>
+  <path d="M16 5 20.4 10.2 11.6 10.2 Z" fill="#fff"/>
+  <path d="M7 25 V17.5 L11 20 V17.5 L15 20 V17.5 L19 20 V15 H25 V25 Z"
+        fill="#fff" fill-opacity=".88"/>
+</svg>

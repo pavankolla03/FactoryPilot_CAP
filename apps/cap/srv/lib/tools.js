@@ -164,6 +164,16 @@ async function executeRead(toolName, args, { businessObjects, defaults, correlat
     correlationId,
   })
 
+  // Which system actually answered, in the log, on every call.
+  //
+  // Until now the only way to tell whether a question reached SAP Graph or the
+  // Hub was to read SessionLog in the database — so "is it really hitting
+  // Graph?" was unanswerable from `cf logs`, which is where anyone looks first.
+  // The URL is already recorded per request; this makes it visible live.
+  cds.log('backend').info(
+    `${bo.objectCode} via ${client.name} → ${result.rows.length} row(s) in ${result.elapsedMs}ms · ${result.url}`
+  )
+
   return { objectCode: bo.objectCode, filter, ...result }
 }
 

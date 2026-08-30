@@ -149,7 +149,7 @@ async function loadHistory(conversationID, limit = 20) {
  * @returns {{status, answer, toolsCalled, rounds, grounded, usage, steps, pendingAction}}
  */
 async function run({ question, userID, roles, warehouseID, conversationID, correlationId, businessObjects, route, orgSettings, deadlineAt }) {
-  const provider = llm.getProvider(route || {})
+  const providers = llm.getProviderChain(route || {})
   const definitions = tools.buildDefinitions(businessObjects)
   // No literal fallback. A hardcoded plant silently redirects every question
   // to a site that may not exist in this tenant, and the only symptom is an
@@ -170,12 +170,20 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
   let rounds = 0
   let ranOutOfTime = false
 
-  // A paid provider running out of credit, rate-limiting, or going down should
-  // degrade the answer, not lose the question. The offline provider computes
-  // its answer from the same real tool output, so the data stays true — only
-  // the phrasing gets plainer. The swap is recorded rather than hidden: the
-  // audit row and the response both say which provider actually answered.
-  let active = provider
+  // A provider running out of credit, rate-limiting, or going down should
+  // degrade the answer, not lose the question — so this walks a chain rather
+  // than collapsing to the offline provider on the first failure. That matters
+  // most for the free tier that leads it: free quota runs out partway through a
+  // day, and it runs out mid-demo. The paid key is the next rung, not the last
+  // resort.
+  //
+  // The offline provider is always last, and computes its answer from the same
+  // real tool output — so the data stays true and only the phrasing gets
+  // plainer. Every swap is recorded rather than hidden: the audit row and the
+  // response both say which provider actually answered, and why the one before
+  // it did not.
+  let rung = 0
+  let active = providers[0]
   let degradedFrom = null
 
   // How long is left before the caller's gateway gives up on us. Every model
@@ -192,16 +200,19 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
   }
 
   const complete = async (payload) => {
-    try {
-      return await active.complete({ ...payload, timeoutMs: remainingForModel() })
-    } catch (err) {
-      if (active instanceof llm.FakeProvider) throw err
-      degradedFrom = `${active.name}: ${err.message}`
-      console.warn(`[agent] ${active.name} failed (${err.message}) — answering from the offline provider instead`)
-      // 'fallback', not 'offline': this stands in for a model that failed, so
-      // it must say so rather than keyword-guess an intent it cannot know.
-      active = new llm.FakeProvider('fallback')
-      return active.complete(payload)
+    for (;;) {
+      try {
+        return await active.complete({ ...payload, timeoutMs: remainingForModel() })
+      } catch (err) {
+        const failure = `${active.name}: ${err.message}`
+        // Nothing left below us. The last rung is the offline provider, so
+        // reaching here means even that failed and the run genuinely cannot
+        // continue.
+        if (rung >= providers.length - 1) throw err
+        active = providers[++rung]
+        degradedFrom = degradedFrom ? `${degradedFrom}; ${failure}` : failure
+        console.warn(`[agent] ${failure} — trying ${active.name}`)
+      }
     }
   }
 
