@@ -106,8 +106,16 @@ body > .fd-shellbar { flex: none; }
 }
 @media (prefers-reduced-motion: reduce) { .thread { scroll-behavior: auto; } }
 
-/* ~72 characters at this size: long enough for a table, short enough to read. */
-.thread__inner { max-width: 46rem; margin: 0 auto; }
+/*
+ * Two measures, not one.
+ *
+ * Prose wants ~72 characters or it becomes hard to track a line. A table wants
+ * every pixel it can get — squeezed into the reading measure it wraps, the
+ * columns crowd, and it reads as congested no matter how it is styled. So the
+ * column is wide and the *prose inside it* is what stays narrow.
+ */
+.thread__inner { max-width: 62rem; margin: 0 auto; }
+.md p, .md ul, .md ol, .md h3, .md > blockquote { max-width: 44rem; }
 
 /* Oldest at the top: a reply belongs under the question that caused it. */
 .turn { margin-bottom: 1.75rem; }
@@ -176,55 +184,65 @@ body > .fd-shellbar { flex: none; }
   border-radius: 0.1875rem;
 }
 /*
- * The table is the one thing here that earns a frame: it is the answer, not a
- * decoration around it. Header rules rather than a full grid — the eye follows
- * a row without help, and vertical lines only add noise at this density.
+ * No frame around the data.
+ *
+ * A border, a radius and a fill made the table look like something inserted
+ * into the answer, and boxed rows into a container narrower than they wanted —
+ * which is what read as congested. Rules alone do the same structural job:
+ * a hairline under the header, a hairline between rows, and nothing else. The
+ * table now sits on the page the way a figure does in print.
  */
 .md .tablewrap {
   overflow-x: auto;
-  margin: 0.75rem 0 1rem;
-  border: 1px solid var(--sapList_BorderColor);
-  border-radius: 0.5rem;
-  background: var(--sapTileBackground);
+  margin: 1rem 0 1.5rem;
 }
-.md table { border-collapse: collapse; width: 100%; font-size: 0.8125rem; }
+/*
+ * Content width, not full width.
+ *
+ * Stretched to the column, a two-column table puts a 500px gap between the
+ * label and its number and the eye loses the row — the opposite of the problem
+ * the wider column was meant to solve. Sizing to content keeps a narrow table
+ * narrow and lets a wide one use the room it actually needs.
+ */
+.md table {
+  border-collapse: collapse;
+  width: auto;
+  min-width: min(100%, 26rem);
+  max-width: 100%;
+  font-size: 0.8125rem;
+}
 .md th, .md td {
   text-align: left;
-  padding: 0.5rem 0.75rem;
+  /* Room to breathe was the other half of the problem — 0.5rem rows put five
+     figures in the space the eye wants for three. */
+  padding: 0.625rem 1.25rem 0.625rem 0;
   white-space: nowrap;
 }
+.md th:last-child, .md td:last-child { padding-right: 0; }
 .md thead th {
-  position: sticky; top: 0;
-  background: var(--sapTileBackground);
   font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .05em;
   color: var(--sapContentLabelColor);
-  border-bottom: 1px solid var(--sapList_BorderColor);
+  border-bottom: 1px solid var(--sapTextColor);
+  padding-bottom: 0.5rem;
 }
-.md tbody tr + tr td { border-top: 1px solid var(--sapList_BorderColor); }
+.md tbody tr td { border-bottom: 1px solid var(--sapList_BorderColor); }
+.md tbody tr:last-child td { border-bottom: 0; }
 .md tbody tr:hover td { background: var(--sapBackgroundColor); }
 .md td.num, .md th.num { text-align: right; font-variant-numeric: tabular-nums; }
 
 /*
- * A quantity column, drawn as well as printed.
+ * The magnitude bar that used to sit behind these figures is gone.
  *
- * The bar is scaled to the column's own maximum and sits behind the figure, so
- * the exact number SAP returned is still the thing you read — the bar only
- * answers "which of these is big?", which twelve right-aligned numbers cannot.
+ * It existed because a column of numbers does not show which one is large —
+ * but that is the Chart view's job now, and it does it properly, on a shared
+ * baseline, with labels. Behind a right-aligned figure in a content-width
+ * table the bar grew leftward from the number, which reads as neither a fill
+ * nor a gauge, and it fought the alignment the column depends on. One job, one
+ * view.
  */
-.md td.has-bar { position: relative; }
-.md td.has-bar .bar {
-  position: absolute;
-  right: 0; top: 0.3125rem; bottom: 0.3125rem;
-  width: var(--fill, 0%);
-  background: var(--sapBrandColor);
-  opacity: .16;
-  border-radius: 0.125rem 0 0 0.125rem;
-  pointer-events: none;
-}
-.md td.has-bar .bar__v { position: relative; }
 
 /* A row of coloured pills under every answer reads as decoration and competes
    with the data. These are diagnostics: quiet by default, legible when looked
@@ -568,12 +586,11 @@ body > .fd-shellbar { flex: none; }
 
 .viz .tablewrap { margin: 0; }
 
+/* Unframed for the same reason as the table — and the bars are their own
+   structure, so a box around them is a second, redundant one. */
 .viz__chart {
   margin: 0;
-  padding: 0.75rem 0.5rem 0.5rem;
-  border: 1px solid var(--sapList_BorderColor);
-  border-radius: 0.5rem;
-  background: var(--sapTileBackground);
+  padding: 0.25rem 0 0;
 }
 .viz__chart svg { width: 100%; height: auto; display: block; }
 .viz__chart figcaption {
@@ -587,7 +604,9 @@ body > .fd-shellbar { flex: none; }
    ground — an SVG fill pinned to a literal is the classic dark-mode bug. */
 .viz__label { fill: var(--sapContentLabelColor); font-size: 11px; }
 .viz__value { fill: var(--sapTextColor); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.viz__track { fill: var(--sapBackgroundColor); }
+/* The track used to read against the card behind it. With no card it would be
+   invisible on the page ground, so it takes the tile colour instead. */
+.viz__track { fill: var(--sapTileBackground); }
 .viz__bar   { fill: var(--sapBrandColor); }
 
 /* --- theme -------------------------------------------------------------- */

@@ -139,47 +139,16 @@
       .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
 
     const isNum = (v) => /^[-+]?[\d,.]+\s*[%A-Za-z]{0,4}$/.test(String(v).trim());
-    /** The number inside a cell like "1,240 EA", for sizing its bar. */
-    const magnitude = (v) => {
-      const n = parseFloat(String(v).replace(/,/g, "").replace(/[^\d.+-].*$/, ""));
-      return Number.isFinite(n) ? n : null;
-    };
-
     const flushTable = () => {
       if (!table) return;
       const [head, ...rows] = table;
       const num = head.map((_, i) => rows.length && rows.every((r) => !r[i] || isNum(r[i])));
 
-      // A column of quantities is the thing an operator is actually reading, and
-      // twelve right-aligned numbers do not show which one is large. A bar
-      // scaled to the column's own maximum turns the table into the comparison
-      // it was always standing in for — without a charting library, and without
-      // moving the number, which stays the exact figure SAP returned.
-      //
-      // Only for columns worth comparing: at least three rows, more than one
-      // distinct value, and nothing negative (a bar from a shared zero would
-      // misread). Identifier-ish columns are excluded by name — a document
-      // number is numeric and comparing its magnitude is nonsense.
-      const IDENTIFIER = /\b(year|document|number|no\.?|id|item|code|plant|batch|location)\b/i;
-      const scale = head.map((h, i) => {
-        if (!num[i] || rows.length < 3 || IDENTIFIER.test(h)) return null;
-        const values = rows.map((r) => magnitude(r[i])).filter((n) => n != null);
-        if (values.length < 3 || values.some((n) => n < 0)) return null;
-        const max = Math.max(...values);
-        return max > 0 && new Set(values).size > 1 ? max : null;
-      });
-
       const tableHtml = '<div class="tablewrap"><table><thead><tr>' +
         head.map((h, i) => `<th class="${num[i] ? "num" : ""}">${inline(h)}</th>`).join("") +
         "</tr></thead><tbody>" +
-        rows.map((r) => "<tr>" + head.map((_, i) => {
-          const cell = inline(r[i] ?? "");
-          const m = scale[i] != null ? magnitude(r[i]) : null;
-          if (m == null) return `<td class="${num[i] ? "num" : ""}">${cell}</td>`;
-          const pct = Math.max(0, Math.min(100, (m / scale[i]) * 100));
-          return `<td class="num has-bar"><span class="bar" style="--fill:${pct.toFixed(1)}%"></span>` +
-                 `<span class="bar__v">${cell}</span></td>`;
-        }).join("") + "</tr>").join("") +
+        rows.map((r) => "<tr>" + head.map((_, i) =>
+          `<td class="${num[i] ? "num" : ""}">${inline(r[i] ?? "")}</td>`).join("") + "</tr>").join("") +
         "</tbody></table></div>";
 
       // A chart is a *view* of this table, not a different answer.

@@ -150,6 +150,25 @@ Versioning follows [SemVer](https://semver.org/) for tagged releases (`v0.1.0-tr
   released, so this supersedes rather than deprecates.
 ### Fixed
 
+- **The data was boxed in.** A border, a radius and a fill around every table
+  made it look like something inserted into the answer rather than part of it,
+  and it trapped the rows in a container narrower than they wanted — which is
+  what read as congested. The frame is gone from tables and charts alike; rules
+  alone do the same structural job, and rows gained back the height that five
+  figures in the space of three had taken. The reply column is wider now, with
+  the *prose inside it* held to a reading measure instead — a table squeezed
+  into 72 characters wraps, and a paragraph stretched across the full width is
+  hard to track. Tables size to their content, so a two-column table no longer
+  puts a 500-pixel gap between a label and its number.
+
+- **The in-cell magnitude bars are gone.** They existed because a column of
+  numbers does not show which one is large — but the Chart view does that
+  properly now, on a shared baseline, with labels. Behind a right-aligned
+  figure in a content-width table the bar grew leftward from the number, which
+  reads as neither a fill nor a gauge and fought the alignment the column
+  depends on. One job, one view.
+
+
 - **Eight of the fourteen administration screens did not exist in a deployed
   build.** The Admin launchpad linked them through `$fiori-preview`, a CAP
   feature that renders a screen straight from CDS annotations — but only while
