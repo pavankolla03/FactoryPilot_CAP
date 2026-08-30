@@ -118,6 +118,41 @@ describe('filter templating', () => {
   })
 })
 
+describe('expand templating', () => {
+  // SAP Graph exposes A_MaterialDocumentHeader but not A_MaterialDocumentItem,
+  // and Plant lives on the item — so "movements in plant 1710" is only
+  // expressible as a filter nested inside the $expand.
+  const TPL =
+    "to_MaterialDocumentItem($filter=Plant eq '{plant}' and Material eq '{materialID}';" +
+    '$select=Material,Plant,GoodsMovementType)'
+
+  test('placeholders are filled from the same values a filter uses', () => {
+    const out = tools.buildExpand(TPL, { warehouseID: '1710', materialID: 'TG11' }, 'v4', {})
+    assert.match(out, /\$filter=Plant eq '1710' and Material eq 'TG11'/)
+    assert.match(out, /\$select=Material,Plant,GoodsMovementType/)
+  })
+
+  test('an unresolvable clause is dropped, not sent empty', () => {
+    // `Material eq ''` matches nothing, and the answer reads as "there were no
+    // movements" rather than "you did not name a material".
+    const out = tools.buildExpand(TPL, { warehouseID: '1710' }, 'v4', {})
+    assert.match(out, /\$filter=Plant eq '1710'/)
+    assert.doesNotMatch(out, /Material eq ''/)
+  })
+
+  test('with nothing to filter on, the expand still fetches the children', () => {
+    const out = tools.buildExpand(TPL, {}, 'v4', {})
+    assert.doesNotMatch(out, /\$filter/)
+    assert.match(out, /^to_MaterialDocumentItem\(\$select=/)
+  })
+
+  test('a bare navigation name passes through, and no expand stays empty', () => {
+    assert.equal(tools.buildExpand('to_MaterialDocumentItem', {}, 'v4', {}), 'to_MaterialDocumentItem')
+    assert.equal(tools.buildExpand('', {}, 'v4', {}), '')
+    assert.equal(tools.buildExpand(null, {}, 'v4', {}), '')
+  })
+})
+
 describe('approval policy merge', () => {
   test('most restrictive wins across layers', () => {
     // Verified against the seeded policies via the service tests below; this

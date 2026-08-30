@@ -108,6 +108,7 @@ describe('forEndpoint routing', () => {
       assert.equal(forEndpoint({ kind: 'cpi', url: 'https://c' }).name, 'cpi')
       assert.equal(forEndpoint({ kind: 'iflow', url: 'https://i' }).name, 'iflow')
       assert.equal(forEndpoint({ kind: 'odata_direct', url: 'https://o' }).name, 'hub_sandbox')
+      assert.equal(forEndpoint({ kind: 'graph', url: 'https://g/graph/api/x' }).name, 'graph')
       // An unknown or absent kind must not fall through to a live call.
       assert.equal(forEndpoint({ kind: 'nonsense' }).name, 'mock')
       assert.equal(forEndpoint(null).name, 'mock')
@@ -324,6 +325,141 @@ describe('a backend that stalls mid-body still lets go', () => {
       (err) => err instanceof BackendError && /within|timed out/i.test(err.message)
     )
   })
+})
+
+describe('GraphBackend', () => {
+  // SAP Graph puts one namespace in front of many S/4 services. Registering a
+  // sixth business object should be a row naming an entity — these tests pin
+  // the parts that make that true.
+
+  const ENDPOINT = {
+    ID: 'graph-1',
+    name: 'SAP Graph (factorypilot)',
+    kind: 'graph',
+    url: 'https://tenant.integration.cloud.sap/graph/api/factorypilot',
+    authMode: 'oauth2_client_credentials',
+    credentialRef: 'GRAPH_TEST',
+    tokenUrl: 'https://tenant.authentication.hana.ondemand.com/oauth/token',
+    timeoutMs: 5000,
+  }
+
+  const withCreds = (fn) => async () => {
+    process.env.GRAPH_TEST_CLIENT_ID = 'cid'
+    process.env.GRAPH_TEST_CLIENT_SECRET = 'sec'
+    oauth.clear()
+    try { await fn() } finally {
+      delete process.env.GRAPH_TEST_CLIENT_ID
+      delete process.env.GRAPH_TEST_CLIENT_SECRET
+      oauth.clear()
+    }
+  }
+
+  const tokenThen = (...rest) => stubFetch(json({ access_token: 'tok-1', expires_in: 3600 }), ...rest)
+
+  test('refuses an endpoint with no URL rather than calling nowhere', () => {
+    assert.throws(() => new backend.GraphBackend({}), (err) => err.statusCode === 503)
+  })
+
+  test('the namespace comes from servicePath and the entity stands alone', withCreds(async () => {
+    tokenThen(json({ value: [{ Material: 'M1', Plant: '1710' }] }))
+    const graph = new backend.GraphBackend(ENDPOINT)
+    const out = await graph.query({
+      servicePath: '/sap.s4',
+      entitySet: 'A_MatlStkInAcctMod',
+      filter: "Plant eq '1710'",
+      select: 'Material,Plant',
+      top: 5,
+      correlationId: 'corr-9',
+    })
+    assert.equal(out.rows.length, 1)
+    const call = calls[calls.length - 1]
+    assert.equal(
+      call.url,
+      "https://tenant.integration.cloud.sap/graph/api/factorypilot/sap.s4/A_MatlStkInAcctMod?$filter=Plant eq '1710'&$select=Material,Plant&$top=5"
+    )
+    assert.equal(call.init.headers.Authorization, 'Bearer tok-1', 'Graph takes a bearer, not an API key')
+    assert.equal(call.init.headers['X-Correlation-ID'], 'corr-9')
+    // v2's $format=json would be rejected; Graph is v4.
+    assert.doesNotMatch(call.url, /\$format/)
+  }))
+
+  test('a 401 refreshes the token and retries once', withCreds(async () => {
+    // A cached token outlives a rotated service key. Without the retry the user
+    // is told their data is unreachable when it is merely a stale token.
+    stubFetch(
+      json({ access_token: 'stale', expires_in: 3600 }),
+      json({ error: 'unauthorized' }, 401),
+      json({ access_token: 'fresh', expires_in: 3600 }),
+      json({ value: [{ Material: 'M2' }] })
+    )
+    const graph = new backend.GraphBackend(ENDPOINT)
+    const out = await graph.query({ servicePath: '/sap.s4', entitySet: 'A_MatlStkInAcctMod' })
+    assert.equal(out.rows.length, 1)
+    assert.equal(calls[calls.length - 1].init.headers.Authorization, 'Bearer fresh')
+  }))
+
+  test('an expanded child collection is flattened to one row per child', withCreds(async () => {
+    // Graph exposes A_MaterialDocumentHeader but not A_MaterialDocumentItem, so
+    // the item fields only exist under the association. Left nested, rowCount
+    // would count headers and report three movements as one.
+    tokenThen(json({ value: [{
+      MaterialDocument: '4900000121',
+      DocumentDate: '2016-08-04',
+      to_MaterialDocumentItem: [
+        { MaterialDocumentItem: '1', Material: 'TG11', Plant: '1710' },
+        { MaterialDocumentItem: '2', Material: 'TG12', Plant: '1710' },
+      ],
+    }] }))
+    const graph = new backend.GraphBackend(ENDPOINT)
+    const out = await graph.query({
+      servicePath: '/sap.s4',
+      entitySet: 'A_MaterialDocumentHeader',
+      expand: "to_MaterialDocumentItem($select=Material,Plant)",
+    })
+    assert.equal(out.rows.length, 2, 'two items, two rows')
+    assert.equal(out.rows[0].MaterialDocument, '4900000121', 'the header travels with each item')
+    assert.equal(out.rows[0].Material, 'TG11')
+    assert.equal(out.rows[1].Material, 'TG12')
+    assert.ok(!('to_MaterialDocumentItem' in out.rows[0]), 'the nested array is gone')
+    assert.match(calls[calls.length - 1].url, /\$expand=to_MaterialDocumentItem/)
+  }))
+
+  test('a parent with no children still yields a row', () => {
+    const rows = backend.flattenExpanded(
+      [{ MaterialDocument: 'A', to_Item: [] }, { MaterialDocument: 'B' }],
+      'to_Item'
+    )
+    assert.equal(rows.length, 2, 'a document with no items must not vanish')
+    assert.deepEqual(rows.map((r) => r.MaterialDocument), ['A', 'B'])
+  })
+
+  test('protocol annotations are stripped before the model sees a row', withCreds(async () => {
+    // @odata.etag is bookkeeping. Sent to the model it costs tokens and invites
+    // it to quote an etag as though it were warehouse data.
+    tokenThen(json({ value: [{ '@odata.etag': 'W/"x"', Plant: '1710', FiscalYear: '2017' }] }))
+    const graph = new backend.GraphBackend(ENDPOINT)
+    const out = await graph.query({ servicePath: '/sap.s4', entitySet: 'A_PhysInventoryDocHeader' })
+    assert.deepEqual(Object.keys(out.rows[0]), ['Plant', 'FiscalYear'])
+  }))
+
+  test('an HTTP error names the entity instead of failing anonymously', withCreds(async () => {
+    tokenThen(text('{"error":{"message":"does not exist in the sap.s4 namespace"}}', 404))
+    const graph = new backend.GraphBackend(ENDPOINT)
+    await assert.rejects(
+      graph.query({ servicePath: '/sap.s4', entitySet: 'A_Nonexistent' }),
+      (err) => err instanceof BackendError && err.statusCode === 404 && /A_Nonexistent/.test(err.message)
+    )
+  }))
+
+  test('missing credentials say which env var is unset', withCreds(async () => {
+    delete process.env.GRAPH_TEST_CLIENT_SECRET
+    oauth.clear()
+    const graph = new backend.GraphBackend(ENDPOINT)
+    await assert.rejects(
+      graph.query({ servicePath: '/sap.s4', entitySet: 'A_MatlStkInAcctMod' }),
+      (err) => err instanceof BackendError && /GRAPH_TEST_CLIENT_SECRET/.test(err.message)
+    )
+  }))
 })
 
 describe('CpiBackend', () => {

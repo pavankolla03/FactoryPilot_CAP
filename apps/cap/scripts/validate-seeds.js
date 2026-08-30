@@ -15,15 +15,42 @@ const DATA = path.join(__dirname, '..', 'db', 'data')
 const problems = []
 const notes = []
 
-/** CSVs here are semicolon-delimited; a value containing one silently shifts
- *  every later column, which is how a description once became an isActive flag. */
+/**
+ * Split one semicolon-delimited CSV line, honouring double quotes.
+ *
+ * A naive split is what this validator exists to catch — a stray ";" shifts
+ * every later column, which is how a description once became an isActive flag.
+ * But a *quoted* semicolon is legitimate and CAP's own loader accepts it: an
+ * OData $expand separates its options that way, e.g.
+ * `to_Item($filter=Plant eq '1710';$select=Material)`. Splitting naively here
+ * would reject seed data the runtime loads perfectly well.
+ */
+function splitCsvLine(line) {
+  const cells = []
+  let cell = ''
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') { cell += '"'; i++ }   // "" is an escaped quote
+      else inQuotes = !inQuotes
+    } else if (ch === ';' && !inQuotes) {
+      cells.push(cell); cell = ''
+    } else {
+      cell += ch
+    }
+  }
+  cells.push(cell)
+  return cells
+}
+
 function readCsv(file) {
   const full = path.join(DATA, file)
   if (!fs.existsSync(full)) return null
   const lines = fs.readFileSync(full, 'utf8').split('\n').filter((l) => l.trim())
-  const header = lines[0].split(';')
+  const header = splitCsvLine(lines[0])
   const rows = lines.slice(1).map((line, i) => {
-    const cells = line.split(';')
+    const cells = splitCsvLine(line)
     if (cells.length !== header.length) {
       problems.push(`${file}: row ${i + 1} has ${cells.length} columns, header has ${header.length} — an unescaped ";" in a value?`)
     }
@@ -81,7 +108,7 @@ const oneOf = (rows, file, field, allowed) => {
   }
 }
 
-oneOf(endpoints?.rows, 'IntegrationEndpoint', 'kind', ['iflow', 'odata_direct', 'hub_sandbox', 'destination', 'mock'])
+oneOf(endpoints?.rows, 'IntegrationEndpoint', 'kind', ['iflow', 'odata_direct', 'graph', 'hub_sandbox', 'destination', 'mock'])
 oneOf(endpoints?.rows, 'IntegrationEndpoint', 'authMode', ['none', 'api_key', 'bearer', 'basic', 'oauth2_client_credentials'])
 oneOf(cache?.rows, 'CachePolicy', 'ttlUnit', ['MINUTES', 'HOURS', 'DAYS'])
 oneOf(cache?.rows, 'CachePolicy', 'cacheKeyStrategy', ['PER_USER', 'PER_ROLE', 'GLOBAL'])

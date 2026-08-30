@@ -47,6 +47,36 @@ function buildFilter(template, args, apiVersion, defaults = {}) {
     .trim()
 }
 
+/**
+ * Template an OData $expand the same way a filter is templated.
+ *
+ * The interesting part is the nested `$filter`: SAP Graph exposes material
+ * document *headers*, and the plant lives on the items, so the only way to ask
+ * "movements in plant 1710" is a filter inside the expand. Routing it through
+ * buildFilter means an unresolvable placeholder drops its clause rather than
+ * being sent as `Plant eq ''`, which would return nothing and read as "there
+ * were no movements".
+ */
+function buildExpand(template, args, apiVersion, defaults = {}) {
+  if (!template) return ''
+  const open = template.indexOf('(')
+  if (open === -1) return template.trim()
+  const nav = template.slice(0, open).trim()
+  const inner = template.slice(open + 1, template.lastIndexOf(')'))
+
+  const options = inner
+    .split(';')
+    .map((opt) => {
+      const trimmed = opt.trim()
+      if (!/^\$filter=/i.test(trimmed)) return trimmed
+      const built = buildFilter(trimmed.slice(trimmed.indexOf('=') + 1), args, apiVersion, defaults)
+      return built ? `$filter=${built}` : ''
+    })
+    .filter(Boolean)
+
+  return options.length ? `${nav}(${options.join(';')})` : nav
+}
+
 /** OpenAI-style tool definitions the provider can call. */
 function buildDefinitions(businessObjects) {
   const defs = businessObjects.map((bo) => ({
@@ -120,6 +150,7 @@ async function executeRead(toolName, args, { businessObjects, defaults, correlat
   // Honour whichever is shorter so one slow tool cannot outlast the request.
   if (timeoutMs && timeoutMs < client.timeoutMs) client.timeoutMs = timeoutMs
   const filter = buildFilter(bo.defaultFilters, args, bo.apiVersion, defaults)
+  const expand = buildExpand(bo.expandPath, args, bo.apiVersion, defaults)
 
   const result = await client.query({
     destinationName: endpoint?.destinationName,
@@ -127,6 +158,7 @@ async function executeRead(toolName, args, { businessObjects, defaults, correlat
     entitySet: bo.entitySet,
     filter,
     select: bo.selectFields,
+    expand,
     apiVersion: bo.apiVersion,
     top: 200,
     correlationId,
@@ -148,4 +180,5 @@ async function executeWrite(toolName, args) {
   }
 }
 
-module.exports = { toolNameFor, buildDefinitions, buildFilter, isWriteTool, executeRead, executeWrite, WRITE_TOOLS }
+module.exports = {
+  buildExpand, toolNameFor, buildDefinitions, buildFilter, isWriteTool, executeRead, executeWrite, WRITE_TOOLS }

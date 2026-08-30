@@ -1,6 +1,6 @@
 const cds = require('@sap/cds')
 
-const KINDS = ['iflow', 'odata_direct', 'hub_sandbox', 'destination', 'mock']
+const KINDS = ['iflow', 'odata_direct', 'graph', 'hub_sandbox', 'destination', 'mock']
 const AUTH_MODES = ['none', 'api_key', 'bearer', 'basic', 'oauth2_client_credentials']
 
 /**

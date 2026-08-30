@@ -19,6 +19,7 @@ entity IntegrationEndpoint : cuid, managed, ActiveFlag {
   /**
    * iflow        — a deployed Integration Suite iFlow (POST, thin contract)
    * odata_direct — an OData service reached directly, no middleware
+   * graph        — SAP Graph, one namespace in front of many S/4 services
    * hub_sandbox  — SAP Business Accelerator Hub sandbox
    * destination  — resolved through a BTP destination
    * mock         — the bundled fixture, for demos with no SAP account

@@ -1,12 +1,13 @@
 /**
  * The one place that talks to a backend system.
  *
- * Three interchangeable modes chosen by the Connection row, so registering a
- * business object against a real S/4 tenant instead of the sandbox is a config
- * change rather than a code change:
+ * Interchangeable modes chosen by the Connection row, so pointing a business
+ * object at a real S/4 tenant instead of the sandbox is a config change rather
+ * than a code change:
  *   mock         — replay the synthetic fixture, no SAP account needed
  *   hub_sandbox  — SAP Business Accelerator Hub with an API key
- *   cpi          — POST the resolved query to the thin generic iFlow
+ *   graph        — SAP Graph over OData, one namespace in front of many services
+ *   cpi / iflow  — POST the resolved query to an Integration Suite flow
  */
 
 const fs = require('node:fs')
@@ -30,10 +31,11 @@ function extractRows(body) {
   return []
 }
 
-function buildQueryString({ filter, select, top, apiVersion }) {
+function buildQueryString({ filter, select, top, apiVersion, expand }) {
   const parts = []
   if (filter) parts.push(`$filter=${filter}`)
   if (select) parts.push(`$select=${select}`)
+  if (expand) parts.push(`$expand=${expand}`)
   if (top) parts.push(`$top=${top}`)
   if (apiVersion === 'v2') parts.push('$format=json')
   return parts.join('&')
@@ -89,6 +91,10 @@ const FIXTURES = {
   A_OutbDeliveryHeader: FIXTURE,
   A_MatlStkInAcctMod: fixture('material_stock'),
   A_MaterialDocumentItem: fixture('material_document'),
+  // Graph exposes the header, the Hub exposed the item. Same fixture answers
+  // both, so switching a business object between them does not break the
+  // offline demo.
+  A_MaterialDocumentHeader: fixture('material_document'),
   A_PhysInventoryDocHeader: fixture('physical_inventory'),
   A_PurchaseOrder: fixture('purchasing'),
 }
@@ -155,6 +161,137 @@ class MockBackend {
     const qs = buildQueryString({ filter, select, top, apiVersion })
     return { rows, url: `mock://${entitySet}${qs ? `?${qs}` : ''}`, statusCode: 200, elapsedMs: Date.now() - started }
   }
+}
+
+/**
+ * SAP Graph, reached as OData.
+ *
+ * Graph puts one namespace in front of many S/4 services, so a business object
+ * names an entity (`A_MatlStkInAcctMod`) instead of a service path plus an
+ * entity set. That is the whole point of using it: registering a sixth object
+ * is a row naming an entity, not a new service URL to get right.
+ *
+ * OData rather than the GraphQL endpoint on the same host. Both work — the
+ * GraphQL one was verified against this tenant — but Graph honours `$filter`,
+ * `$top` and `$expand` on the OData path, which means the query builder, the
+ * filter templating and the row extraction that already serve the Hub serve
+ * this too. A GraphQL client would need a schema-aware query builder, and
+ * "add another entity" would stop being a row.
+ */
+class GraphBackend {
+  constructor(endpoint) {
+    if (!endpoint?.url) {
+      throw new BackendError('This Graph endpoint has no URL. Set it in the Integration console and press Test.', 503)
+    }
+    this.endpoint = endpoint
+    this.baseUrl = String(endpoint.url).replace(/\/$/, '')
+    this.timeoutMs = endpoint.timeoutMs || 15000
+    this.name = 'graph'
+  }
+
+  async query({ servicePath, entitySet, filter, select, top = 200, expand, correlationId }) {
+    const started = Date.now()
+    // The namespace travels in servicePath, the same slot the Hub uses for its
+    // service path — so one column describes "where in this backend", whatever
+    // the backend is.
+    const ns = servicePath ? `/${String(servicePath).replace(/^\/+|\/+$/g, '')}` : ''
+    const qs = buildQueryString({ filter, select, top, expand, apiVersion: 'v4' })
+    const url = `${this.baseUrl}${ns}/${entitySet}${qs ? `?${qs}` : ''}`
+
+    let out = await this.#send(url, correlationId)
+    // A cached token outlives a rotated service key. Drop it and try once more
+    // before telling the user their data is unreachable.
+    if (out.status === 401) {
+      require('./oauth').invalidate(this.endpoint)
+      out = await this.#send(url, correlationId)
+    }
+
+    if (!out.ok) {
+      throw new BackendError(`Graph returned HTTP ${out.status} for ${entitySet}: ${out.text.slice(0, 200)}`, out.status)
+    }
+
+    let body
+    try {
+      body = JSON.parse(out.text)
+    } catch {
+      throw new BackendError('Graph returned a non-JSON body — check the namespace and entity name.')
+    }
+
+    let rows = stripAnnotations(extractRows(body))
+    // An expanded child collection arrives nested under the navigation name.
+    // Flattening to one row per child restores the shape the item-level Hub
+    // query had, so rowCount counts documents rather than headers and the
+    // model is not asked to reason about nesting.
+    if (expand) rows = flattenExpanded(rows, String(expand).split('(')[0].trim())
+
+    return { rows, url, statusCode: out.status, elapsedMs: Date.now() - started }
+  }
+
+  async #send(url, correlationId) {
+    let token
+    try {
+      token = await require('./oauth').getToken(this.endpoint)
+    } catch (err) {
+      throw new BackendError(`Graph authentication failed: ${err.message}`, 401)
+    }
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs)
+    try {
+      const res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/json',
+          ...(correlationId && { 'X-Correlation-ID': correlationId }),
+        },
+        signal: controller.signal,
+      })
+      // Body drained inside the timer — see HubBackend.
+      return { status: res.status, ok: res.ok, text: await res.text() }
+    } catch (err) {
+      throw new BackendError(
+        err.name === 'AbortError' ? `Graph timed out after ${this.timeoutMs}ms` : `Graph request failed: ${err.message}`
+      )
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+}
+
+/** One row per expanded child, carrying its parent's fields. A parent with no
+ *  children still yields its own row rather than vanishing. */
+function flattenExpanded(rows, navName) {
+  if (!navName) return rows
+  const out = []
+  for (const row of rows) {
+    const children = row[navName]
+    const parent = { ...row }
+    delete parent[navName]
+    if (Array.isArray(children) && children.length) {
+      for (const child of children) out.push({ ...parent, ...child })
+    } else {
+      out.push(parent)
+    }
+  }
+  return out
+}
+
+/**
+ * Drop OData/Graph control annotations — `@odata.etag`, `@Graph.*` and friends.
+ *
+ * They are protocol bookkeeping, not warehouse data. Every one of them is sent
+ * to the model as part of a row, where it costs tokens and invites the model to
+ * quote an etag as though it meant something.
+ */
+function stripAnnotations(rows) {
+  return rows.map((row) => {
+    let touched = false
+    const clean = {}
+    for (const [key, value] of Object.entries(row)) {
+      if (key.startsWith('@')) { touched = true; continue }
+      clean[key] = value
+    }
+    return touched ? clean : row
+  })
 }
 
 class HubBackend {
@@ -397,6 +534,7 @@ function forEndpoint(endpoint) {
   const secret = endpoint?.credentialRef ? process.env[endpoint.credentialRef] : undefined
   const timeoutMs = endpoint?.timeoutMs
 
+  if (kind === 'graph') return new GraphBackend(endpoint)
   if (kind === 'hub_sandbox') return new HubBackend({ baseUrl: endpoint.url, apiKey: secret, timeoutMs })
   if (kind === 'iflow') return new IflowBackend(endpoint)
   if (kind === 'cpi') return new CpiBackend({ baseUrl: endpoint.url, token: secret, timeoutMs })
@@ -404,4 +542,4 @@ function forEndpoint(endpoint) {
   return new MockBackend()
 }
 
-module.exports = { BackendError, MockBackend, HubBackend, CpiBackend, IflowBackend, forEndpoint, extractRows, buildQueryString, toDate }
+module.exports = { BackendError, MockBackend, HubBackend, GraphBackend, CpiBackend, IflowBackend, forEndpoint, extractRows, buildQueryString, flattenExpanded, stripAnnotations, toDate }

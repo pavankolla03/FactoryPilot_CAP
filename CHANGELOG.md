@@ -9,6 +9,35 @@ Versioning follows [SemVer](https://semver.org/) for tagged releases (`v0.1.0-tr
 
 ### Added
 
+- **SAP Graph as a backend, alongside the Hub.** A new endpoint kind `graph`
+  reaches SAP Graph on the customer's Integration Suite tenant with OAuth2
+  client credentials. Graph puts one namespace (`sap.s4`) in front of many S/4
+  services, so a business object names an entity — `A_MatlStkInAcctMod` — rather
+  than a service path plus an entity set, and registering a sixth object is a
+  row in `BusinessObjectConfig` instead of a code change. `MATERIAL_STOCK`,
+  `MATERIAL_DOCUMENT` and `PHYSICAL_INVENTORY` now read through it;
+  `DELIVERY` and `PURCHASING` stay on the Hub, which is where those entities
+  live. Which one answers a question is unchanged: the model still picks from
+  the tool catalogue built from the active rows, and no longer needs to know
+  where a tool gets its data.
+
+  Reached as OData rather than through the GraphQL endpoint on the same host.
+  Both were verified against the tenant, but Graph honours `$filter`, `$top`,
+  `$select` and `$expand` on the OData path — so the query builder, the filter
+  templating and the row extraction that already served the Hub serve Graph
+  unchanged. A GraphQL client would have needed a schema-aware query builder,
+  and "add another entity" would have stopped being a row.
+
+- **`expandPath` on a business object, and `scripts/graph-probe.js`.** Graph
+  exposes material document *headers*, while plant and material live on the
+  items, so the detail is only reachable through the association. `expandPath`
+  carries an `$expand` with the same `{plant}` / `{materialID}` placeholders the
+  filters use, and rows come back flattened to one per item — the shape the
+  item-level query used to return, so row counts stay honest. The probe calls
+  every Graph-backed object and names any configured field the service does not
+  return; `--entities` lists what a future row could name.
+
+
 - **MVP as seven decoupled CAP services (`apps/cap`), deployed to BTP trial and
   runnable locally with no SAP account.** One CDS service and one Fiori app per
   capability, so a client can adopt or drop any of them independently:

@@ -30,6 +30,7 @@ const path = require('node:path')
 
 const ROOT = path.join(__dirname, '..')
 const CSV = path.join(ROOT, 'apps/cap/db/data/factorypilot.config-BusinessObjectConfig.csv')
+const EP_CSV = path.join(ROOT, 'apps/cap/db/data/factorypilot.integration-IntegrationEndpoint.csv')
 const HUB_ROOT = 'https://sandbox.api.sap.com/s4hanacloud'
 const TIMEOUT_MS = 20000
 
@@ -61,12 +62,46 @@ const FIXTURE_DIR = {
   PURCHASING: 'purchasing',
 }
 
+/** Semicolon-delimited, but a quoted value may legitimately contain one — an
+ *  $expand separates its own options that way. A naive split shifted every
+ *  column after expandPath and read a field list as an isActive flag. */
+function splitCsvLine(line) {
+  const cells = []
+  let cell = ''
+  let inQuotes = false
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i]
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') { cell += '"'; i++ }
+      else inQuotes = !inQuotes
+    } else if (ch === ';' && !inQuotes) {
+      cells.push(cell); cell = ''
+    } else {
+      cell += ch
+    }
+  }
+  cells.push(cell)
+  return cells
+}
+
+function readCsv(file) {
+  const [header, ...lines] = fs.readFileSync(file, 'utf8').trim().split('\n')
+  const cols = splitCsvLine(header)
+  return lines.map((line) =>
+    Object.fromEntries(splitCsvLine(line).map((v, i) => [(cols[i] || '').trim(), (v ?? '').trim()]))
+  )
+}
+
+/** Only the objects actually routed to the Hub.
+ *
+ *  Some are served by SAP Graph now (see scripts/graph-probe.js). Probing those
+ *  against the Hub asks for a Graph namespace on a Hub host and reports a 404 —
+ *  a health check that invents failures is worse than none. */
 function readObjects() {
-  const [header, ...lines] = fs.readFileSync(CSV, 'utf8').trim().split('\n')
-  const cols = header.split(';')
-  return lines
-    .map((line) => Object.fromEntries(line.split(';').map((v, i) => [cols[i].trim(), (v ?? '').trim()])))
+  const hub = readCsv(EP_CSV).find((e) => e.kind === 'hub_sandbox' && e.isActive === 'true')
+  return readCsv(CSV)
     .filter((o) => o.isActive === 'true')
+    .filter((o) => !hub || !o.endpoint_ID || o.endpoint_ID === hub.ID)
     .filter((o) => !only.length || only.includes(o.objectCode))
 }
 

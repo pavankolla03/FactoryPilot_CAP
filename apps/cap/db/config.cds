@@ -43,6 +43,19 @@ entity BusinessObjectConfig : cuid, managed, ActiveFlag {
   @title: 'Select Fields'
   selectFields          : String(500);
 
+  /**
+   * OData $expand, for a backend where the detail hangs off a header rather
+   * than standing on its own. SAP Graph exposes A_MaterialDocumentHeader but
+   * not A_MaterialDocumentItem, so the item fields are only reachable through
+   * the association. Supports the same {plant} / {materialID} placeholders as
+   * defaultFilters, e.g.
+   *   to_MaterialDocumentItem($filter=Plant eq '{plant}';$select=Material,Plant)
+   * Rows come back flattened to one per child, so a caller sees the same shape
+   * it would from a direct item query.
+   */
+  @title: 'Expand'
+  expandPath            : String(600);
+
   @title: 'Prompt Hints'
   promptHints           : String(1000);
 
