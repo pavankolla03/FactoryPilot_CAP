@@ -270,6 +270,62 @@ describe('HubBackend', () => {
   })
 })
 
+describe('a backend that stalls mid-body still lets go', () => {
+  // fetch() resolves as soon as the response HEADERS arrive — the body is
+  // still an unread stream. Clearing the abort timer at that moment leaves the
+  // body read with nothing to interrupt it, so a server that sends headers and
+  // then stops writing holds the request open until the gateway gives up. The
+  // timer has to stay armed until the body is actually in hand.
+
+  /** A response whose body never arrives, and which honours an abort. */
+  const stalledBody = () => {
+    const { init } = calls[calls.length - 1]
+    const hang = () =>
+      new Promise((_, reject) => {
+        init.signal.addEventListener('abort', () => {
+          const err = new Error('The operation was aborted')
+          err.name = 'AbortError'
+          reject(err)
+        })
+      })
+    return { ok: true, status: 200, json: hang, text: hang }
+  }
+
+  test('HubBackend gives up on a body that never arrives', async () => {
+    stubFetch(stalledBody)
+    const hub = new backend.HubBackend({ baseUrl: 'https://sandbox.api.sap.com/s4', apiKey: 'k', timeoutMs: 300 })
+    await assert.rejects(
+      hub.query({ entitySet: 'A_MatlStkInAcctMod', apiVersion: 'v2' }),
+      (err) => err instanceof BackendError && /timed out/i.test(err.message)
+    )
+  })
+
+  test('CpiBackend gives up on a body that never arrives', async () => {
+    // This adapter previously passed no signal at all, so its timeoutMs was
+    // decorative and a silent CPI endpoint hung forever.
+    stubFetch(stalledBody)
+    const cpi = new backend.CpiBackend({ baseUrl: 'https://cpi.example/flow', token: 't', timeoutMs: 300 })
+    await assert.rejects(
+      cpi.query({ entitySet: 'A_MatlStkInAcctMod' }),
+      (err) => err instanceof BackendError && /timed out/i.test(err.message)
+    )
+  })
+
+  test('IflowBackend gives up on a body that never arrives', async () => {
+    stubFetch(stalledBody)
+    const flow = new backend.IflowBackend({
+      url: 'https://cpi.example/flow',
+      httpMethod: 'GET',
+      authMode: 'none',
+      timeoutMs: 300,
+    })
+    await assert.rejects(
+      flow.query({ entitySet: 'A_MatlStkInAcctMod' }),
+      (err) => err instanceof BackendError && /within|timed out/i.test(err.message)
+    )
+  })
+})
+
 describe('CpiBackend', () => {
   test('refuses an endpoint with no URL', () => {
     assert.throws(() => new backend.CpiBackend({}), (err) => err.statusCode === 503)

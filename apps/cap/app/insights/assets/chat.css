@@ -301,6 +301,11 @@ body > .fd-shellbar { flex: none; }
 @keyframes pulse { 50% { opacity: .55; } }
 @media (prefers-reduced-motion: reduce) { .composer__tool.is-live { animation: none; } }
 
+/* `hidden` is a UA rule (`[hidden] { display: none }`), so a class that sets
+   `display` outranks it and the strip renders as an empty bordered box above
+   the composer even with nothing attached. It has to opt out explicitly. */
+.composer__attachment[hidden] { display: none; }
+
 .composer__attachment {
   max-width: 52rem;
   margin: 0 auto 0.375rem;

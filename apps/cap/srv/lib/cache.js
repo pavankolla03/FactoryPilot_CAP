@@ -15,7 +15,47 @@ const cds = require('@sap/cds')
 
 let client = null
 let backend = 'memory'
+let connecting = null      // memoised, so concurrent first requests share one connect
+let givenUp = false        // Redis has proven unusable; stop paying to find out again
+let socketErrors = 0
 const memory = new Map()
+
+// A cache is an optimisation, so every Redis operation is on a short leash.
+// Waiting longer than this for a cache lookup costs more than the miss does.
+const OP_TIMEOUT_MS = Number(process.env.FACTORYPILOT_REDIS_OP_TIMEOUT_MS || 1500)
+const CONNECT_TIMEOUT_MS = Number(process.env.FACTORYPILOT_REDIS_CONNECT_TIMEOUT_MS || 4000)
+const MAX_RECONNECTS = Number(process.env.FACTORYPILOT_REDIS_MAX_RECONNECTS || 10)
+const PURGE_BUDGET_MS = Number(process.env.FACTORYPILOT_REDIS_PURGE_BUDGET_MS || 20000)
+
+/**
+ * Bound an await that has no timeout of its own.
+ *
+ * The losing promise is not cancelled — it stays pending until the client
+ * settles it — but the caller is released, which is the whole point: a stalled
+ * cache must never hold a request open.
+ */
+function withTimeout(promise, ms, label) {
+  let timer
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    }),
+  ]).finally(() => clearTimeout(timer))
+}
+
+/** Stop using Redis for the life of this instance and say so once. */
+function degrade(reason) {
+  if (givenUp) return
+  givenUp = true
+  backend = 'memory'
+  const dying = client
+  client = null
+  cds.log('cache').warn(`redis unavailable (${reason}) — in-process cache for the rest of this instance`)
+  if (dying) {
+    try { dying.destroy() } catch { /* it is already gone */ }
+  }
+}
 
 function redisUrlFromEnv() {
   // Bound Redis on CF arrives in VCAP_SERVICES; locally REDIS_URL is enough.
@@ -39,23 +79,60 @@ function redisUrlFromEnv() {
 }
 
 async function init() {
-  if (client !== null || backend === 'redis') return
+  if (givenUp || backend === 'redis') return
+  if (connecting) return connecting
+  connecting = connect().finally(() => { connecting = null })
+  return connecting
+}
+
+async function connect() {
   const url = redisUrlFromEnv()
   if (!url) {
+    givenUp = true
     cds.log('cache').info('no Redis bound — using in-process cache (single instance only)')
     return
   }
   try {
     const redis = require('redis')
-    client = redis.createClient({ url, socket: { reconnectStrategy: (n) => Math.min(n * 200, 3000) } })
-    client.on('error', (err) => cds.log('cache').warn('redis error:', err.message))
-    await client.connect()
+    const c = redis.createClient({
+      url,
+      // Without this, a command issued while the socket is down is *queued*
+      // rather than rejected (see @redis/client sendCommand: it only rejects
+      // when the client is closed, or offline with the queue disabled). Since
+      // the reconnect strategy below keeps the client open, that queued command
+      // never settles and the request awaiting it never returns — which is a
+      // gateway timeout, not a cache miss. Fail fast instead.
+      disableOfflineQueue: true,
+      // Managed Redis drops connections it considers idle; a keepalive ping is
+      // what stops "Socket closed unexpectedly" from being the normal state.
+      pingInterval: 30000,
+      socket: {
+        connectTimeout: CONNECT_TIMEOUT_MS,
+        reconnectStrategy: (attempts) => {
+          if (attempts > MAX_RECONNECTS) {
+            degrade(`gave up after ${attempts} reconnect attempts`)
+            return false
+          }
+          return Math.min(attempts * 200, 3000)
+        },
+      },
+    })
+    // One dead socket otherwise produces an unbounded stream of identical
+    // warnings, which buries everything else in the log.
+    c.on('error', (err) => {
+      socketErrors++
+      if (socketErrors <= 3) cds.log('cache').warn('redis error:', err.message)
+      else if (socketErrors === 4) cds.log('cache').warn('redis error: further socket errors suppressed')
+    })
+    await withTimeout(c.connect(), CONNECT_TIMEOUT_MS, 'redis connect')
+    client = c
     backend = 'redis'
+    socketErrors = 0
     cds.log('cache').info('cache backend: redis')
   } catch (err) {
-    // A cache is an optimisation. Losing it must never take the app down.
-    client = null
-    cds.log('cache').warn(`redis unavailable (${err.message}) — falling back to in-process cache`)
+    // A cache is an optimisation. Losing it must never take the app down, and
+    // must not cost every later request another connect attempt either.
+    degrade(err.message)
   }
 }
 
@@ -140,9 +217,11 @@ async function get(key) {
   await init()
   if (backend === 'redis' && client) {
     try {
-      const raw = await client.get(key)
+      const raw = await withTimeout(client.get(key), OP_TIMEOUT_MS, 'redis get')
       return raw ? JSON.parse(raw) : null
     } catch (err) {
+      // A lookup that fails is a miss. Nothing about that is worth failing the
+      // question over.
       cds.log('cache').warn('redis get failed:', err.message)
       return null
     }
@@ -161,9 +240,11 @@ async function set(key, value, ttlSeconds) {
   const ttl = Math.max(1, ttlSeconds)
   if (backend === 'redis' && client) {
     try {
-      await client.set(key, JSON.stringify(value), { EX: ttl })
+      await withTimeout(client.set(key, JSON.stringify(value), { EX: ttl }), OP_TIMEOUT_MS, 'redis set')
       return
     } catch (err) {
+      // The answer is already computed and on its way back. Failing to file it
+      // costs the next asker a cache miss and nothing else.
       cds.log('cache').warn('redis set failed:', err.message)
       return
     }
@@ -185,15 +266,23 @@ async function purge(objectCode) {
 
   if (backend === 'redis' && client) {
     let removed = 0
+    // A purge walks the whole keyspace, so it gets a wider budget than a
+    // lookup — but still a budget. An admin waiting on a spinner is better
+    // served by "removed 400 so far" than by a request that never returns.
+    const deadline = Date.now() + PURGE_BUDGET_MS
     try {
       for await (const key of client.scanIterator({ MATCH: 'fp:answer:*', COUNT: 200 })) {
+        if (Date.now() > deadline) {
+          cds.log('cache').warn(`redis purge stopped at ${removed} entries after ${PURGE_BUDGET_MS}ms`)
+          break
+        }
         if (wanted) {
-          const raw = await client.get(key)
+          const raw = await withTimeout(client.get(key), OP_TIMEOUT_MS, 'redis get')
           let entry = null
           try { entry = raw ? JSON.parse(raw) : null } catch { /* drop unreadable entries */ }
           if (entry && String(entry.objectCode || '').toUpperCase() !== wanted) continue
         }
-        await client.del(key)
+        await withTimeout(client.del(key), OP_TIMEOUT_MS, 'redis del')
         removed++
       }
     } catch (err) {
@@ -243,13 +332,16 @@ async function recordStat(objectCode, field, tokensSaved = 0) {
 async function close() {
   if (client) {
     try {
-      await client.quit()
+      await withTimeout(client.quit(), OP_TIMEOUT_MS, 'redis quit')
     } catch {
       /* shutting down anyway */
     }
     client = null
-    backend = 'memory'
   }
+  backend = 'memory'
+  connecting = null
+  givenUp = false
+  socketErrors = 0
   memory.clear()
 }
 
@@ -258,4 +350,14 @@ module.exports = {
   normaliseQuestion, subjectFor, secondsUntilMidnight, isDateBound, recordStat, close,
   get backend() { return backend },
   _memory: memory,
+  /**
+   * Test seam. Standing in a client that hangs or rejects is the only way to
+   * exercise the behaviour this module exists for — surviving a Redis that has
+   * stopped answering — without a real broken Redis to hand.
+   */
+  _injectClient(fake) {
+    client = fake
+    backend = fake ? 'redis' : 'memory'
+    givenUp = false
+  },
 }

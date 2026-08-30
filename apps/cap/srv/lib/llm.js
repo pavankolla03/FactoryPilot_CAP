@@ -17,7 +17,7 @@ class OpenRouterProvider {
     this.name = 'openrouter'
   }
 
-  async complete({ messages, tools, model, maxTokens = 800, temperature = 0.2 }) {
+  async complete({ messages, tools, model, maxTokens = 800, temperature = 0.2, timeoutMs }) {
     const body = {
       model: model || this.model,
       messages,
@@ -36,7 +36,11 @@ class OpenRouterProvider {
     }
 
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs)
+    // The caller may have less time left than this provider's own default —
+    // an agent loop running against a gateway deadline, for instance. Whoever
+    // is stricter wins.
+    const budget = Math.max(1000, Math.min(this.timeoutMs, timeoutMs || this.timeoutMs))
+    const timer = setTimeout(() => controller.abort(), budget)
     let res
     try {
       res = await fetch(`${this.baseUrl}/chat/completions`, {
@@ -51,7 +55,7 @@ class OpenRouterProvider {
       })
     } catch (err) {
       throw new LLMError(
-        err.name === 'AbortError' ? `OpenRouter timed out after ${this.timeoutMs}ms` : `OpenRouter request failed: ${err.message}`
+        err.name === 'AbortError' ? `OpenRouter timed out after ${budget}ms` : `OpenRouter request failed: ${err.message}`
       )
     } finally {
       clearTimeout(timer)
@@ -150,7 +154,7 @@ class AICoreProvider {
     return `${this.baseUrl}/v2/inference/deployments/${this.deploymentId}/chat/completions?api-version=${this.apiVersion}`
   }
 
-  async complete({ messages, tools, maxTokens = 800, temperature = 0.2 }) {
+  async complete({ messages, tools, maxTokens = 800, temperature = 0.2, timeoutMs }) {
     const body = { messages, max_tokens: maxTokens, temperature }
     if (tools?.length) {
       body.tools = tools
@@ -159,9 +163,9 @@ class AICoreProvider {
 
     // Retry once on 401: a token cached across a rotation is still within its
     // stated expiry but no longer accepted.
-    let res = await this.#post(body, await oauth.getToken(this.tokenEndpoint))
+    let res = await this.#post(body, await oauth.getToken(this.tokenEndpoint), timeoutMs)
     if (res.status === 401) {
-      res = await this.#post(body, await oauth.getToken(this.tokenEndpoint, { force: true }))
+      res = await this.#post(body, await oauth.getToken(this.tokenEndpoint, { force: true }), timeoutMs)
     }
 
     if (!res.ok) throw new LLMError(`AI Core returned ${res.status}: ${(await res.text()).slice(0, 300)}`)
@@ -173,9 +177,13 @@ class AICoreProvider {
     })
   }
 
-  async #post(body, token) {
+  async #post(body, token, timeoutMs) {
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs)
+    // The caller may have less time left than this provider's own default —
+    // an agent loop running against a gateway deadline, for instance. Whoever
+    // is stricter wins.
+    const budget = Math.max(1000, Math.min(this.timeoutMs, timeoutMs || this.timeoutMs))
+    const timer = setTimeout(() => controller.abort(), budget)
     try {
       return await fetch(this.url, {
         method: 'POST',
@@ -189,7 +197,7 @@ class AICoreProvider {
       })
     } catch (err) {
       throw new LLMError(
-        err.name === 'AbortError' ? `AI Core timed out after ${this.timeoutMs}ms` : `AI Core request failed: ${err.message}`
+        err.name === 'AbortError' ? `AI Core timed out after ${budget}ms` : `AI Core request failed: ${err.message}`
       )
     } finally {
       clearTimeout(timer)
@@ -217,7 +225,7 @@ class OpenAIProvider {
     this.name = 'openai'
   }
 
-  async complete({ messages, tools, model, maxTokens = 800 }) {
+  async complete({ messages, tools, model, maxTokens = 800, timeoutMs }) {
     const body = {
       model: model || this.model,
       messages,
@@ -236,7 +244,11 @@ class OpenAIProvider {
     }
 
     const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs)
+    // The caller may have less time left than this provider's own default —
+    // an agent loop running against a gateway deadline, for instance. Whoever
+    // is stricter wins.
+    const budget = Math.max(1000, Math.min(this.timeoutMs, timeoutMs || this.timeoutMs))
+    const timer = setTimeout(() => controller.abort(), budget)
     let res
     try {
       res = await fetch(`${this.baseUrl}/chat/completions`, {
@@ -247,7 +259,7 @@ class OpenAIProvider {
       })
     } catch (err) {
       throw new LLMError(
-        err.name === 'AbortError' ? `OpenAI timed out after ${this.timeoutMs}ms` : `OpenAI request failed: ${err.message}`
+        err.name === 'AbortError' ? `OpenAI timed out after ${budget}ms` : `OpenAI request failed: ${err.message}`
       )
     } finally {
       clearTimeout(timer)

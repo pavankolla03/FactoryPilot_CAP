@@ -106,7 +106,7 @@ function isWriteTool(name) {
  * Run a read tool. Write tools never reach here from the loop — they are
  * diverted into a PendingAction first.
  */
-async function executeRead(toolName, args, { businessObjects, defaults, correlationId }) {
+async function executeRead(toolName, args, { businessObjects, defaults, correlationId, timeoutMs }) {
   const bo = businessObjects.find((b) => toolNameFor(b.objectCode) === toolName)
   if (!bo) throw new backend.BackendError(`Unknown tool: ${toolName}`, 400)
 
@@ -116,6 +116,9 @@ async function executeRead(toolName, args, { businessObjects, defaults, correlat
     : null
 
   const client = backend.forEndpoint(endpoint)
+  // The agent may have less time left than the endpoint's configured timeout.
+  // Honour whichever is shorter so one slow tool cannot outlast the request.
+  if (timeoutMs && timeoutMs < client.timeoutMs) client.timeoutMs = timeoutMs
   const filter = buildFilter(bo.defaultFilters, args, bo.apiVersion, defaults)
 
   const result = await client.query({

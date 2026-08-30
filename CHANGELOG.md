@@ -55,6 +55,37 @@ Versioning follows [SemVer](https://semver.org/) for tagged releases (`v0.1.0-tr
   released, so this supersedes rather than deprecates.
 ### Fixed
 
+- **Every question returned `HTTP 504`.** Two independent causes, both of them
+  an unbounded wait:
+  - The answer cache awaited a Redis client whose socket kept dropping.
+    node-redis only *rejects* a command when the client is closed; while it is
+    reconnecting it *queues* — and the reconnect strategy never gave up, so the
+    client stayed open and the queued `GET` never settled. The request awaiting
+    it never returned. Redis now fails fast (`disableOfflineQueue`), every
+    operation has its own timeout, reconnects are bounded, and a Redis that has
+    proven dead is dropped for the life of the instance instead of being
+    retried on every request. A cache is an optimisation; it can no longer hold
+    a request open.
+  - The agent loop was bounded by round count (8) but not by wall-clock, and a
+    single model call could take 60s. A question now carries a deadline
+    (`FACTORYPILOT_ASK_BUDGET_MS`, 75s): no new round starts without room to
+    finish it, the remaining budget is passed down to the model and to the
+    OData call, and running out of time produces a readable partial answer
+    rather than a gateway error. The approuter destination timeout is now set
+    explicitly (120s) instead of relying on its 30s default, so the service
+    always answers before the gateway gives up.
+
+- **A stalled response body could hang a request indefinitely.** `fetch`
+  resolves when the *headers* arrive, and all three backend adapters cleared
+  their abort timer at that moment — leaving `res.json()` with nothing to
+  interrupt it. `CpiBackend` was worse: it accepted a `timeoutMs` and passed no
+  abort signal at all. All three now read the body inside the timer.
+
+- **An empty attachment strip rendered as a blank box above the chat input.**
+  The `hidden` attribute is a user-agent rule, so the `display: flex` on its own
+  class outranked it.
+
+
 - **A backend that could not be reached was answered as "No records matched
   that question".** A tool call that threw was handed to the model as
   `{"error": ...}` and the model narrated around it, so an unreachable

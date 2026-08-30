@@ -1,4 +1,4 @@
-const { test, describe, beforeEach } = require('node:test')
+const { test, describe, beforeEach, afterEach } = require('node:test')
 const assert = require('node:assert/strict')
 const path = require('node:path')
 const cds = require('@sap/cds')
@@ -119,6 +119,45 @@ describe('cache store', () => {
 
   test('a miss returns null rather than throwing', async () => {
     assert.equal(await cache.get('fp:answer:nothing:here'), null)
+  })
+})
+
+describe('a Redis that stopped answering is a miss, never a hang', () => {
+  // This is what produced "HTTP 504" on every question. node-redis only
+  // rejects a command when the client is *closed*; while it is reconnecting it
+  // queues instead, and a reconnect strategy that never gives up keeps it
+  // reconnecting forever. The queued command never settled, so the request
+  // awaiting it never returned and the approuter timed the user out.
+  afterEach(async () => {
+    cache._injectClient(null)
+    await cache.purge()
+  })
+
+  test('a get that never settles gives up and reports a miss', async () => {
+    cache._injectClient({ get: () => new Promise(() => {}) })   // never resolves
+    const startedAt = Date.now()
+    const value = await cache.get('fp:answer:hangs')
+    const elapsed = Date.now() - startedAt
+    assert.equal(value, null, 'a stalled lookup is a miss')
+    assert.ok(elapsed < 5000, `should give up quickly, took ${elapsed}ms`)
+  })
+
+  test('a set that never settles does not hold the answer back', async () => {
+    cache._injectClient({ set: () => new Promise(() => {}) })
+    const startedAt = Date.now()
+    await cache.set('fp:answer:hangs', { answer: 'x' }, 60)
+    const elapsed = Date.now() - startedAt
+    assert.ok(elapsed < 5000, `should give up quickly, took ${elapsed}ms`)
+  })
+
+  test('a rejecting client is a miss, not an exception', async () => {
+    // What disableOfflineQueue produces once the socket is down.
+    cache._injectClient({
+      get: async () => { throw new Error('The client is offline') },
+      set: async () => { throw new Error('The client is offline') },
+    })
+    assert.equal(await cache.get('fp:answer:offline'), null)
+    await cache.set('fp:answer:offline', { answer: 'x' }, 60)   // must not throw
   })
 })
 

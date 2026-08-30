@@ -13,6 +13,13 @@ const policy = require('./policy')
  */
 
 const MAX_ROUNDS = 8
+
+// Rounds are also bounded by wall-clock, not just by count. MAX_ROUNDS alone
+// permits eight model calls plus their tool calls, which comfortably outlasts
+// any gateway: the approuter gives up at its destination timeout and the caller
+// sees a bare 504 instead of an answer.
+const MIN_ROUND_MS = Number(process.env.FACTORYPILOT_MIN_ROUND_MS || 8000)
+const ROUND_RESERVE_MS = Number(process.env.FACTORYPILOT_ROUND_RESERVE_MS || 6000)
 const PENDING_TTL_MS = 15 * 60 * 1000
 
 function systemPrompt(businessObjects, defaults = {}) {
@@ -141,7 +148,7 @@ async function loadHistory(conversationID, limit = 20) {
 /**
  * @returns {{status, answer, toolsCalled, rounds, grounded, usage, steps, pendingAction}}
  */
-async function run({ question, userID, roles, warehouseID, conversationID, correlationId, businessObjects, route, orgSettings }) {
+async function run({ question, userID, roles, warehouseID, conversationID, correlationId, businessObjects, route, orgSettings, deadlineAt }) {
   const provider = llm.getProvider(route || {})
   const definitions = tools.buildDefinitions(businessObjects)
   // No literal fallback. A hardcoded plant silently redirects every question
@@ -161,6 +168,7 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
   const toolErrors = []
   let grounded = false
   let rounds = 0
+  let ranOutOfTime = false
 
   // A paid provider running out of credit, rate-limiting, or going down should
   // degrade the answer, not lose the question. The offline provider computes
@@ -170,9 +178,22 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
   let active = provider
   let degradedFrom = null
 
+  // How long is left before the caller's gateway gives up on us. Every model
+  // call is capped by it, and a new round is only started if there is room for
+  // one — otherwise the loop runs on past the deadline, the gateway returns
+  // 504, and the user gets no answer at all instead of a partial one.
+  const timeLeft = () => (deadlineAt ? deadlineAt - Date.now() : Infinity)
+
+  // A model call must leave enough behind to run the tools it asks for and to
+  // file the audit row, or we would meet the deadline with nothing recorded.
+  const remainingForModel = () => {
+    const left = timeLeft()
+    return Number.isFinite(left) ? Math.max(2000, left - ROUND_RESERVE_MS) : undefined
+  }
+
   const complete = async (payload) => {
     try {
-      return await active.complete(payload)
+      return await active.complete({ ...payload, timeoutMs: remainingForModel() })
     } catch (err) {
       if (active instanceof llm.FakeProvider) throw err
       degradedFrom = `${active.name}: ${err.message}`
@@ -185,6 +206,24 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
   }
 
   while (rounds < MAX_ROUNDS) {
+    // Starting a round we cannot finish spends the remaining budget and then
+    // gets cut off mid-flight by the gateway. Stopping here means the user
+    // sees what we did manage to find out, and why it stopped.
+    if (rounds > 0 && timeLeft() < MIN_ROUND_MS) {
+      return settle({
+        status: 'SUCCESS',
+        answer: grounded
+          ? 'I ran out of time before I could finish working through that. Here is what I had gathered — ask again, or narrow the question, for the rest.'
+          : 'That took longer than I am allowed to spend on one question. Please try again, or narrow it to a single plant or material.',
+        toolsCalled,
+        rounds,
+        grounded,
+        usage,
+        steps,
+        messages,
+        timedOut: true,
+      })
+    }
     rounds++
     const completion = await complete({
       messages,
@@ -260,11 +299,34 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
 
       const startedAt = Date.now()
       let content
+
+      // The model can ask for several tools in one round. Each is bounded on
+      // its own, but three of them in sequence are not, so the budget is
+      // checked between them as well as between rounds.
+      if (timeLeft() < ROUND_RESERVE_MS) {
+        // Deliberately *not* recorded in toolErrors. Those mean "the backend
+        // did not answer", and settle() turns a run of nothing but those into
+        // "I could not reach the source system" — which would send an operator
+        // hunting an outage when the truth is that the question was slow.
+        ranOutOfTime = true
+        content = JSON.stringify({ error: 'skipped: ran out of time for this question' })
+        steps.push({
+          toolName: call.name,
+          arguments: JSON.stringify(call.arguments || {}),
+          result: '',
+          durationMs: 0,
+          error: 'skipped: out of time',
+        })
+        messages.push({ role: 'tool', tool_call_id: call.id, name: call.name, content })
+        continue
+      }
+
       try {
         const result = await tools.executeRead(call.name, call.arguments || {}, {
           businessObjects,
           defaults,
           correlationId,
+          timeoutMs: Number.isFinite(timeLeft()) ? Math.max(2000, timeLeft() - 2000) : undefined,
         })
         grounded = true
         // Send a sample, not the whole result set. Sixty rows of S/4 columns
@@ -353,6 +415,9 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
       outcome = { ...outcome, degradedFrom, usage: { ...outcome.usage, degradedFrom } }
     }
     if (outcome.grounded || !toolErrors.length) return outcome
+    // Running out of time is its own failure with its own remedy. Reporting it
+    // as an unreachable backend sends the reader to the wrong problem.
+    if (ranOutOfTime) return { ...outcome, timedOut: true }
     return {
       ...outcome,
       status: 'FAILED',

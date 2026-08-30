@@ -6,6 +6,16 @@ const policy = require('./lib/policy')
 const cache = require('./lib/cache')
 const router = require('./lib/route')
 
+/**
+ * How long one question may take before we stop and answer with what we have.
+ *
+ * Must stay comfortably under the approuter's destination timeout (set to 120s
+ * in mta.yaml). The gap is deliberate: it is the room in which we finish the
+ * answer, reconcile the quota and write the audit row. If this ever exceeds the
+ * gateway's patience, the user gets a bare 504 and we record nothing about why.
+ */
+const ASK_BUDGET_MS = Number(process.env.FACTORYPILOT_ASK_BUDGET_MS || 75000)
+
 const rolesOf = (req) => Object.keys(req.user?.roles || {}).filter((r) => !r.startsWith('$'))
 const uuid = () => cds.utils.uuid()
 
@@ -323,6 +333,12 @@ module.exports = cds.service.impl(function () {
         businessObjects,
         route,
         orgSettings,
+        // Whatever is left of this request's budget, minus room to record the
+        // outcome. The approuter gives up at its own destination timeout and
+        // returns a bare 504 — this makes sure we have answered, audited and
+        // returned before that happens, so a slow question degrades into a
+        // partial answer the user can read rather than a gateway error.
+        deadlineAt: startedAt + ASK_BUDGET_MS,
       })
       status = result.status
       // A run that reached an answer but grounded none of it reports why here.

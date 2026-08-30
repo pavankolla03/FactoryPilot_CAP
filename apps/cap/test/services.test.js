@@ -454,6 +454,138 @@ describe('a run whose every tool call failed', () => {
   })
 })
 
+describe('a question is bounded by wall-clock, not just by round count', () => {
+  // MAX_ROUNDS=8 permits eight model calls plus their tool calls. Against a
+  // 60s-per-call provider that outlasts any gateway, and the approuter answers
+  // the user with a bare "HTTP 504" — no answer, no audit row, no explanation.
+  // The run has to stop itself first.
+
+  test('a deadline already passed stops the loop instead of running eight rounds', async () => {
+    const realExecuteRead = tools.executeRead
+    let toolCalls = 0
+    tools.executeRead = async () => {
+      toolCalls++
+      return { rows: [{ Material: 'M1', MatlWrhsStkQtyInMatlBaseUnit: '5' }], url: 'https://example/x' }
+    }
+    try {
+      const result = await agent.run({
+        question: 'How much stock do we have?',
+        userID: 'tester',
+        roles: ['InsightsQuery'],
+        warehouseID: '1010',
+        conversationID: 'c-deadline',
+        correlationId: 'x-deadline',
+        businessObjects: [
+          { objectCode: 'MATERIAL_STOCK', objectName: 'Material Stock', keywords: 'stock,material', isActive: true },
+        ],
+        route: null,
+        orgSettings: {},
+        deadlineAt: Date.now() - 1,        // no time left at all
+      })
+      assert.equal(result.rounds, 1, 'should not start a second round past the deadline')
+      assert.ok(result.timedOut, 'the run should record that it ran out of time')
+      assert.match(result.answer, /longer than|ran out of time/i)
+      // Running out of time must not be dressed up as an unreachable backend:
+      // that sends the reader to hunt an outage that is not happening.
+      assert.doesNotMatch(result.answer, /could not reach the source system/i)
+      assert.doesNotMatch(result.answer, /no records matched/i)
+      assert.notEqual(result.status, 'FAILED')
+    } finally {
+      tools.executeRead = realExecuteRead
+      void toolCalls
+    }
+  })
+
+  test('a generous deadline does not interfere', async () => {
+    const realExecuteRead = tools.executeRead
+    tools.executeRead = async () => ({
+      rows: [{ Material: 'M1', MatlWrhsStkQtyInMatlBaseUnit: '5' }],
+      url: 'https://example/x',
+    })
+    try {
+      const result = await agent.run({
+        question: 'How much stock do we have?',
+        userID: 'tester',
+        roles: ['InsightsQuery'],
+        warehouseID: '1010',
+        conversationID: 'c-roomy',
+        correlationId: 'x-roomy',
+        businessObjects: [
+          { objectCode: 'MATERIAL_STOCK', objectName: 'Material Stock', keywords: 'stock,material', isActive: true },
+        ],
+        route: null,
+        orgSettings: {},
+        deadlineAt: Date.now() + 120000,
+      })
+      assert.ok(!result.timedOut, 'a run with time to spare must not report a timeout')
+      assert.equal(result.grounded, true)
+    } finally {
+      tools.executeRead = realExecuteRead
+    }
+  })
+
+  test('the provider is told how much time is left, not its own default', async () => {
+    // Otherwise a single 60s model call spends the whole budget and the
+    // deadline check never gets a turn.
+    const captured = []
+    const stub = {
+      name: 'stub',
+      complete: async (payload) => {
+        captured.push(payload.timeoutMs)
+        return { text: 'ok', toolCalls: [], promptTokens: 1, completionTokens: 1, totalTokens: 2, isEstimated: false }
+      },
+    }
+    const realGetProvider = llm.getProvider
+    llm.getProvider = () => stub
+    try {
+      await agent.run({
+        question: 'hello',
+        userID: 'tester',
+        roles: [],
+        conversationID: 'c-budget',
+        correlationId: 'x-budget',
+        businessObjects: [{ objectCode: 'MATERIAL_STOCK', objectName: 'Material Stock', keywords: 'stock', isActive: true }],
+        route: null,
+        orgSettings: {},
+        deadlineAt: Date.now() + 20000,
+      })
+      assert.equal(captured.length, 1)
+      assert.ok(captured[0] < 20000, `expected a ceiling under the 20s budget, got ${captured[0]}`)
+      assert.ok(captured[0] > 1000, `expected a usable ceiling, got ${captured[0]}`)
+    } finally {
+      llm.getProvider = realGetProvider
+    }
+  })
+
+  test('with no deadline the provider keeps its own timeout', async () => {
+    const captured = []
+    const stub = {
+      name: 'stub',
+      complete: async (payload) => {
+        captured.push(payload.timeoutMs)
+        return { text: 'ok', toolCalls: [], promptTokens: 1, completionTokens: 1, totalTokens: 2, isEstimated: false }
+      },
+    }
+    const realGetProvider = llm.getProvider
+    llm.getProvider = () => stub
+    try {
+      await agent.run({
+        question: 'hello',
+        userID: 'tester',
+        roles: [],
+        conversationID: 'c-nodeadline',
+        correlationId: 'x-nodeadline',
+        businessObjects: [{ objectCode: 'MATERIAL_STOCK', objectName: 'Material Stock', keywords: 'stock', isActive: true }],
+        route: null,
+        orgSettings: {},
+      })
+      assert.equal(captured[0], undefined, 'no deadline means no ceiling to impose')
+    } finally {
+      llm.getProvider = realGetProvider
+    }
+  })
+})
+
 // ---------------------------------------------------------------------------
 // Services — against a running CAP instance
 // ---------------------------------------------------------------------------

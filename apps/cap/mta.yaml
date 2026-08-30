@@ -83,6 +83,12 @@ modules:
           name: srv-api
           url: ~{srv-url}
           forwardAuthToken: true
+          # The approuter's default is 30s, which a question that has to call a
+          # model and then S/4 can exceed — and when it does the user gets a
+          # bare "HTTP 504" with no explanation and nothing in the audit log.
+          # The service enforces its own shorter budget (ASK_BUDGET_MS, 75s) and
+          # returns a real answer, so this only has to be the outer bound.
+          timeout: 120000
 
 resources:
   - name: factorypilot-auth

@@ -182,20 +182,24 @@ class HubBackend {
 
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), this.timeoutMs)
-    let res
     try {
-      res = await fetch(url, {
+      const res = await fetch(url, {
         headers: { APIKey: this.apiKey, Accept: 'application/json', ...(correlationId && { 'X-Correlation-ID': correlationId }) },
         signal: controller.signal,
       })
+      // The body is read inside the timer, not after it. `fetch` resolves as
+      // soon as the *headers* arrive — the body is still an unread stream — so
+      // disarming the controller here would leave `res.json()` with nothing to
+      // abort it, and a server that sends headers then stalls would hold the
+      // request open indefinitely.
+      if (!res.ok) throw new BackendError(`Hub returned ${res.status} for ${entitySet}: ${(await res.text()).slice(0, 200)}`, res.status)
+      return { rows: extractRows(await res.json()), url, statusCode: res.status, elapsedMs: Date.now() - started }
     } catch (err) {
+      if (err instanceof BackendError) throw err
       throw new BackendError(err.name === 'AbortError' ? `Hub timed out after ${this.timeoutMs}ms` : `Hub request failed: ${err.message}`)
     } finally {
       clearTimeout(timer)
     }
-
-    if (!res.ok) throw new BackendError(`Hub returned ${res.status} for ${entitySet}: ${(await res.text()).slice(0, 200)}`, res.status)
-    return { rows: extractRows(await res.json()), url, statusCode: res.status, elapsedMs: Date.now() - started }
   }
 }
 
@@ -208,26 +212,41 @@ class CpiBackend {
 
   async query({ destinationName, servicePath, entitySet, filter, select, top = 200, apiVersion = 'v2', correlationId }) {
     const started = Date.now()
-    const res = await fetch(this.baseUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(this.token && { Authorization: `Bearer ${this.token}` }) },
-      body: JSON.stringify({
-        destinationName,
-        servicePath,
-        entitySet,
-        apiVersion,
-        queryOptions: { filter, select, top },
-        correlationId,
-      }),
-    })
-    if (!res.ok) throw new BackendError(`CPI returned ${res.status}`, res.status)
-    const body = await res.json()
-    if (body.errorCode) throw new BackendError(`${body.errorCode}: ${body.message || ''}`)
-    return {
-      rows: extractRows(body.body ?? body),
-      url: `${this.baseUrl}#${entitySet}`,
-      statusCode: body.statusCode || res.status,
-      elapsedMs: body.elapsedMs ?? Date.now() - started,
+    // This is the only backend that took a timeoutMs and never used it: the
+    // fetch carried no signal at all, so a CPI endpoint that stopped answering
+    // would hold the request open until the gateway gave up on us.
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs)
+    try {
+      const res = await fetch(this.baseUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(this.token && { Authorization: `Bearer ${this.token}` }) },
+        body: JSON.stringify({
+          destinationName,
+          servicePath,
+          entitySet,
+          apiVersion,
+          queryOptions: { filter, select, top },
+          correlationId,
+        }),
+        signal: controller.signal,
+      })
+      if (!res.ok) throw new BackendError(`CPI returned ${res.status}`, res.status)
+      const body = await res.json()
+      if (body.errorCode) throw new BackendError(`${body.errorCode}: ${body.message || ''}`)
+      return {
+        rows: extractRows(body.body ?? body),
+        url: `${this.baseUrl}#${entitySet}`,
+        statusCode: body.statusCode || res.status,
+        elapsedMs: body.elapsedMs ?? Date.now() - started,
+      }
+    } catch (err) {
+      if (err instanceof BackendError) throw err
+      throw new BackendError(
+        err.name === 'AbortError' ? `CPI timed out after ${this.timeoutMs}ms` : `CPI request failed: ${err.message}`
+      )
+    } finally {
+      clearTimeout(timer)
     }
   }
 }
@@ -268,25 +287,31 @@ class IflowBackend {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), this.timeoutMs)
     try {
+      let res
+      let url
       if (method === 'GET') {
         const qs = buildQueryString(query)
-        const url = `${this.endpoint.url}${qs ? (this.endpoint.url.includes('?') ? '&' : '?') + qs : ''}`
-        const res = await fetch(url, { headers: { Accept: 'application/json', ...headers }, signal: controller.signal })
-        return { res, url }
+        url = `${this.endpoint.url}${qs ? (this.endpoint.url.includes('?') ? '&' : '?') + qs : ''}`
+        res = await fetch(url, { headers: { Accept: 'application/json', ...headers }, signal: controller.signal })
+      } else {
+        url = this.endpoint.url
+        res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...headers },
+          body: JSON.stringify({
+            servicePath: query.servicePath,
+            entitySet: query.entitySet,
+            apiVersion: query.apiVersion,
+            queryOptions: { filter: query.filter, select: query.select, top: query.top },
+            correlationId: query.correlationId,
+          }),
+          signal: controller.signal,
+        })
       }
-      const res = await fetch(this.endpoint.url, {
-        method,
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...headers },
-        body: JSON.stringify({
-          servicePath: query.servicePath,
-          entitySet: query.entitySet,
-          apiVersion: query.apiVersion,
-          queryOptions: { filter: query.filter, select: query.select, top: query.top },
-          correlationId: query.correlationId,
-        }),
-        signal: controller.signal,
-      })
-      return { res, url: this.endpoint.url }
+      // Drain the body here, not in the caller. Returning the Response and
+      // clearing the timer would leave the body read unguarded, and an iFlow
+      // that sends headers then stalls would never release the request.
+      return { status: res.status, ok: res.ok, url, text: await res.text() }
     } finally {
       clearTimeout(timer)
     }
@@ -314,22 +339,19 @@ class IflowBackend {
 
     // A 401 usually means the cached token was revoked or the key rotated.
     // Drop it and try once more before surfacing an error to the user.
-    if (out.res.status === 401 && this.endpoint.authMode === 'oauth2_client_credentials') {
+    if (out.status === 401 && this.endpoint.authMode === 'oauth2_client_credentials') {
       require('./oauth').invalidate(this.endpoint)
       headers = await this.#authHeader()
       out = await this.#send(query, headers)
     }
 
-    if (!out.res.ok) {
-      throw new BackendError(
-        `iFlow returned HTTP ${out.res.status}: ${(await out.res.text()).slice(0, 200)}`,
-        out.res.status
-      )
+    if (!out.ok) {
+      throw new BackendError(`iFlow returned HTTP ${out.status}: ${out.text.slice(0, 200)}`, out.status)
     }
 
     let body
     try {
-      body = await out.res.json()
+      body = JSON.parse(out.text)
     } catch {
       throw new BackendError('iFlow returned a non-JSON body — check what the flow emits.')
     }
@@ -339,7 +361,7 @@ class IflowBackend {
     return {
       rows: extractRows(inner),
       url: out.url,
-      statusCode: out.res.status,
+      statusCode: out.status,
       elapsedMs: Date.now() - started,
     }
   }
