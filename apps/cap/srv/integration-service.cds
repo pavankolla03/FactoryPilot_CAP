@@ -27,6 +27,7 @@ service IntegrationService {
     { grant: ['READ'], to: ['IntegrationRead', 'IntegrationMaintain', 'ConfigRead'] },
     { grant: ['*'],    to: ['IntegrationMaintain'] }
   ]
+  @odata.draft.enabled
   entity Endpoints as projection on db.IntegrationEndpoint {
     *,
     // 3 green / 1 red / 0 never tested — drives the list colour.

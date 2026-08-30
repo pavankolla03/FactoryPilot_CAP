@@ -151,6 +151,25 @@ async function loadHistory(conversationID, limit = 20) {
 }
 
 /**
+ * Does this question plainly name a registered business object?
+ *
+ * Deliberately strict. This only decides whether to ask the model a second
+ * time, and a false positive turns "what is your name" into a wasted SAP
+ * lookup — the exact failure the keyword-matching fallback was removed for. So
+ * it requires a whole-word hit on a configured keyword, not a substring.
+ */
+function matchesRegisteredObject(question, businessObjects = []) {
+  const q = String(question || '').toLowerCase()
+  return businessObjects.some((bo) =>
+    String(bo.keywords || '')
+      .split(',')
+      .map((k) => k.trim().toLowerCase())
+      .filter((k) => k.length > 3)
+      .some((k) => new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(q))
+  )
+}
+
+/**
  * @returns {{status, answer, toolsCalled, rounds, grounded, usage, steps, pendingAction}}
  */
 async function run({ question, userID, roles, warehouseID, conversationID, correlationId, businessObjects, route, orgSettings, deadlineAt }) {
@@ -174,6 +193,7 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
   let grounded = false
   let rounds = 0
   let ranOutOfTime = false
+  let nudged = false
 
   // A provider running out of credit, rate-limiting, or going down should
   // degrade the answer, not lose the question — so this walks a chain rather
@@ -256,6 +276,29 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
     usage.model = completion.model
 
     if (!completion.toolCalls?.length) {
+      // The model answered without looking anything up. For a greeting that is
+      // right. For "how much stock is in plant 1710" it is a model narrating
+      // from its own weights, and the answer is marked ungrounded — correctly,
+      // but the user asked about their warehouse and deserves an attempt.
+      //
+      // The free models are the reason this matters: they call tools less
+      // reliably than a paid one, and a run that quietly skipped the lookup is
+      // indistinguishable from one that had nothing to look up. So when the
+      // question plainly names a registered object, say so once and let it try
+      // again. Once, not in a loop — a model that declines twice has made its
+      // decision, and the badge is then telling the truth about it.
+      if (!grounded && !nudged && matchesRegisteredObject(question, businessObjects)) {
+        nudged = true
+        messages.push({ role: 'assistant', content: completion.text || null })
+        messages.push({
+          role: 'user',
+          content:
+            'That question is about data held in SAP. Use the appropriate tool to fetch it, ' +
+            'then answer from what the tool returns. Do not answer from memory.',
+        })
+        console.warn('[agent] answered without a tool on a data question — asking once more')
+        continue
+      }
       return settle({
         status: 'SUCCESS',
         answer: completion.text || '',
@@ -451,4 +494,4 @@ function describeWrite(args = {}) {
   return `Move ${quantity ?? '?'} of ${materialID ?? '?'} ${where} in warehouse ${warehouseID ?? '?'}`.replace(/\s+/g, ' ').trim()
 }
 
-module.exports = { run, sanitiseHistory, systemPrompt, describeWrite, stripDeliberation, MAX_ROUNDS, PENDING_TTL_MS }
+module.exports = { run, matchesRegisteredObject, sanitiseHistory, systemPrompt, describeWrite, stripDeliberation, MAX_ROUNDS, PENDING_TTL_MS }

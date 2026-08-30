@@ -12,14 +12,14 @@ module.exports = cds.service.impl(function () {
     return await policy.canWrite(userID || req.user.id, warehouseID)
   })
 
-  this.before(['CREATE', 'UPDATE'], 'UserScopes', (req) => {
+  this.before(['CREATE', 'UPDATE', 'SAVE'], 'UserScopes', (req) => {
     const level = req.data.accessLevel
     if (level && !['read', 'write'].includes(level)) {
       req.error(400, "accessLevel must be 'read' or 'write'", 'accessLevel')
     }
   })
 
-  this.before(['CREATE', 'UPDATE'], 'ApprovalPolicies', (req) => {
+  this.before(['CREATE', 'UPDATE', 'SAVE'], 'ApprovalPolicies', (req) => {
     const { scopeKind, subject, writeCeiling } = req.data
     if (scopeKind && !['USER', 'WAREHOUSE', 'ORG'].includes(scopeKind)) {
       req.error(400, "scopeKind must be USER, WAREHOUSE or ORG", 'scopeKind')

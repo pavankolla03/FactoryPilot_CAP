@@ -30,6 +30,7 @@ service CacheService {
     { grant: ['READ'], to: ['CacheRead', 'CacheMaintain', 'ConfigRead'] },
     { grant: ['*'],    to: ['CacheMaintain'] }
   ]
+  @odata.draft.enabled
   entity CachePolicies as projection on db.CachePolicy;
 
   @readonly

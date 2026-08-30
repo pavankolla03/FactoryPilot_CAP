@@ -9,7 +9,7 @@ module.exports = cds.service.impl(function () {
    * tool appears in the catalogue and fails at the first question instead of
    * here, where it can be explained.
    */
-  this.before(['CREATE', 'UPDATE'], BusinessObjects, (req) => {
+  this.before(['CREATE', 'UPDATE', 'SAVE'], BusinessObjects, (req) => {
     const d = req.data
     if (d.isActive) {
       if (!d.odataServicePath) req.error(400, 'odataServicePath is required to activate', 'odataServicePath')
@@ -20,7 +20,7 @@ module.exports = cds.service.impl(function () {
 
   // Pointing an active object at an endpoint that is switched off would fail at
   // the next question rather than at the change that caused it.
-  this.before(['CREATE', 'UPDATE'], BusinessObjects, async (req) => {
+  this.before(['CREATE', 'UPDATE', 'SAVE'], BusinessObjects, async (req) => {
     if (!req.data.endpoint_ID || req.data.isActive === false) return
     const { IntegrationEndpoint } = cds.entities('factorypilot.integration')
     const endpoint = await SELECT.one.from(IntegrationEndpoint).where({ ID: req.data.endpoint_ID })

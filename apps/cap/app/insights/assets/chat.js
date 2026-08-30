@@ -64,10 +64,13 @@
   /**
    * A horizontal bar chart of one label column against one value column.
    *
-   * Horizontal because the labels are material numbers and supplier ids —
-   * strings long enough that vertical bars would need rotated text, which
-   * nobody reads. Hand-authored SVG rather than a charting library: the page is
-   * served under a strict CSP, and a bar chart is a hundred lines of geometry.
+   * HTML rather than SVG. An SVG with a fixed viewBox scaled to fill the
+   * column magnified everything inside it by whatever the ratio happened to be
+   * — at 960px against a 640-wide viewBox that was 1.5x, so 11px labels drew at
+   * 16.5px and the whole chart looked zoomed in no matter how many rows it had.
+   * Laid out in HTML the text is real text at its real size, the bars stretch
+   * to the column, and the height follows the number of records instead of the
+   * width.
    *
    * Returns null when the table is not worth charting, and the caller then
    * renders the table alone rather than an empty frame.
@@ -78,7 +81,10 @@
     if (labelCol === -1 || valueCol === -1 || rows.length < 2) return null;
 
     const points = rows
-      .map((r) => ({ label: String(r[labelCol] ?? "").trim(), value: parseFloat(String(r[valueCol] ?? "").replace(/,/g, "")) }))
+      .map((r) => ({
+        label: String(r[labelCol] ?? "").trim(),
+        value: parseFloat(String(r[valueCol] ?? "").replace(/,/g, "")),
+      }))
       .filter((p) => p.label && Number.isFinite(p.value) && p.value >= 0);
     if (points.length < 2 || new Set(points.map((p) => p.value)).size < 2) return null;
 
@@ -88,32 +94,21 @@
     const LIMIT = 16;
     const shown = points.slice(0, LIMIT);
     const hidden = points.length - shown.length;
-
     const max = Math.max(...shown.map((p) => p.value));
-    const ROW = 26, PAD = 8, GUTTER = 118, VALUE = 52;
-    const W = 640;
-    const H = PAD * 2 + shown.length * ROW;
-    const trackX = GUTTER + 8;
-    const trackW = W - trackX - VALUE;
 
-    const fmt = (n) => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
-    const bars = shown.map((p, i) => {
-      const y = PAD + i * ROW;
-      const w = max > 0 ? Math.max(2, (p.value / max) * trackW) : 2;
-      const label = p.label.length > 18 ? p.label.slice(0, 17) + "…" : p.label;
-      return `<g>
-        <title>${esc(p.label)}: ${esc(fmt(p.value))}</title>
-        <text class="viz__label" x="${GUTTER}" y="${y + 15}" text-anchor="end">${esc(label)}</text>
-        <rect class="viz__track" x="${trackX}" y="${y + 5}" width="${trackW}" height="14" rx="7"/>
-        <rect class="viz__bar" x="${trackX}" y="${y + 5}" width="${w.toFixed(1)}" height="14" rx="7"/>
-        <text class="viz__value" x="${trackX + trackW + 8}" y="${y + 15}">${esc(fmt(p.value))}</text>
-      </g>`;
+    const bars = shown.map((p) => {
+      const pct = max > 0 ? Math.max(0.8, (p.value / max) * 100) : 0;
+      return `<div class="chart__row">
+        <span class="chart__label" title="${esc(p.label)}">${esc(p.label)}</span>
+        <span class="chart__track"><span class="chart__bar" style="width:${pct.toFixed(1)}%"></span></span>
+        <span class="chart__value">${esc(p.value.toLocaleString(undefined, { maximumFractionDigits: 2 }))}</span>
+      </div>`;
     }).join("");
 
     const caption = `${esc(head[valueCol])} by ${esc(head[labelCol])}` +
       (hidden ? ` · top ${shown.length} of ${points.length}` : "");
     return `<figure class="viz__chart">
-      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${caption}" preserveAspectRatio="xMidYMin meet">${bars}</svg>
+      <div class="chart" role="img" aria-label="${caption}">${bars}</div>
       <figcaption>${caption}</figcaption>
     </figure>`;
   }

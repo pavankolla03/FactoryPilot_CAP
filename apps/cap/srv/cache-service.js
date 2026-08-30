@@ -7,7 +7,12 @@ const STRATEGIES = ['PER_USER', 'PER_ROLE', 'GLOBAL']
 module.exports = cds.service.impl(function () {
   const { CachePolicies, CacheStats } = this.entities
 
-  this.before(['CREATE', 'UPDATE'], CachePolicies, (req) => {
+  // CREATE, UPDATE *and* SAVE. Once an entity is draft-enabled a direct POST
+  // creates a draft rather than a row, so a rule registered only on CREATE sees
+  // a half-filled draft and lets the finished record through — the screen would
+  // happily save a GLOBAL policy with no justification. SAVE is the moment a
+  // draft becomes real, and it is where the finished record is checked.
+  this.before(['CREATE', 'UPDATE', 'SAVE'], CachePolicies, (req) => {
     const d = req.data
     if (d.ttlUnit && !UNITS.includes(d.ttlUnit)) {
       req.error(400, `ttlUnit must be one of ${UNITS.join(', ')}`, 'ttlUnit')

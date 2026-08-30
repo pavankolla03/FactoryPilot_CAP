@@ -23,24 +23,26 @@ service AdminService {
     { grant: ['READ'], to: ['AdminRead', 'AdminMaintain'] },
     { grant: ['*'],    to: ['AdminMaintain'] }
   ]
+  @odata.draft.enabled
   entity Users as projection on db.User;
 
   @restrict: [
     { grant: ['READ'], to: ['AdminRead', 'AdminMaintain'] },
     { grant: ['*'],    to: ['AdminMaintain'] }
-  ]
-  entity UserScopes as projection on db.UserScope;
+  ]  entity UserScopes as projection on db.UserScope;
 
   @restrict: [
     { grant: ['READ'], to: ['AdminRead', 'AdminMaintain'] },
     { grant: ['*'],    to: ['AdminMaintain'] }
   ]
+  @odata.draft.enabled
   entity ApprovalPolicies as projection on db.ApprovalPolicy;
 
   @restrict: [
     { grant: ['READ'], to: ['AdminRead', 'AdminMaintain'] },
     { grant: ['*'],    to: ['AdminMaintain'] }
   ]
+  @odata.draft.enabled
   entity OrgSettings as projection on db.OrgSettings;
 
   /**

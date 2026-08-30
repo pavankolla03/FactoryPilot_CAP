@@ -33,7 +33,7 @@ module.exports = cds.service.impl(function () {
 
   this.on('myUsage', async (req) => await quota.snapshot(req.user.id, rolesOf(req)))
 
-  this.before(['CREATE', 'UPDATE'], 'QuotaPolicies', (req) => {
+  this.before(['CREATE', 'UPDATE', 'SAVE'], 'QuotaPolicies', (req) => {
     const d = req.data
     for (const [field, value] of Object.entries({
       dailyLimit: d.dailyLimit,
@@ -52,7 +52,7 @@ module.exports = cds.service.impl(function () {
     }
   })
 
-  this.before(['CREATE', 'UPDATE'], 'ApiKeyRefs', (req) => {
+  this.before(['CREATE', 'UPDATE', 'SAVE'], 'ApiKeyRefs', (req) => {
     const ref = req.data.credentialRef
     if (ref && /[^A-Z0-9_]/.test(ref)) {
       req.error(400, 'credentialRef must be an env var name, never the key itself', 'credentialRef')

@@ -592,7 +592,47 @@ body > .fd-shellbar { flex: none; }
   margin: 0;
   padding: 0.25rem 0 0;
 }
-.viz__chart svg { width: 100%; height: auto; display: block; }
+/*
+ * Laid out as a grid, so the label column is exactly as wide as the longest
+ * label, the value column exactly as wide as the largest number, and the track
+ * takes whatever is left. That is what makes it adapt: nothing is scaled, the
+ * type stays at its real size, and adding records makes the chart taller
+ * rather than making everything in it smaller.
+ */
+.chart { display: grid; gap: 0.375rem 0.75rem; }
+.chart__row {
+  display: grid;
+  grid-template-columns: minmax(3rem, 10rem) 1fr minmax(2rem, auto);
+  align-items: center;
+  gap: 0.75rem;
+}
+.chart__label {
+  font-size: 0.75rem;
+  color: var(--sapContentLabelColor);
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chart__track {
+  background: var(--sapTileBackground);
+  border-radius: 0.4375rem;
+  height: 0.875rem;
+  overflow: hidden;
+}
+.chart__bar {
+  display: block;
+  height: 100%;
+  background: var(--sapBrandColor);
+  border-radius: 0.4375rem;
+}
+.chart__value {
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--sapTextColor);
+  text-align: right;
+}
 .viz__chart figcaption {
   font-size: 0.6875rem;
   color: var(--sapContentLabelColor);
@@ -600,14 +640,6 @@ body > .fd-shellbar { flex: none; }
   padding-left: 0.25rem;
 }
 
-/* Chart colours come from the theme, so the same markup reads on either
-   ground — an SVG fill pinned to a literal is the classic dark-mode bug. */
-.viz__label { fill: var(--sapContentLabelColor); font-size: 11px; }
-.viz__value { fill: var(--sapTextColor); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
-/* The track used to read against the card behind it. With no card it would be
-   invisible on the page ground, so it takes the tile colour instead. */
-.viz__track { fill: var(--sapTileBackground); }
-.viz__bar   { fill: var(--sapBrandColor); }
 
 /* --- theme -------------------------------------------------------------- */
 

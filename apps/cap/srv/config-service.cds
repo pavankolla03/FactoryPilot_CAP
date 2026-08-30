@@ -19,6 +19,7 @@ service ConfigService {
     { grant: ['READ'], to: ['ConfigRead', 'ConfigMaintain'] },
     { grant: ['*'],    to: ['ConfigMaintain'] }
   ]
+  @odata.draft.enabled
   entity BusinessObjects as projection on db.BusinessObjectConfig;
 
 

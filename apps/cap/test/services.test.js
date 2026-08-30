@@ -7,7 +7,20 @@ const PROJECT = path.resolve(__dirname, '..')
 
 // In-memory SQLite per run: the tests own their data and never touch the
 // developer's db/factorypilot.db.
-const { GET, POST, expect: _unused, data } = cds.test(PROJECT).in(PROJECT)
+const { GET, POST, PATCH, expect: _unused, data } = cds.test(PROJECT).in(PROJECT)
+
+/**
+ * Create a row the way the Admin screens do: POST a draft, then activate it.
+ *
+ * Draft-enabled entities accept an incomplete POST on purpose — that is what a
+ * draft is for, and it is why the Admin UI can offer a half-filled form without
+ * the server refusing every keystroke. The rules that used to reject a bad POST
+ * now run at activation, so a test that only POSTs proves nothing about them.
+ */
+async function createActive(collection, service, payload, auth) {
+  const { data: draft } = await POST(collection, payload, auth)
+  return POST(`${collection}(ID=${draft.ID},IsActiveEntity=false)/${service}.draftActivate`, {}, auth)
+}
 
 let quota, policy, tools, llm, agent, oauth
 
@@ -179,6 +192,84 @@ describe('a provider that runs out of quota hands over, it does not give up', ()
     )
     assert.equal(result.answer, 'Answered by the free model.')
     assert.ok(!result.degradedFrom, 'nothing failed, so nothing to report')
+  })
+})
+
+describe('a data question that got no lookup is asked once more', () => {
+  // The free models call tools less reliably than a paid one, and a run that
+  // quietly skipped the lookup looks exactly like one that had nothing to look
+  // up — same green SUCCESS, same prose, but the figures came from the model's
+  // weights rather than from SAP.
+
+  const BO = [{ objectCode: 'MATERIAL_STOCK', objectName: 'Material Stock',
+                keywords: 'stock,material stock,inventory level,on hand', isActive: true }]
+
+  test('a warehouse question is retried, a greeting is not', () => {
+    assert.equal(agent.matchesRegisteredObject('How much stock do we have?', BO), true)
+    assert.equal(agent.matchesRegisteredObject('show me the inventory level', BO), true)
+    assert.equal(agent.matchesRegisteredObject('what is your name?', BO), false)
+    assert.equal(agent.matchesRegisteredObject('hello there', BO), false)
+  })
+
+  test('a keyword inside a longer word does not count', () => {
+    // Substring matching would fire on "stocktaking", "restocking" and
+    // "destocked" — wasting a SAP lookup on a question about none of them.
+    assert.equal(agent.matchesRegisteredObject('what are the stocktaking rules?', BO), false)
+    assert.equal(agent.matchesRegisteredObject('explain restocking policy', BO), false)
+  })
+
+  test('no registered object means never retry', () => {
+    assert.equal(agent.matchesRegisteredObject('How much stock do we have?', []), false)
+  })
+
+  test('the model gets one more chance, and only one', async () => {
+    // Two refusals is a decision, not an oversight — and looping would spend
+    // the whole round budget on a model that has already declined.
+    let asked = 0
+    const stub = {
+      name: 'stub',
+      complete: async () => {
+        asked++
+        return { text: 'Roughly 3,000 units.', toolCalls: [], promptTokens: 1, completionTokens: 1, totalTokens: 2, isEstimated: false }
+      },
+    }
+    const real = llm.getProviderChain
+    llm.getProviderChain = () => [stub]
+    try {
+      const result = await agent.run({
+        question: 'How much stock do we have?',
+        userID: 'tester', roles: [], conversationID: 'c-nudge', correlationId: 'x-nudge',
+        businessObjects: BO, route: null, orgSettings: {},
+      })
+      assert.equal(asked, 2, 'asked once, nudged once, then accepted the answer')
+      assert.equal(result.grounded, false, 'and it is still honestly reported as ungrounded')
+      assert.equal(result.status, 'SUCCESS')
+    } finally {
+      llm.getProviderChain = real
+    }
+  })
+
+  test('a greeting is answered first time, with no second call', async () => {
+    let asked = 0
+    const stub = {
+      name: 'stub',
+      complete: async () => {
+        asked++
+        return { text: 'Hello — I am FactoryPilot.', toolCalls: [], promptTokens: 1, completionTokens: 1, totalTokens: 2, isEstimated: false }
+      },
+    }
+    const real = llm.getProviderChain
+    llm.getProviderChain = () => [stub]
+    try {
+      await agent.run({
+        question: 'hello, what is your name?',
+        userID: 'tester', roles: [], conversationID: 'c-greet', correlationId: 'x-greet',
+        businessObjects: BO, route: null, orgSettings: {},
+      })
+      assert.equal(asked, 1, 'a greeting must not cost a second model call')
+    } finally {
+      llm.getProviderChain = real
+    }
   })
 })
 
@@ -718,7 +809,7 @@ describe('ConfigService', () => {
 
   test('activating without a service path is refused', async () => {
     await assert.rejects(
-      () => POST('/odata/config/BusinessObjects', { objectCode: 'BAD', isActive: true }, ADMIN),
+      () => createActive('/odata/config/BusinessObjects', 'ConfigService', { objectCode: 'BAD', isActive: true }, ADMIN),
       (err) => err.response?.status === 400
     )
   })
@@ -727,14 +818,14 @@ describe('ConfigService', () => {
     // Storing the key itself would put it in the database and every export of
     // that table. The field takes the NAME of an env var.
     await assert.rejects(
-      () => POST('/odata/integration/Endpoints', { name: `leaky ${Date.now()}`, kind: 'iflow', url: 'https://x.example.com', credentialRef: 'sk-or-v1-abcdefghijklmnopqrstuvwxyz012345' }, ADMIN),
+      () => createActive('/odata/integration/Endpoints', 'IntegrationService', { name: `leaky ${Date.now()}`, kind: 'iflow', url: 'https://x.example.com', credentialRef: 'sk-or-v1-abcdefghijklmnopqrstuvwxyz012345' }, ADMIN),
       (err) => err.response?.status === 400
     )
   })
 
   test('an http endpoint is refused — credentials would go in clear', async () => {
     await assert.rejects(
-      () => POST('/odata/integration/Endpoints', { name: `insecure ${Date.now()}`, kind: 'iflow', url: 'http://cpi.example.com/flow' }, ADMIN),
+      () => createActive('/odata/integration/Endpoints', 'IntegrationService', { name: `insecure ${Date.now()}`, kind: 'iflow', url: 'http://cpi.example.com/flow' }, ADMIN),
       (err) => err.response?.status === 400
     )
   })
@@ -751,12 +842,68 @@ describe('ConfigService', () => {
   })
 
   test('testing an unreachable endpoint records the failure rather than throwing', async () => {
-    const { data: created } = await POST('/odata/integration/Endpoints', {
+    // Saved first, then tested — the same order an admin works in, and the
+    // only order available now that the entity is draft-enabled: a bound action
+    // needs a row, and a draft is not one yet.
+    const { data: created } = await createActive('/odata/integration/Endpoints', 'IntegrationService', {
       name: `Unreachable ${Date.now()}`, kind: 'iflow', url: 'https://127.0.0.1:9/nope', timeoutMs: 900,
     }, ADMIN)
-    const { data: result } = await POST(`/odata/integration/Endpoints(${created.ID})/IntegrationService.test`, {}, ADMIN)
+    const { data: result } = await POST(
+      `/odata/integration/Endpoints(ID=${created.ID},IsActiveEntity=true)/IntegrationService.test`, {}, ADMIN)
     assert.ok(['FAILED', 'UNCONFIGURED'].includes(result.status))
     assert.ok(result.message.length > 0, 'the admin needs to be told why')
+  })
+})
+
+describe('an administrator can actually maintain the configuration', () => {
+  // The Admin screens were read-only: every list rendered, nothing could be
+  // created or changed, because none of these entities were draft-enabled and
+  // Fiori Elements has no edit flow without it. These tests exercise the same
+  // create-then-activate path the screens now use, so "the admin can manage it"
+  // is a checked claim rather than a screenshot.
+
+  const CASES = [
+    { what: 'a quota',         path: '/odata/token/QuotaPolicies',  svc: 'TokenService',
+      make: () => ({ subject: `team-${Date.now()}`, dailyLimit: 25, weeklyLimit: 100, monthlyLimit: 300 }),
+      change: { dailyLimit: 40 }, check: (r) => r.dailyLimit === 40 },
+    { what: 'a model route',   path: '/odata/token/ModelRoutes',    svc: 'TokenService',
+      make: () => ({ route: `custom-${Date.now()}`, provider: 'openrouter', model: 'nvidia/nemotron-3.5-lightning:free', maxTokens: 900 }),
+      change: { maxTokens: 1500 }, check: (r) => r.maxTokens === 1500 },
+    { what: 'a user',          path: '/odata/admin/Users',          svc: 'AdminService',
+      make: () => ({ userID: `starter-${Date.now()}`, displayName: 'New Starter', isActive: true }),
+      change: { displayName: 'Renamed Starter' }, check: (r) => r.displayName === 'Renamed Starter' },
+    { what: 'an approval policy', path: '/odata/admin/ApprovalPolicies', svc: 'AdminService',
+      make: () => ({ scopeKind: 'USER', subject: `u-${Date.now()}`, autoApproveWrites: false, writeCeiling: 10 }),
+      change: { writeCeiling: 25 }, check: (r) => r.writeCeiling === 25 },
+    { what: 'a business object', path: '/odata/config/BusinessObjects', svc: 'ConfigService',
+      make: () => ({ objectCode: `OBJ${Date.now()}`.slice(0, 28), objectName: 'Ad hoc', isActive: false }),
+      change: { objectName: 'Renamed' }, check: (r) => r.objectName === 'Renamed' },
+  ]
+
+  for (const c of CASES) {
+    test(`creates and edits ${c.what}`, async () => {
+      const { data: made } = await createActive(c.path, c.svc, c.make(), ADMIN)
+      assert.ok(made.ID, `${c.what} should come back with an ID`)
+
+      // Editing goes through a draft too: open one, change it, activate it.
+      await POST(`${c.path}(ID=${made.ID},IsActiveEntity=true)/${c.svc}.draftEdit`, { PreserveChanges: true }, ADMIN)
+      await PATCH(`${c.path}(ID=${made.ID},IsActiveEntity=false)`, c.change, ADMIN)
+      const { data: saved } = await POST(`${c.path}(ID=${made.ID},IsActiveEntity=false)/${c.svc}.draftActivate`, {}, ADMIN)
+      assert.ok(c.check(saved), `${c.what} should show the edit: ${JSON.stringify(c.change)}`)
+    })
+  }
+
+  test('a business user cannot maintain configuration', async () => {
+    // Draft or not, the scope still decides. An edit flow that quietly widened
+    // who may change a quota would be a worse bug than no edit flow at all.
+    await assert.rejects(
+      () => POST('/odata/token/QuotaPolicies', { subject: 'sneaky', dailyLimit: 9999 }, BOB),
+      (err) => err.response?.status === 403
+    )
+    await assert.rejects(
+      () => POST('/odata/admin/Users', { userID: 'sneaky', displayName: 'x' }, BOB),
+      (err) => err.response?.status === 403
+    )
   })
 })
 
@@ -789,7 +936,7 @@ describe('TokenService', () => {
 
   test('a weekly limit below the daily one is refused', async () => {
     await assert.rejects(
-      () => POST('/odata/token/QuotaPolicies', { subject: 'x', dailyLimit: 100, weeklyLimit: 10 }, ADMIN),
+      () => createActive('/odata/token/QuotaPolicies', 'TokenService', { subject: 'x', dailyLimit: 100, weeklyLimit: 10 }, ADMIN),
       (err) => err.response?.status === 400
     )
   })

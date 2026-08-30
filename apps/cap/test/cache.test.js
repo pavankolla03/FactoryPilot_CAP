@@ -6,6 +6,20 @@ const cds = require('@sap/cds')
 const PROJECT = path.resolve(__dirname, '..')
 const { GET, POST } = cds.test(PROJECT).in(PROJECT)
 
+/**
+ * Create a row the way the Admin screens do: POST a draft, then activate it.
+ *
+ * Draft-enabled entities accept an incomplete POST on purpose — that is what a
+ * draft is for, and it is why the Admin UI can offer a half-filled form without
+ * the server refusing every keystroke. The rules that used to reject a bad POST
+ * now run at activation, so a test that only POSTs proves nothing about them.
+ */
+async function createActive(collection, service, payload, auth) {
+  const { data: draft } = await POST(collection, payload, auth)
+  return POST(`${collection}(ID=${draft.ID},IsActiveEntity=false)/${service}.draftActivate`, {}, auth)
+}
+
+
 const cache = require('../srv/lib/cache')
 
 const ADMIN = { auth: { username: 'admin', password: 'admin' } }
@@ -206,14 +220,14 @@ describe('CacheService', () => {
     // GLOBAL shares one answer across every user. On a warehouse-scoped object
     // that is a data-visibility decision, so it may not be set silently.
     await assert.rejects(
-      () => POST('/odata/cache/CachePolicies', { objectCode: 'GX', cacheKeyStrategy: 'GLOBAL' }, ADMIN),
+      () => createActive('/odata/cache/CachePolicies', 'CacheService', { objectCode: 'GX', cacheKeyStrategy: 'GLOBAL' }, ADMIN),
       (err) => err.response?.status === 400
     )
   })
 
   test('a zero TTL is refused with a usable message', async () => {
     await assert.rejects(
-      () => POST('/odata/cache/CachePolicies', { objectCode: 'ZT', ttlValue: 0 }, ADMIN),
+      () => createActive('/odata/cache/CachePolicies', 'CacheService', { objectCode: 'ZT', ttlValue: 0 }, ADMIN),
       (err) => err.response?.status === 400
     )
   })

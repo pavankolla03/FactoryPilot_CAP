@@ -150,6 +150,38 @@ Versioning follows [SemVer](https://semver.org/) for tagged releases (`v0.1.0-tr
   released, so this supersedes rather than deprecates.
 ### Fixed
 
+- **The Admin screens were read-only.** Every list rendered, and nothing could
+  be created or changed — no entity was draft-enabled, and Fiori Elements has no
+  edit flow without it. The configuration entities are draft-enabled now, so an
+  administrator can create and modify quotas, model routes, users, approval
+  policies, org settings, business objects, cache policies and endpoints from
+  the screens. The record entities are deliberately left alone: token usage,
+  consumptions, session logs, agent runs and steps, pending actions, feedback
+  and cache statistics are what happened, and an editable audit trail is not an
+  audit trail.
+
+  **This changes the OData contract for those entities.** A direct `POST` now
+  creates a *draft* rather than a row, and the row appears on activation — so
+  every validation that guarded `CREATE`/`UPDATE` also guards `SAVE`, or a
+  half-filled draft would activate into a record the rules would have refused.
+  Six existing tests asserted the old contract and now exercise the real
+  create-then-activate path.
+
+- **The chart was rendered zoomed in and ignored the record count.** It was an
+  SVG with a fixed 640-wide viewBox scaled to fill the column — always about
+  1.5x, so 11px labels drew at 16.5px whatever the data. Laid out in HTML the
+  text is real text at its real size, the bars stretch to the column, and the
+  height follows the number of records instead of the width.
+
+- **A data question that got no lookup is now asked once more.** The free models
+  call tools less reliably than a paid one, and a run that quietly skipped the
+  lookup is indistinguishable from one that had nothing to look up — same
+  SUCCESS, same prose, but the figures came from the model's weights. When the
+  question plainly names a registered object and nothing was fetched, the model
+  is told so and given one more attempt. Once only: a model that declines twice
+  has made its decision, and "not grounded" is then the truth about it.
+
+
 - **The data was boxed in.** A border, a radius and a fill around every table
   made it look like something inserted into the answer rather than part of it,
   and it trapped the rows in a container narrower than they wanted — which is

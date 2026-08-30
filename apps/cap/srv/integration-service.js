@@ -111,7 +111,7 @@ async function runTest(endpoint, userID) {
 module.exports = cds.service.impl(function () {
   const { Endpoints } = this.entities
 
-  this.before(['CREATE', 'UPDATE'], Endpoints, (req) => {
+  this.before(['CREATE', 'UPDATE', 'SAVE'], Endpoints, (req) => {
     const d = req.data
 
     if (d.kind && !KINDS.includes(d.kind)) {

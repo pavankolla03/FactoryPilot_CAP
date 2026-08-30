@@ -35,6 +35,7 @@ service TokenService {
     { grant: ['READ'], to: ['TokenRead', 'TokenMaintain', 'DashboardAdmin'] },
     { grant: ['*'],    to: ['TokenMaintain'] }
   ]
+  @odata.draft.enabled
   entity QuotaPolicies as projection on db.QuotaPolicy;
 
   @readonly
@@ -49,12 +50,14 @@ service TokenService {
     { grant: ['READ'], to: ['TokenRead', 'TokenMaintain'] },
     { grant: ['*'],    to: ['TokenMaintain'] }
   ]
+  @odata.draft.enabled
   entity ModelRoutes as projection on db.ModelRoute;
 
   @restrict: [
     { grant: ['READ'], to: ['TokenMaintain'] },
     { grant: ['*'],    to: ['TokenMaintain'] }
   ]
+  @odata.draft.enabled
   entity ApiKeyRefs as projection on db.ApiKeyRef;
 
   /**
