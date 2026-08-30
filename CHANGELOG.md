@@ -9,6 +9,23 @@ Versioning follows [SemVer](https://semver.org/) for tagged releases (`v0.1.0-tr
 
 ### Added
 
+- **The answer reads as a document, not a widget.** A bordered card around every
+  reply made a page of them read as a stack of boxes, and it competed with the
+  one thing that should have a frame: the table. Replies now flow on the page
+  with the mark in the gutter, on a measure that suits reading, and sources move
+  *above* the answer — where the figures came from is context for reading them,
+  not a footnote after you already have. The diagnostic badges become a quiet
+  footer rule instead of a row of coloured pills, keeping colour for the one
+  that changes whether you should trust the number.
+
+- **A quantity column is drawn as well as printed.** Numeric table columns get a
+  bar scaled to that column's own maximum, behind the figure — twelve
+  right-aligned numbers do not show which one is large. The exact value SAP
+  returned is still what you read. Deliberately narrow: at least three rows,
+  more than one distinct value, nothing negative, and never on identifier-ish
+  columns, because comparing the magnitude of a document number is nonsense.
+
+
 - **A provider chain, so a free tier running dry does not end the conversation.**
   Model traffic now walks an ordered list: each free OpenRouter model in turn,
   then the paid OpenAI key, then the offline provider. Previously the first
@@ -113,6 +130,25 @@ Versioning follows [SemVer](https://semver.org/) for tagged releases (`v0.1.0-tr
   a second language and a second deployable for no benefit. Nothing had been
   released, so this supersedes rather than deprecates.
 ### Fixed
+
+- **Reopening a conversation lost the sources.** The replay filtered the
+  transcript to user and assistant turns and discarded the `tool` turns — which
+  is exactly where the provenance lives. The data was never missing from the
+  database, only from the replay; a reopened answer now rebuilds its sources
+  from the stored tool payloads, which already carry the URL, the honest row
+  total and the filter that was sent. No schema change, and it works for
+  conversations recorded before this fix.
+
+- **The model routes named models that cannot call a tool.** Chosen from
+  OpenRouter's metadata, which lists 18 free models as supporting `tools`.
+  Probed with this app's own tool schema, fewer than half do anything useful:
+  `nvidia/nemotron-3-ultra-550b-a55b:free` returns no choices at all once tools
+  are present — it was the primary for the heavy route, and the source of the
+  errors in the log — and `minimax/minimax-m3:free` answers a stock question in
+  prose without calling anything. Routes now name models that were observed to
+  work, and `scripts/openrouter-probe.js` is how they were chosen and how to
+  re-choose them when free availability shifts.
+
 
 - **Every question returned `HTTP 504`.** Two independent causes, both of them
   an unbounded wait:

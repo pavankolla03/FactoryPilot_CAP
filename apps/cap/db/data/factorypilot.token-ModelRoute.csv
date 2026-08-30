@@ -1,4 +1,4 @@
 ID;route;provider;model;fallbacks;maxTokens;temperature;isActive
-d0000000-0000-0000-0000-000000000001;heavy;openrouter;nvidia/nemotron-3-ultra-550b-a55b:free;z-ai/glm-5.2:free,minimax/minimax-m3:free;1200;0.20;true
-d0000000-0000-0000-0000-000000000002;light;openrouter;nvidia/nemotron-3.5-lightning:free;google/gemma-4-31b-it:free;800;0.10;true
-d0000000-0000-0000-0000-000000000003;intent;openrouter;nvidia/nemotron-3.5-lightning:free;;64;0.00;true
+d0000000-0000-0000-0000-000000000001;heavy;openrouter;nvidia/nemotron-3-super-120b-a12b:free;minimax/minimax-m2.7:free,poolside/laguna-s-2.1:free,openrouter/free;1200;0.20;true
+d0000000-0000-0000-0000-000000000002;light;openrouter;nvidia/nemotron-3.5-lightning:free;cohere/north-mini-code:free,openrouter/free;800;0.10;true
+d0000000-0000-0000-0000-000000000003;intent;openrouter;nvidia/nemotron-3.5-lightning:free;openrouter/free;64;0.00;true

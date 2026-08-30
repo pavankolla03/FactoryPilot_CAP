@@ -70,15 +70,47 @@
       .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
 
     const isNum = (v) => /^[-+]?[\d,.]+\s*[%A-Za-z]{0,4}$/.test(String(v).trim());
+    /** The number inside a cell like "1,240 EA", for sizing its bar. */
+    const magnitude = (v) => {
+      const n = parseFloat(String(v).replace(/,/g, "").replace(/[^\d.+-].*$/, ""));
+      return Number.isFinite(n) ? n : null;
+    };
+
     const flushTable = () => {
       if (!table) return;
       const [head, ...rows] = table;
       const num = head.map((_, i) => rows.length && rows.every((r) => !r[i] || isNum(r[i])));
+
+      // A column of quantities is the thing an operator is actually reading, and
+      // twelve right-aligned numbers do not show which one is large. A bar
+      // scaled to the column's own maximum turns the table into the comparison
+      // it was always standing in for — without a charting library, and without
+      // moving the number, which stays the exact figure SAP returned.
+      //
+      // Only for columns worth comparing: at least three rows, more than one
+      // distinct value, and nothing negative (a bar from a shared zero would
+      // misread). Identifier-ish columns are excluded by name — a document
+      // number is numeric and comparing its magnitude is nonsense.
+      const IDENTIFIER = /\b(year|document|number|no\.?|id|item|code|plant|batch|location)\b/i;
+      const scale = head.map((h, i) => {
+        if (!num[i] || rows.length < 3 || IDENTIFIER.test(h)) return null;
+        const values = rows.map((r) => magnitude(r[i])).filter((n) => n != null);
+        if (values.length < 3 || values.some((n) => n < 0)) return null;
+        const max = Math.max(...values);
+        return max > 0 && new Set(values).size > 1 ? max : null;
+      });
+
       out.push('<div class="tablewrap"><table><thead><tr>' +
         head.map((h, i) => `<th class="${num[i] ? "num" : ""}">${inline(h)}</th>`).join("") +
         "</tr></thead><tbody>" +
-        rows.map((r) => "<tr>" + head.map((_, i) =>
-          `<td class="${num[i] ? "num" : ""}">${inline(r[i] ?? "")}</td>`).join("") + "</tr>").join("") +
+        rows.map((r) => "<tr>" + head.map((_, i) => {
+          const cell = inline(r[i] ?? "");
+          const m = scale[i] != null ? magnitude(r[i]) : null;
+          if (m == null) return `<td class="${num[i] ? "num" : ""}">${cell}</td>`;
+          const pct = Math.max(0, Math.min(100, (m / scale[i]) * 100));
+          return `<td class="num has-bar"><span class="bar" style="--fill:${pct.toFixed(1)}%"></span>` +
+                 `<span class="bar__v">${cell}</span></td>`;
+        }).join("") + "</tr>").join("") +
         "</tbody></table></div>");
       table = null;
     };
@@ -285,7 +317,7 @@
         pending.innerHTML = strip("error", "Could not answer.", data.message, meta);
       } else {
         pending.innerHTML = `${who()}
-          <div class="turn__body"><div class="md">${md(data.answer)}</div>${badges(meta)}${sources(meta)}</div>`;
+          <div class="turn__body">${sources(meta)}<div class="md">${md(data.answer)}</div>${badges(meta)}</div>`;
       }
       refreshUsage();
       // Not loadSessions(): refetching re-sorts by modifiedAt, so the chat you
@@ -306,9 +338,10 @@
   const safe = (s) => { try { return JSON.parse(s || "{}"); } catch { return {}; } };
   const strip = (kind, title, text, meta) =>
     `${who()}<div class="turn__body">
+       ${sources(meta)}
        <div class="fd-message-strip fd-message-strip--${kind}">
          <span><span class="fd-message-strip__title">${esc(title)}</span> ${esc(text || "")}</span>
-       </div>${badges(meta)}${sources(meta)}</div>`;
+       </div>${badges(meta)}</div>`;
 
   function renderApproval(host, p, meta) {
     const args = safe(p.arguments);
@@ -388,6 +421,28 @@
     list.scrollTop = keepScroll;
   }
 
+  /**
+   * Rebuild one source row from a stored tool result.
+   *
+   * The tool payload the model saw is what was persisted — it already carries
+   * the URL, the honest row total and the filter that was sent — so a reopened
+   * conversation can show exactly the provenance the live answer showed,
+   * without a schema change or a second copy of the truth.
+   */
+  function sourceFromToolResult(m) {
+    let payload;
+    try { payload = JSON.parse(m.content || "{}"); } catch { return null; }
+    if (!payload || (!payload.url && !payload.error)) return null;
+    return {
+      tool: m.toolName || "",
+      rows: payload.rowCount ?? 0,
+      ms: null,                       // timing is not part of the transcript
+      url: payload.url || "",
+      filter: payload.queriedWith && payload.queriedWith !== "(no filter)" ? payload.queriedWith : "",
+      error: payload.error || "",
+    };
+  }
+
   /** Replay a past conversation in the order it happened. */
   async function openSession(id) {
     conversationID = id;
@@ -397,15 +452,27 @@
       const res = await fetch(`../../insights/Messages?$filter=conversation_ID eq ${id}&$orderby=seq asc&$top=300`);
       const rows = res.ok ? (await res.json()).value || [] : [];
       threadEl.innerHTML = "";
-      const shown = rows.filter((m) => (m.role === "user" || m.role === "assistant") && m.content);
-      if (!shown.length) { welcome(); return; }
-      for (const m of shown) {
+      // Tool turns were being filtered out before anything read them — which
+      // is why a reopened conversation showed the answer with no sources. The
+      // provenance was never missing from the transcript, only from the replay.
+      // A transcript runs user → assistant(tool_calls) → tool… → assistant(answer),
+      // so tool results accumulate until the answer they produced arrives.
+      let pendingSources = [];
+      for (const m of rows) {
+        if (m.role === "tool") {
+          pendingSources.push(sourceFromToolResult(m));
+          continue;
+        }
+        if (!m.content) continue;
         if (m.role === "user") {
           add(`<div class="turn__role">You</div><div class="turn__body">${esc(m.content)}</div>`, "me");
-        } else {
-          add(`${who()}<div class="turn__body"><div class="md">${md(m.content)}</div></div>`);
+        } else if (m.role === "assistant") {
+          const meta = { sources: pendingSources.filter(Boolean), replayed: true };
+          pendingSources = [];
+          add(`${who()}<div class="turn__body">${sources(meta)}<div class="md">${md(m.content)}</div></div>`);
         }
       }
+      if (!threadEl.querySelector(".turn")) { welcome(); return; }
       threadEl.scrollTop = threadEl.scrollHeight;
       markActive();
     } catch {
