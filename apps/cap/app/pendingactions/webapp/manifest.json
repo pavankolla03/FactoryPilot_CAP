@@ -1,0 +1,102 @@
+{
+  "_version": "1.59.0",
+  "sap.app": {
+    "id": "factorypilot.pendingactions",
+    "type": "application",
+    "title": "Approvals",
+    "description": "Proposed writes: pending, approved, rejected, expired.",
+    "applicationVersion": {
+      "version": "0.1.0"
+    },
+    "dataSources": {
+      "mainService": {
+        "uri": "/odata/audit/",
+        "type": "OData",
+        "settings": {
+          "odataVersion": "4.0",
+          "localUri": "localService/metadata.xml"
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "dependencies": {
+      "minUI5Version": "1.120.0",
+      "libs": {
+        "sap.fe.templates": {}
+      }
+    },
+    "models": {
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": {
+          "operationMode": "Server",
+          "autoExpandSelect": true,
+          "earlyRequests": true
+        }
+      }
+    },
+    "routing": {
+      "routes": [
+        {
+          "name": "PendingActionsList",
+          "pattern": ":?query:",
+          "target": "PendingActionsList"
+        },
+        {
+          "name": "PendingActionsDetail",
+          "pattern": "PendingActions({key}):?query:",
+          "target": "PendingActionsDetail"
+        }
+      ],
+      "targets": {
+        "PendingActionsList": {
+          "type": "Component",
+          "id": "PendingActionsList",
+          "name": "sap.fe.templates.ListReport",
+          "options": {
+            "settings": {
+              "entitySet": "PendingActions",
+              "variantManagement": "Page",
+              "navigation": {
+                "PendingActions": {
+                  "detail": {
+                    "route": "PendingActionsDetail"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "PendingActionsDetail": {
+          "type": "Component",
+          "id": "PendingActionsDetail",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "entitySet": "PendingActions",
+              "navigation": {}
+            }
+          }
+        }
+      }
+    },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    }
+  },
+  "sap.fiori": {
+    "registrationIds": [],
+    "archeType": "transactional"
+  }
+}

@@ -150,6 +150,21 @@ Versioning follows [SemVer](https://semver.org/) for tagged releases (`v0.1.0-tr
   released, so this supersedes rather than deprecates.
 ### Fixed
 
+- **Eight of the fourteen administration screens did not exist in a deployed
+  build.** The Admin launchpad linked them through `$fiori-preview`, a CAP
+  feature that renders a screen straight from CDS annotations — but only while
+  running in development. On the deployed app every one of those tiles returned
+  404: Connection Tests, Cache Effectiveness, Token Usage, Model Routes,
+  Approval Policies, Org Settings, Agent Runs and Approvals. Each is now a real
+  Fiori Elements application, generated from the annotations that were already
+  written, following the same three-file pattern as the six that worked. All
+  fourteen tiles verified returning 200 against the deployed app.
+
+- **Org Settings would have rendered with no columns.** It was the one entity
+  with no `UI.LineItem`, so the list report would have loaded, found its row and
+  drawn every cell blank — the screen looking broken rather than empty.
+
+
 - **Free models fell through to the paid key over an arithmetic mistake.** The
   OpenRouter request asked for exactly the answer length, and these models
   reason before they answer against the same budget — so the log filled with

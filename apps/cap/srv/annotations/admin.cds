@@ -57,6 +57,15 @@ annotate AdminService.ApprovalPolicies with @(
 annotate AdminService.OrgSettings with @(
   UI: {
     HeaderInfo: { TypeName: 'Org Settings', TypeNamePlural: 'Org Settings', Title: { Value: defaultWarehouse } },
+    // A list report with no LineItem renders its columns as nothing at all —
+    // the screen loads, the row is there, and every cell is blank. One row is
+    // still a list as far as the template is concerned.
+    LineItem: [
+      { $Type: 'UI.DataField', Value: defaultWarehouse, Label: 'Default Plant' },
+      { $Type: 'UI.DataField', Value: autopilotEnabled, Label: 'Autopilot' },
+      { $Type: 'UI.DataField', Value: anomalyFactor,    Label: 'Anomaly Factor' },
+      { $Type: 'UI.DataField', Value: digestHour,       Label: 'Digest Hour' }
+    ],
     Facets: [ { $Type: 'UI.ReferenceFacet', Label: 'Organisation', Target: '@UI.FieldGroup#O' } ],
     FieldGroup#O: { Data: [
       { Value: autopilotEnabled }, { Value: anomalyFactor }, { Value: digestHour },

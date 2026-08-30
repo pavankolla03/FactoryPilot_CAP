@@ -1,0 +1,102 @@
+{
+  "_version": "1.59.0",
+  "sap.app": {
+    "id": "factorypilot.orgsettings",
+    "type": "application",
+    "title": "Org Settings",
+    "description": "Autopilot, anomaly factor, digest hour, default warehouse.",
+    "applicationVersion": {
+      "version": "0.1.0"
+    },
+    "dataSources": {
+      "mainService": {
+        "uri": "/odata/admin/",
+        "type": "OData",
+        "settings": {
+          "odataVersion": "4.0",
+          "localUri": "localService/metadata.xml"
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "dependencies": {
+      "minUI5Version": "1.120.0",
+      "libs": {
+        "sap.fe.templates": {}
+      }
+    },
+    "models": {
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": {
+          "operationMode": "Server",
+          "autoExpandSelect": true,
+          "earlyRequests": true
+        }
+      }
+    },
+    "routing": {
+      "routes": [
+        {
+          "name": "OrgSettingsList",
+          "pattern": ":?query:",
+          "target": "OrgSettingsList"
+        },
+        {
+          "name": "OrgSettingsDetail",
+          "pattern": "OrgSettings({key}):?query:",
+          "target": "OrgSettingsDetail"
+        }
+      ],
+      "targets": {
+        "OrgSettingsList": {
+          "type": "Component",
+          "id": "OrgSettingsList",
+          "name": "sap.fe.templates.ListReport",
+          "options": {
+            "settings": {
+              "entitySet": "OrgSettings",
+              "variantManagement": "Page",
+              "navigation": {
+                "OrgSettings": {
+                  "detail": {
+                    "route": "OrgSettingsDetail"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "OrgSettingsDetail": {
+          "type": "Component",
+          "id": "OrgSettingsDetail",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "entitySet": "OrgSettings",
+              "navigation": {}
+            }
+          }
+        }
+      }
+    },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    }
+  },
+  "sap.fiori": {
+    "registrationIds": [],
+    "archeType": "transactional"
+  }
+}
