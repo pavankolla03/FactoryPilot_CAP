@@ -25,40 +25,6 @@
     ["Which physical inventory counts are still open?", "1710"],
   ];
 
-  // A vetted library, offered instead of typed. (BETA)
-  //
-  // Falls back to SUGGESTIONS until this loads (or if it never does), so the
-  // welcome screen is never empty on first paint waiting on a network call.
-  let savedQuestions = null;    // null = not loaded yet; [] = loaded, none to offer
-  let scopesCache = null;
-
-  async function myScopes() {
-    if (scopesCache) return scopesCache;
-    try {
-      const res = await fetch("../../insights/whoami()");
-      const body = res.ok ? JSON.parse((await res.json()).value ?? "{}") : {};
-      scopesCache = Array.isArray(body.scopes) ? body.scopes : [];
-    } catch { scopesCache = []; }
-    return scopesCache;
-  }
-
-  async function loadSavedQuestions() {
-    try {
-      const scopes = await myScopes();
-      const res = await fetch(
-        "../../odata/config/SavedQuestions?$filter=isActive eq true&$orderby=sortOrder asc" +
-        "&$select=ID,title,question,warehouseID,forRole&$top=50");
-      const rows = res.ok ? (await res.json()).value || [] : [];
-      // Empty forRole means everyone; otherwise it must name a scope this
-      // sign-in actually holds — a question aimed at Procurement should not
-      // clutter the welcome screen of someone who cannot act on it.
-      savedQuestions = rows.filter((r) => !r.forRole || scopes.includes(r.forRole));
-    } catch { savedQuestions = []; }
-    // Only repaint if still looking at the welcome screen — a question asked
-    // while this was loading must not be interrupted by a suggestions redraw.
-    if (threadEl.querySelector(".welcome")) welcome();
-  }
-
   // --- CSRF ---------------------------------------------------------------
   // The approuter rejects a POST without a token, before it ever reaches the
   // service. Locally there is no approuter and no token is issued, so the
@@ -228,6 +194,27 @@
     let el = threadEl.querySelector(".thread__inner");
     if (!el) { el = document.createElement("div"); el.className = "thread__inner"; threadEl.appendChild(el); }
     return el;
+  }
+
+  /** The empty state: what this thing is for, and four ways to start. */
+  function welcome() {
+    threadEl.innerHTML = "";
+    inner().innerHTML =
+      '<div class="welcome">' +
+      // The lockup, not the small mark: this is the one place in the product
+      // with room to show the brand properly, and it is the first thing a new
+      // conversation shows. The light/dark swap is done in CSS because an
+      // <img> src cannot follow a theme.
+      '<div class="welcome__logo" role="img" aria-label="IntelliOps4"></div>' +
+      '<h2>Ask about your operational data</h2>' +
+      "<p>Stock, goods movements, physical inventory, deliveries and purchase orders — " +
+      "answered from live S/4HANA. Ask for a write and it stops for your confirmation.</p>" +
+      '<p class="suggest__label">Suggested questions</p>' +
+      '<div class="suggest">' +
+      SUGGESTIONS.map(([q, w]) => `<button data-q="${esc(q)}" data-w="${esc(w)}">${esc(q)}</button>`).join("") +
+      "</div></div>";
+    inner().querySelectorAll(".suggest button").forEach((btn) =>
+      btn.addEventListener("click", () => { whEl.value = btn.dataset.w; ask(btn.dataset.q); }));
   }
 
   // Delegated once at the thread, not bound per answer: replies arrive as
@@ -703,41 +690,11 @@
            </div></div>`);
   });
 
-  // --- theme ---------------------------------------------------------------
-  // Three states, and the third one matters: "system" is the default and must
-  // stay available, or someone whose OS switches at sunset is stuck on
-  // whichever they last clicked. The cycle is system → light → dark → system.
-  (() => {
-    const btn = $("theme");
-    if (!btn) return;
-    const ORDER = ["system", "light", "dark"];
-    const FACE = { system: "🌗", light: "☀️", dark: "🌙" };
-    const NAME = { system: "Theme: follow system", light: "Theme: light", dark: "Theme: dark" };
-
-    // A private window can throw on read, so a missing preference is normal
-    // and must not stop the page rendering.
-    let mode = "system";
-    try { mode = localStorage.getItem("fp.theme") || "system"; } catch { /* no storage */ }
-    if (!ORDER.includes(mode)) mode = "system";
-
-    const apply = () => {
-      if (mode === "system") document.documentElement.removeAttribute("data-theme");
-      else document.documentElement.setAttribute("data-theme", mode);
-      btn.textContent = FACE[mode];
-      btn.title = NAME[mode];
-      btn.setAttribute("aria-label", NAME[mode]);
-    };
-
-    btn.addEventListener("click", () => {
-      mode = ORDER[(ORDER.indexOf(mode) + 1) % ORDER.length];
-      try { localStorage.setItem("fp.theme", mode); } catch { /* nothing to do */ }
-      apply();
-    });
-    apply();
-  })();
+  // Theme selection lives in shared/theme.js now — it has to cover the
+  // fourteen UI5 pages as well, and two implementations of one preference is
+  // how the chat ends up dark and the admin lists white.
 
   welcome();
   refreshUsage();
   loadSessions();
-  loadSavedQuestions();
 })();

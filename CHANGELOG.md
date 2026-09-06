@@ -7,7 +7,74 @@ Versioning follows [SemVer](https://semver.org/) for tagged releases (`v0.1.0-tr
 
 ## [Unreleased]
 
+> **On this branch.** `version2` is the product without the tier-1..6 agentic
+> features. Entries below marked **(BETA)** describe work that lives on
+> `Beta_Features` and is *not* present here — they are kept so the two branches
+> share one history rather than diverging into two stories.
+
+### Fixed
+
+- **A rejected credential reached the user as a German HTML login page.**
+  Every backend adapter built its error message by slicing 200 characters off
+  the response body, and the Hub answers an expired API key with a full login
+  page: what appeared in the chat window was
+  `Hub returned 401 … <html><head><meta http-equiv="content-type" …`. Unreadable,
+  in the wrong language, and silent about the one thing that was wrong. Failures
+  are now classified by status — 401/403 names the credential and how to replace
+  it, 404 blames the service path, 5xx says the upstream system is at fault and
+  our configuration is not — and the body is quoted only when it carries a real
+  sentence (an OData `error.message`, or an HTML `<title>`); markup never
+  reaches a message. Applied to the Hub, Graph, CPI and iFlow adapters.
+- **Connection Tests said "check the path and credentials" for every failure.**
+  True of all of them, useful for none. It now uses the same classification.
+- **The Insights chat was broken on this branch.** `welcome()` — the empty
+  state, its suggestions and their click handlers — was called four times and
+  defined nowhere, so the page threw `ReferenceError: welcome is not defined`
+  on load and rendered an empty void; everything after that line, including the
+  session list and the usage counter, never ran. Lost when this branch was
+  reconstructed by removing the Beta work, and invisible to the test suite,
+  which does not execute browser code.
+- **`chat.js` fetched an endpoint this branch does not have.** The saved
+  question library (`ConfigService.SavedQuestions`) is Beta; the loader for it
+  survived the reconstruction and 404'd on every chat page load. It failed
+  quietly into the static suggestions, so nothing looked wrong.
+- **`fiori.css` carried 136 duplicated lines.** The shellbar, page, card and
+  tile blocks appeared twice, from the same reconstruction. Identical rules, so
+  nothing rendered wrong — just a stylesheet a third longer than it should be.
+- **The Insights shellbar avatar was an unstyled span.** Admin used
+  `.fd-avatar` and Insights used `.fd-shellbar__avatar`; only the first had
+  styles, so the chat showed a bare initial where Admin showed a circle.
+
 ### Added
+
+- **The Admin page says whether the deployment can actually work.** It was a
+  directory of links, which answers "where do I go" and never "is anything
+  wrong". A readiness band now leads the page, backed by
+  `AdminService.configHealth()` — every environment variable and binding the
+  product reads, whether it is present, and the exact command to set it.
+  Secret *values* never leave the server; only presence, and provenance.
+  `AdminService.probeConnections()` goes further and calls each active endpoint
+  through the same service path and credential the agent uses, because a key
+  that is set and a key that works are different facts. In demo mode it refuses
+  to report success, since every adapter is answering from fixtures.
+  The console directory gained icons and a filter that matches operator
+  vocabulary — "throttle" finds Quota Policies, "401" finds Connection Tests.
+- **Theme selection on every page.** One `shared/theme.js`, one stored
+  preference, three states (Auto / Light / Dark) shown as a control rather than
+  a button that cycles. It applies before first paint so navigation does not
+  flash, tells UI5 its theme name before bootstrap, switches a booted UI5 app
+  without a reload, follows the OS on "Auto", and syncs across open tabs.
+  Previously it existed on the chat page alone, so choosing dark and opening
+  any admin list threw a white page at you.
+- **The fourteen Fiori Elements consoles gained the product shell.** Opened
+  from a tile they were bare UI5 lists — no product name, no navigation, no way
+  back but the browser button.
+- **Monitoring reports how old its numbers are.** It stamped the load time into
+  the shellbar and never touched it again, so a tab left open overnight showed
+  yesterday's data under a timestamp that looked current. There is now a live
+  age, a refresh control, optional 30-second auto-refresh, a one-line summary of
+  anything needing attention, and the ten KPIs are grouped into Traffic, Answer
+  quality and Needs attention instead of one flat row.
 
 - **Feedback and saved questions reach the chat, not just the API.** (BETA)
   `rateAnswer` and the saved-question library already existed at the service

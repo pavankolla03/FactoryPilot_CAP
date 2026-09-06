@@ -64,6 +64,81 @@ const V2 = { d: { results: [{ Material: 'P123', Plant: '1000' }] } }
 
 // ---------------------------------------------------------------------------
 
+describe('what a failure says to the person reading it', () => {
+  // The Hub answers an expired API key with a full HTML login page in German.
+  // That body was sliced to 200 characters and used as the error message, so
+  // what reached the user in the chat window was
+  // `<html><head><meta http-equiv="content-type" ...` — no clue that a key had
+  // expired, and no clue who could fix it.
+  const HUB_401_HTML =
+    '<html><head><meta http-equiv="content-type" content="text/html; charset=windows-1252">' +
+    '<title>Anmeldung fehlgeschlagen</title><style>body { background: #ffffff; text-align: center; ' +
+    'width:100%; height:100%; }</style></head><body><h1>Anmeldung fehlgeschlagen</h1></body></html>'
+
+  test('an expired Hub key names the key, not the login page', async () => {
+    stubFetch(text(HUB_401_HTML, 401))
+    const hub = new backend.HubBackend({ baseUrl: 'https://h', apiKey: 'stale' })
+    await assert.rejects(
+      () => hub.query({ entitySet: 'A_OutbDeliveryHeader' }),
+      (err) => {
+        assert.equal(err.statusCode, 401)
+        assert.doesNotMatch(err.message, /<html|<head|<meta|<style|charset=/i, 'markup must never reach the user')
+        assert.match(err.message, /SAP_HUB_API_KEY/, 'name the variable that has to change')
+        assert.match(err.message, /api\.sap\.com/, 'say where a new one comes from')
+        assert.match(err.message, /rejected our credentials/i)
+        // The page title is the one part of an HTML body that carries meaning.
+        assert.match(err.message, /Anmeldung fehlgeschlagen/)
+        return true
+      }
+    )
+  })
+
+  test('a 404 blames the path, a 500 blames the upstream system', async () => {
+    stubFetch(text('<html><body>Not Found</body></html>', 404))
+    const hub = new backend.HubBackend({ baseUrl: 'https://h', apiKey: 'k' })
+    await assert.rejects(
+      () => hub.query({ entitySet: 'A_Nope' }),
+      (err) => /servicePath and entitySet/.test(err.message) && !/SAP_HUB_API_KEY/.test(err.message)
+    )
+
+    stubFetch(text('gateway exploded', 502))
+    await assert.rejects(
+      () => hub.query({ entitySet: 'A_X' }),
+      (err) => /not a configuration problem on our side/i.test(err.message)
+    )
+  })
+
+  test('a structured OData error is quoted, because that one is written for us', () => {
+    const v2 = JSON.stringify({ error: { code: 'SY/530', message: { value: 'Plant 9999 does not exist' } } })
+    assert.equal(backend.errorDetailFrom(v2), 'Plant 9999 does not exist')
+
+    const v4 = JSON.stringify({ error: { code: '400', message: 'Filter expression is malformed' } })
+    assert.equal(backend.errorDetailFrom(v4), 'Filter expression is malformed')
+
+    assert.equal(backend.errorDetailFrom(JSON.stringify({ error_description: 'client secret expired' })), 'client secret expired')
+  })
+
+  test('an HTML body with no title contributes nothing rather than tags', () => {
+    assert.equal(backend.errorDetailFrom('<html><body><div>503</div></body></html>'), '')
+    assert.equal(backend.errorDetailFrom(''), '')
+    assert.equal(backend.errorDetailFrom(null), '')
+  })
+
+  test('plain text survives, collapsed onto one line', () => {
+    assert.equal(backend.errorDetailFrom('quota\n  exceeded\ttoday'), 'quota exceeded today')
+  })
+
+  test('every adapter names itself, so the failing hop is identifiable', () => {
+    for (const system of ['Hub', 'Graph', 'iFlow', 'CPI']) {
+      const m = backend.httpFailure({ system, status: 401, what: 'A_X', body: '', fix: 'do the thing' })
+      assert.match(m, new RegExp(`^${system} `), `${system} must lead its own message`)
+      assert.match(m, /do the thing/)
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+
 describe('OData payload shapes', () => {
   test('reads v2, v4 and refuses to invent rows from anything else', () => {
     // v2 nests under d.results, v4 is a flat value array. Getting this wrong

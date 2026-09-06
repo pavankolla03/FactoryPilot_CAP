@@ -1,5 +1,24 @@
 using { factorypilot.admin as db } from '../db/admin';
 
+/** One thing an operator can configure, and whether it is configured. */
+type ConfigCheck {
+  area    : String(40);
+  name    : String(80);
+  status  : String(10);   // ok | warn | missing | error
+  detail  : String(500);
+  fix     : String(500);
+  envVars : String(300);
+}
+
+/** One backend, asked whether it will actually answer. */
+type ProbeResult {
+  name      : String(120);
+  kind      : String(30);
+  status    : String(10);
+  detail    : String(600);
+  elapsedMs : Integer;
+}
+
 type EffectivePolicy {
   autoApproveReads      : Boolean;
   autoApproveWrites     : Boolean;
@@ -54,4 +73,23 @@ service AdminService {
 
   /** Does this user hold write access on this warehouse? */
   function canWrite(userID : String(100), warehouseID : String(20)) returns Boolean;
+
+  /**
+   * What is configured and what is missing. Reads environment and bindings
+   * only — no network, so it answers immediately.
+   *
+   * Admin-only: the list names every environment variable this deployment
+   * reads, which is a map of where its secrets live even though no value is
+   * ever returned.
+   */
+  @requires: 'AdminRead'
+  function configHealth() returns many ConfigCheck;
+
+  /**
+   * Ask each configured backend whether it actually answers, using the same
+   * path and credential the agent would. Makes real network calls, so it is a
+   * separate call the page fires after it has painted.
+   */
+  @requires: 'AdminMaintain'
+  function probeConnections() returns many ProbeResult;
 }
