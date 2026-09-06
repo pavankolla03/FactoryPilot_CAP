@@ -185,15 +185,29 @@ function stateChecks() {
     envVars: 'VCAP_SERVICES (binding), NODE_ENV/CDS_ENV profile',
   })
 
-  const scheduler = process.env.FACTORYPILOT_SCHEDULER
+  // Mirror scheduler.start() exactly rather than guessing from one variable.
+  // The scheduler runs *unless* something stops it, and reading
+  // FACTORYPILOT_SCHEDULER as an opt-in switch got this backwards: an
+  // ordinary deployment, which sets nothing, was reported as having no
+  // background work running when in fact all of it was.
+  const stoppedBy =
+    process.env.FACTORYPILOT_SCHEDULER === 'off'
+      ? 'FACTORYPILOT_SCHEDULER=off'
+      : process.env.NODE_ENV === 'test'
+        ? 'NODE_ENV=test'
+        : process.env.FACTORYPILOT_DEMO_MODE === '1'
+          ? 'FACTORYPILOT_DEMO_MODE=1'
+          : null
   out.push({
     area: 'State',
     name: 'Background scheduler (Beta)',
-    status: truthy(scheduler) ? OK : WARN,
-    detail: truthy(scheduler)
-      ? 'Running. Scheduled jobs, watchers and digests fire on their own; a database lease keeps multiple instances from doing the same work twice.'
-      : 'Off. Scheduled jobs and watchers are configured but nothing triggers them.',
-    fix: 'cf set-env <app> FACTORYPILOT_SCHEDULER 1 && cf restage <app>',
+    status: stoppedBy ? WARN : OK,
+    detail: stoppedBy
+      ? `Not running — stopped by ${stoppedBy}. Scheduled jobs, watchers and digests are configured but nothing triggers them.`
+      : `Running, ticking every ${Math.round(Number(process.env.FACTORYPILOT_SCHEDULER_TICK_MS || 60000) / 1000)}s. Scheduled jobs, watchers and digests fire on their own; a database lease keeps multiple instances from doing the same work twice.`,
+    fix: stoppedBy
+      ? `Remove ${stoppedBy.split('=')[0]} (cf unset-env <app> ${stoppedBy.split('=')[0]}) and restage.`
+      : 'Set FACTORYPILOT_SCHEDULER=off to take background work out of the picture while diagnosing something else.',
     envVars: 'FACTORYPILOT_SCHEDULER, FACTORYPILOT_SCHEDULER_TICK_MS, FACTORYPILOT_SCHEDULER_LEASE_MS',
   })
   return out
