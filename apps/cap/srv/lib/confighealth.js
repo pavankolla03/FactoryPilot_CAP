@@ -26,6 +26,7 @@ const cds = require('@sap/cds')
 
 const cache = require('./cache')
 const backend = require('./backend')
+const llm = require('./llm')
 
 const OK = 'ok'
 const WARN = 'warn'
@@ -47,15 +48,12 @@ function llmChecks() {
   const out = []
   const explicit = (process.env.LLM_PROVIDER || '').toLowerCase()
 
-  // OpenRouter accepts either one key or a comma-separated list; the rotation
-  // in llm.js reads both, so reporting only one of them would call a working
-  // configuration incomplete.
-  const single = isSet('OPENROUTER_API_KEY')
-  const list = String(process.env.OPENROUTER_API_KEYS || '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-  const keyCount = list.length || (single ? 1 : 0)
+  // Ask llm.js rather than re-deriving it. It accepts three spellings —
+  // OPENROUTER_API_KEY, numbered OPENROUTER_API_KEY_2..._8, and a
+  // comma-separated OPENROUTER_API_KEYS — and a second implementation here
+  // counted only two of them, so a deployment using the numbered form was told
+  // it had one key when it had two.
+  const keyCount = llm.openRouterKeys().length
 
   out.push({
     area: 'Language model',
