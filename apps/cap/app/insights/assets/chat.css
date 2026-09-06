@@ -795,21 +795,6 @@ body > .fd-shellbar { flex: none; }
 }
 
 
-/* --- theme -------------------------------------------------------------- */
-
-.theme {
-  border: 1px solid var(--sapList_BorderColor);
-  background: var(--sapBackgroundColor);
-  color: var(--sapContentLabelColor);
-  border-radius: var(--sapElement_BorderCornerRadius);
-  cursor: pointer;
-  font-size: 0.875rem;
-  line-height: 1;
-  padding: 0.3125rem 0.4375rem;
-  margin-right: 0.5rem;
-}
-.theme:hover { color: var(--sapTextColor); border-color: var(--sapBrandColor); }
-.theme:focus-visible {
-  outline: 0.125rem solid var(--sapContent_FocusColor);
-  outline-offset: 0.0625rem;
-}
+/* The theme control moved to fiori.css (.fd-theme), because the same selector
+   now has to serve this page and the nineteen UI5 ones. */
+.fd-theme { margin-right: 0.5rem; }

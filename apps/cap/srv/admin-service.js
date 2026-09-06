@@ -2,6 +2,7 @@ const cds = require('@sap/cds')
 
 const prefs = require('./lib/prefs')
 const policy = require('./lib/policy')
+const confighealth = require('./lib/confighealth')
 
 module.exports = cds.service.impl(function () {
   /**
@@ -31,6 +32,20 @@ module.exports = cds.service.impl(function () {
       prefKey, prefValue, cleared: false,
       message: prefs.PREFERENCE_KEYS[prefKey]?.description || '',
     }))
+  })
+
+  this.on('configHealth', () => confighealth.checks())
+
+  this.on('probeConnections', async () => {
+    // A probe that throws tells the operator nothing about which backend was
+    // at fault, and this is the screen they opened *because* something is
+    // wrong. Every per-backend failure is already a row; only a failure of the
+    // probe itself reaches here.
+    try {
+      return await confighealth.probe()
+    } catch (err) {
+      return [{ name: 'Probe', kind: 'probe', status: 'error', detail: err.message, elapsedMs: 0 }]
+    }
   })
 
   this.on('effectivePolicy', async (req) => {

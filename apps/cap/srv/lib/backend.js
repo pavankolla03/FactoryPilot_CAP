@@ -22,6 +22,72 @@ class BackendError extends Error {
   }
 }
 
+/**
+ * The one useful sentence inside an error body, or '' when there isn't one.
+ *
+ * These systems do not write their failures for the person who ends up reading
+ * them. An expired Hub key comes back as a full HTML login page in German, and
+ * slicing the first 200 characters off it put `<html><head><meta http-equiv=`
+ * in front of the user in the chat window — unreadable, untranslatable, and
+ * silent about the only thing that was actually wrong.
+ */
+function errorDetailFrom(text) {
+  const body = String(text ?? '').trim()
+  if (!body) return ''
+  // Markup means a login page or a gateway's error page. Its title is the most
+  // that can carry meaning; the tags themselves never do.
+  if (body.startsWith('<')) {
+    const title = body.match(/<title[^>]*>([^<]{1,120})<\/title>/i)
+    return title ? title[1].trim() : ''
+  }
+  try {
+    const json = JSON.parse(body)
+    // OData v2 nests the text under error.message.value, v4 makes it a string,
+    // and OAuth error bodies use error_description.
+    const message =
+      json?.error?.message?.value ?? json?.error?.message ?? json?.message ?? json?.error_description
+    if (typeof message === 'string' && message.trim()) return message.trim().slice(0, 200)
+  } catch {
+    /* not JSON — the raw text is the best available */
+  }
+  return body.slice(0, 200).replace(/\s+/g, ' ')
+}
+
+/**
+ * Turn a failed HTTP response into a sentence naming whose problem it is.
+ *
+ * The status code is the unambiguous part: 401 is a credential nobody renewed,
+ * 404 is a path somebody mistyped, 5xx is not our configuration at all. Each
+ * sends a different person to a different place, so say which rather than
+ * reprinting the body and leaving the reader to guess.
+ */
+function httpFailure({ system, status, what, body, fix }) {
+  const detail = errorDetailFrom(body)
+  const where = what ? ` for ${what}` : ''
+  const said = detail ? ` ${system} said: “${detail}”.` : ''
+
+  if (status === 401 || status === 403) {
+    return `${system} rejected our credentials (HTTP ${status})${where}. ${
+      fix || 'Check the credential this endpoint is configured to use.'
+    }${said}`
+  }
+  if (status === 404) {
+    return `${system} returned 404${where} — no such service path or entity set. Check servicePath and entitySet on the business object.${said}`
+  }
+  if (status === 429) {
+    return `${system} returned 429${where} — rate limit reached. Retry later or lower the request rate.${said}`
+  }
+  if (status >= 500) {
+    return `${system} returned ${status}${where} — the upstream system is failing. This is not a configuration problem on our side.${said}`
+  }
+  return `${system} returned ${status}${where}.${said}`
+}
+
+/** What to do about a Hub credential that came back rejected. */
+const HUB_KEY_FIX =
+  'The key in SAP_HUB_API_KEY is missing, expired, or not subscribed to this API. ' +
+  'Get a current key from api.sap.com (Show API Key) and set it with `cf set-env <app> SAP_HUB_API_KEY <key>`, then restage.'
+
 /** OData v2 nests under d.results; v4 uses a flat `value` array. */
 function extractRows(body) {
   if (!body || typeof body !== 'object') return []
@@ -207,7 +273,21 @@ class GraphBackend {
     }
 
     if (!out.ok) {
-      throw new BackendError(`Graph returned HTTP ${out.status} for ${entitySet}: ${out.text.slice(0, 200)}`, out.status)
+      throw new BackendError(
+        httpFailure({
+          system: 'Graph',
+          status: out.status,
+          what: entitySet,
+          body: out.text,
+          // Graph authenticates us with OAuth but forwards our APIKey to the
+          // sandbox behind it, so a 401 here has two possible causes and the
+          // message must not point at only one of them.
+          fix:
+            'Either the Graph OAuth client (GRAPH_CLIENT_ID / GRAPH_CLIENT_SECRET) was rejected, ' +
+            'or the APIKey Graph forwards to its origin system was. Check SAP_HUB_API_KEY first — it expires.',
+        }),
+        out.status
+      )
     }
 
     let body
@@ -337,7 +417,12 @@ class HubBackend {
       // disarming the controller here would leave `res.json()` with nothing to
       // abort it, and a server that sends headers then stalls would hold the
       // request open indefinitely.
-      if (!res.ok) throw new BackendError(`Hub returned ${res.status} for ${entitySet}: ${(await res.text()).slice(0, 200)}`, res.status)
+      if (!res.ok) {
+        throw new BackendError(
+          httpFailure({ system: 'Hub', status: res.status, what: entitySet, body: await res.text(), fix: HUB_KEY_FIX }),
+          res.status
+        )
+      }
       return { rows: extractRows(await res.json()), url, statusCode: res.status, elapsedMs: Date.now() - started }
     } catch (err) {
       if (err instanceof BackendError) throw err
@@ -376,7 +461,12 @@ class CpiBackend {
         }),
         signal: controller.signal,
       })
-      if (!res.ok) throw new BackendError(`CPI returned ${res.status}`, res.status)
+      if (!res.ok) {
+        throw new BackendError(
+          httpFailure({ system: 'CPI', status: res.status, what: entitySet, body: await res.text() }),
+          res.status
+        )
+      }
       const body = await res.json()
       if (body.errorCode) throw new BackendError(`${body.errorCode}: ${body.message || ''}`)
       return {
@@ -491,7 +581,18 @@ class IflowBackend {
     }
 
     if (!out.ok) {
-      throw new BackendError(`iFlow returned HTTP ${out.status}: ${out.text.slice(0, 200)}`, out.status)
+      throw new BackendError(
+        httpFailure({
+          system: 'iFlow',
+          status: out.status,
+          what: query.entitySet,
+          body: out.text,
+          fix: this.endpoint.credentialRef
+            ? `Check the credential named by this endpoint’s credentialRef (${this.endpoint.credentialRef}).`
+            : 'This endpoint has no credentialRef set, so it sent no credential at all. Set one in the Integration console.',
+        }),
+        out.status
+      )
     }
 
     let body
@@ -550,4 +651,4 @@ function forEndpoint(endpoint) {
   return new MockBackend()
 }
 
-module.exports = { BackendError, MockBackend, HubBackend, GraphBackend, CpiBackend, IflowBackend, forEndpoint, extractRows, buildQueryString, flattenExpanded, stripAnnotations, toDate }
+module.exports = { BackendError, MockBackend, HubBackend, GraphBackend, CpiBackend, IflowBackend, forEndpoint, extractRows, buildQueryString, flattenExpanded, stripAnnotations, toDate, errorDetailFrom, httpFailure }

@@ -771,38 +771,9 @@
            </div></div>`);
   });
 
-  // --- theme ---------------------------------------------------------------
-  // Three states, and the third one matters: "system" is the default and must
-  // stay available, or someone whose OS switches at sunset is stuck on
-  // whichever they last clicked. The cycle is system → light → dark → system.
-  (() => {
-    const btn = $("theme");
-    if (!btn) return;
-    const ORDER = ["system", "light", "dark"];
-    const FACE = { system: "🌗", light: "☀️", dark: "🌙" };
-    const NAME = { system: "Theme: follow system", light: "Theme: light", dark: "Theme: dark" };
-
-    // A private window can throw on read, so a missing preference is normal
-    // and must not stop the page rendering.
-    let mode = "system";
-    try { mode = localStorage.getItem("fp.theme") || "system"; } catch { /* no storage */ }
-    if (!ORDER.includes(mode)) mode = "system";
-
-    const apply = () => {
-      if (mode === "system") document.documentElement.removeAttribute("data-theme");
-      else document.documentElement.setAttribute("data-theme", mode);
-      btn.textContent = FACE[mode];
-      btn.title = NAME[mode];
-      btn.setAttribute("aria-label", NAME[mode]);
-    };
-
-    btn.addEventListener("click", () => {
-      mode = ORDER[(ORDER.indexOf(mode) + 1) % ORDER.length];
-      try { localStorage.setItem("fp.theme", mode); } catch { /* nothing to do */ }
-      apply();
-    });
-    apply();
-  })();
+  // Theme selection lives in shared/theme.js now — it has to cover the
+  // nineteen UI5 pages as well, and two implementations of one preference is
+  // how the chat ends up dark and the admin lists white.
 
   welcome();
   refreshUsage();

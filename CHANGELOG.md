@@ -7,7 +7,60 @@ Versioning follows [SemVer](https://semver.org/) for tagged releases (`v0.1.0-tr
 
 ## [Unreleased]
 
+### Fixed
+
+- **A rejected credential reached the user as a German HTML login page.**
+  Every backend adapter built its error message by slicing 200 characters off
+  the response body, and the Hub answers an expired API key with a full login
+  page: what appeared in the chat window was
+  `Hub returned 401 … <html><head><meta http-equiv="content-type" …`. Unreadable,
+  in the wrong language, and silent about the one thing that was wrong. Failures
+  are now classified by status — 401/403 names the credential and how to replace
+  it, 404 blames the service path, 5xx says the upstream system is at fault and
+  our configuration is not — and the body is quoted only when it carries a real
+  sentence (an OData `error.message`, or an HTML `<title>`); markup never
+  reaches a message. Applied to the Hub, Graph, CPI and iFlow adapters.
+- **Connection Tests said "check the path and credentials" for every failure.**
+  True of all of them, useful for none. It now uses the same classification, so
+  pressing Test on an endpoint with an expired key names the environment
+  variable to change.
+- **The chat's theme covered a third of the product.** Choosing dark and then
+  opening any admin list threw a white page at you, because the toggle lived in
+  `chat.js` and the nineteen Fiori Elements pages were pinned to `sap_horizon`
+  on their bootstrap tag.
+- **The Insights shellbar avatar was an unstyled span.** Admin used
+  `.fd-avatar` and Insights used `.fd-shellbar__avatar`; only the first had
+  styles, so the chat showed a bare initial where Admin showed a circle.
+
 ### Added
+
+- **The Admin page says whether the deployment can actually work.** It was a
+  directory of links, which answers "where do I go" and never "is anything
+  wrong". A readiness band now leads the page, backed by
+  `AdminService.configHealth()` — every environment variable and binding the
+  product reads, whether it is present, and the exact command to set it.
+  Secret *values* never leave the server; only presence, and provenance.
+  `AdminService.probeConnections()` goes further and calls each active endpoint
+  through the same service path and credential the agent uses, because a key
+  that is set and a key that works are different facts. In demo mode it refuses
+  to report success, since every adapter is answering from fixtures.
+  The console directory gained icons and a filter that matches operator
+  vocabulary — "throttle" finds Quota Policies, "401" finds Connection Tests.
+- **Theme selection on every page.** One `shared/theme.js`, one stored
+  preference, three states (Auto / Light / Dark) shown as a control rather than
+  a button that cycles. It applies before first paint so navigation does not
+  flash, tells UI5 its theme name before bootstrap, switches a booted UI5 app
+  without a reload, follows the OS on "Auto", and syncs across open tabs.
+- **The nineteen Fiori Elements consoles gained the product shell.** Opened
+  from a tile they were bare UI5 lists — no product name, no navigation, no way
+  back but the browser button. They now carry the same shellbar as the rest of
+  the app.
+- **Monitoring reports how old its numbers are.** It stamped the load time into
+  the shellbar and never touched it again, so a tab left open overnight showed
+  yesterday's data under a timestamp that looked current. There is now a live
+  age, a refresh control, optional 30-second auto-refresh, a one-line summary of
+  anything needing attention, and the ten KPIs are grouped into Traffic, Answer
+  quality and Needs attention instead of one flat row.
 
 - **Feedback and saved questions reach the chat, not just the API.** (BETA)
   `rateAnswer` and the saved-question library already existed at the service

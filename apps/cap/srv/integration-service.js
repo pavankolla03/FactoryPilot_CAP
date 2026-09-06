@@ -1,6 +1,8 @@
 const cds = require('@sap/cds')
 
-const KINDS = ['iflow', 'odata_direct', 'graph', 'hub_sandbox', 'destination', 'mock']
+const backend = require('./lib/backend')
+
+const KINDS =['iflow', 'odata_direct', 'graph', 'hub_sandbox', 'destination', 'mock']
 const AUTH_MODES = ['none', 'api_key', 'bearer', 'basic', 'oauth2_client_credentials']
 
 /**
@@ -89,7 +91,18 @@ async function runTest(endpoint, userID) {
       urlTested: url,
       message: ok
         ? `Reachable — HTTP ${res.status} in ${durationMs}ms.${auth.note ? ' ' + auth.note : ''}`
-        : `Endpoint answered HTTP ${res.status}. Check the path and credentials.`,
+        : // "Check the path and credentials" was true of every failure and
+          // useful for none of them. A 401 is a credential nobody renewed and
+          // a 404 is a path somebody mistyped — different people, different
+          // fixes, and the status already says which.
+          backend.httpFailure({
+            system: endpoint.name || 'Endpoint',
+            status: res.status,
+            body: await res.text(),
+            fix: endpoint.credentialRef
+              ? `The credential this endpoint uses is the environment variable ${endpoint.credentialRef}. If it is a Hub key, note that those expire — fetch a current one from api.sap.com.`
+              : 'This endpoint has no credentialRef, so it authenticated with nothing.',
+          }),
     }
   } catch (err) {
     const durationMs = Date.now() - started

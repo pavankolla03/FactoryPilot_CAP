@@ -6,6 +6,79 @@
 <title>IntelliOps4 — Admin</title>
 <link rel="icon" href="../shared/logo.svg" type="image/svg+xml" />
 <link rel="stylesheet" href="../shared/fiori.css" />
+<script src="../shared/theme.js"></script>
+<style>
+  /* --- readiness banner ---------------------------------------------------
+     The page used to open on a link directory, which answers "where do I go"
+     but never "is anything wrong". This band answers the second question
+     before the reader has to ask it. */
+  .ready {
+    display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+    padding: 1rem 1.25rem; margin-bottom: 1.25rem;
+    border-radius: var(--sapElement_BorderCornerRadius);
+    border: 1px solid var(--sapList_BorderColor);
+    background: var(--sapGroupContentBackground);
+    box-shadow: var(--sapShadow);
+  }
+  .ready__dot { width: 0.75rem; height: 0.75rem; border-radius: 50%; flex: 0 0 auto; background: var(--sapNeutralColor); }
+  .ready--ok      .ready__dot { background: var(--sapPositiveColor); }
+  .ready--warn    .ready__dot { background: var(--sapCriticalColor); }
+  .ready--blocked .ready__dot { background: var(--sapNegativeColor); }
+  .ready__text { flex: 1 1 18rem; min-width: 0; }
+  .ready__head { font-size: 1rem; font-weight: 700; color: var(--sapTitleColor); }
+  .ready__sub { font-size: 0.8125rem; color: var(--sapContentLabelColor); margin-top: 0.125rem; }
+  .ready__actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+  /* --- health list -------------------------------------------------------- */
+  .chk { border-bottom: 1px solid var(--sapList_BorderColor); }
+  .chk:last-child { border-bottom: none; }
+  .chk__row {
+    display: grid; grid-template-columns: 5.5rem 1fr auto; gap: 0.75rem;
+    align-items: baseline; padding: 0.6875rem 0.25rem; width: 100%;
+    background: none; border: 0; font: inherit; color: inherit;
+    text-align: left; cursor: pointer;
+  }
+  .chk__row:hover { background: var(--sapBackgroundColor); }
+  .chk__row:focus-visible { outline: 0.125rem solid var(--sapContent_FocusColor); outline-offset: -0.125rem; }
+  .chk__name { font-weight: 700; color: var(--sapTitleColor); }
+  .chk__area { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: .04em; color: var(--sapContentLabelColor); }
+  .chk__detail { font-size: 0.8125rem; color: var(--sapContentLabelColor); font-weight: 400; margin-top: 0.125rem; }
+  .chk__chev { color: var(--sapContentLabelColor); font-size: 0.75rem; }
+  .chk__fix {
+    padding: 0 0.25rem 0.875rem 6.25rem;
+    font-size: 0.8125rem; color: var(--sapTextColor);
+  }
+  .chk__fix code, .chk__env {
+    display: block; margin-top: 0.375rem; padding: 0.5rem 0.625rem;
+    background: var(--sapBackgroundColor); border: 1px solid var(--sapList_BorderColor);
+    border-radius: 0.25rem;
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.75rem;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .chk__env { color: var(--sapContentLabelColor); }
+  @media (max-width: 40rem) {
+    .chk__row { grid-template-columns: 1fr auto; }
+    .chk__area { display: none; }
+    .chk__fix { padding-left: 0.25rem; }
+  }
+
+  /* --- console directory --------------------------------------------------- */
+  .filter { display: flex; gap: 0.5rem; align-items: center; margin: 0 0 0.75rem; }
+  .filter input { max-width: 20rem; }
+  .filter__count { font-size: 0.75rem; color: var(--sapContentLabelColor); }
+  .fd-tile__icon { color: var(--sapBrandColor); width: 1.25rem; height: 1.25rem; display: block; margin-bottom: 0.5rem; }
+  .fd-tile[hidden] { display: none; }
+  .group[hidden] { display: none; }
+
+  /* The shared 11rem track is sized for a KPI tile holding one number. These
+     hold a sentence, and at that width "Integration Endpoints" broke across
+     two lines while "Cache Effectiveness" broke inside the word. auto-fill
+     keeps the empty tracks, so a group of two tiles still lines up with the
+     group of four below it rather than stretching to fill the row. */
+  #groups .fd-tiles { grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr)); }
+  #groups .fd-tile__title { font-size: 0.9375rem; }
+  #groups .fd-tile { min-height: 9.5rem; }
+</style>
 </head>
 <body>
 
@@ -24,179 +97,258 @@
 
 <main class="fd-page">
 
+  <!-- Readiness first: whether this deployment can actually do its job. -->
+  <section class="ready" id="ready">
+    <span class="ready__dot"></span>
+    <div class="ready__text">
+      <div class="ready__head" id="readyHead">Checking configuration…</div>
+      <div class="ready__sub" id="readySub">Reading environment variables and service bindings.</div>
+    </div>
+    <div class="ready__actions">
+      <button class="fd-button fd-button--transparent" id="probeBtn" type="button">Test connections</button>
+    </div>
+  </section>
+
+  <h2 class="fd-group-title">Configuration</h2>
+  <section class="fd-card">
+    <div class="fd-card__header">
+      <p class="fd-card__subtitle">
+        Everything this deployment reads from its environment. Select a row for what to set and how.
+        Values are never shown — only whether something is there.
+      </p>
+    </div>
+    <div class="fd-card__content" id="checks"><div class="fd-empty">Loading…</div></div>
+  </section>
+
+  <section id="probeSection" hidden>
+    <h2 class="fd-group-title">Connection test</h2>
+    <section class="fd-card">
+      <div class="fd-card__header">
+        <p class="fd-card__subtitle">
+          Each active endpoint asked for one row, through the same service path and credential the agent uses.
+        </p>
+      </div>
+      <div class="fd-card__content" id="probe"></div>
+    </section>
+  </section>
+
   <h2 class="fd-group-title">At a glance</h2>
   <div class="fd-tiles" id="kpis">
     <div class="fd-tile"><div class="fd-tile__title">…</div><div class="fd-tile__subtitle">loading</div></div>
   </div>
 
-  <h2 class="fd-group-title">Configuration</h2>
+  <h2 class="fd-group-title">Consoles</h2>
+  <div class="filter">
+    <input class="fd-input" id="q" type="search" placeholder="Filter consoles — try &ldquo;cache&rdquo; or &ldquo;approval&rdquo;" aria-label="Filter consoles" />
+    <span class="filter__count" id="qcount"></span>
+  </div>
+
+  <div id="groups">
+  <div class="group">
+  <h3 class="fd-group-title">Business configuration</h3>
   <div class="fd-tiles">
-    <a class="fd-tile" href="/businessobjects/webapp/index.html">
+    <a class="fd-tile" href="/businessobjects/webapp/index.html" data-k="business objects odata s4 services tools register entity entities api mapping fields">
       <div>
+        <svg class="fd-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4"/><path d="M3 17l9 4 9-4"/></svg>
         <div class="fd-tile__title">Business Objects</div>
         <div class="fd-tile__subtitle">Register S/4 OData services. Each active row becomes an agent tool.</div>
       </div>
       <div class="fd-tile__footer">/odata/config</div>
     </a>
-    <a class="fd-tile" href="/savedquestions/webapp/index.html">
+    <a class="fd-tile" href="/savedquestions/webapp/index.html" data-k="saved questions library welcome prompts examples suggestions starter">
       <div>
+        <svg class="fd-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
         <div class="fd-tile__title">Saved Questions<span class="fd-badge--beta">Beta</span></div>
         <div class="fd-tile__subtitle">A vetted library, offered on the Insights welcome screen. Times asked is shown, not hidden.</div>
       </div>
       <div class="fd-tile__footer">/odata/config</div>
     </a>
   </div>
+  </div>
 
-  <h2 class="fd-group-title">Integration</h2>
+  <div class="group">
+  <h3 class="fd-group-title">Integration</h3>
   <div class="fd-tiles">
-    <a class="fd-tile" href="/integrationendpoints/webapp/index.html">
+    <a class="fd-tile" href="/integrationendpoints/webapp/index.html" data-k="integration endpoints iflow cpi hub graph connect url credentials destination oauth api key backend s4 connection">
       <div>
+        <svg class="fd-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M10 13a5 5 0 007.5.5l3-3a5 5 0 00-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 00-7.5-.5l-3 3a5 5 0 007 7l1.7-1.7"/></svg>
         <div class="fd-tile__title">Integration Endpoints</div>
         <div class="fd-tile__subtitle">Connect any iFlow by pasting its endpoint. Test before activating.</div>
       </div>
       <div class="fd-tile__footer">/odata/integration</div>
     </a>
-    <a class="fd-tile" href="/endpointtests/webapp/index.html">
+    <a class="fd-tile" href="/endpointtests/webapp/index.html" data-k="connection tests history status duration troubleshoot ping health 401 failed unreachable diagnose">
       <div>
+        <svg class="fd-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M22 12h-4l-3 9-6-18-3 9H2"/></svg>
         <div class="fd-tile__title">Connection Tests</div>
         <div class="fd-tile__subtitle">Every test with status and duration — for “it worked on Monday”.</div>
       </div>
       <div class="fd-tile__footer">/odata/integration</div>
     </a>
   </div>
+  </div>
 
-  <h2 class="fd-group-title">Cache</h2>
+  <div class="group">
+  <h3 class="fd-group-title">Cache</h3>
   <div class="fd-tiles">
-    <a class="fd-tile" href="/cachepolicies/webapp/index.html">
+    <a class="fd-tile" href="/cachepolicies/webapp/index.html" data-k="cache policies ttl reuse freshness redis expiry stale invalidate">
       <div>
+        <svg class="fd-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 11v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/></svg>
         <div class="fd-tile__title">Cache Policies</div>
         <div class="fd-tile__subtitle">How long an answer may be reused before the question goes back to S/4.</div>
       </div>
       <div class="fd-tile__footer">/odata/cache</div>
     </a>
-    <a class="fd-tile" href="/cachestats/webapp/index.html">
+    <a class="fd-tile" href="/cachestats/webapp/index.html" data-k="cache effectiveness hits misses tokens saved ratio savings performance">
       <div>
+        <svg class="fd-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
         <div class="fd-tile__title">Cache Effectiveness</div>
         <div class="fd-tile__subtitle">Hits, misses and tokens saved per object per day.</div>
       </div>
       <div class="fd-tile__footer">/odata/cache</div>
     </a>
   </div>
+  </div>
 
-  <h2 class="fd-group-title">Tokenisation</h2>
+  <div class="group">
+  <h3 class="fd-group-title">Tokens and models</h3>
   <div class="fd-tiles">
-    <a class="fd-tile" href="/quotapolicies/webapp/index.html">
+    <a class="fd-tile" href="/quotapolicies/webapp/index.html" data-k="quota policies caps limits budget day week month throttle rate limit spend control">
       <div>
+        <svg class="fd-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
         <div class="fd-tile__title">Quota Policies</div>
         <div class="fd-tile__subtitle">Day, week and month caps per user, role or DEFAULT.</div>
       </div>
       <div class="fd-tile__footer">/odata/token</div>
     </a>
-    <a class="fd-tile" href="/tokenusage/webapp/index.html">
+    <a class="fd-tile" href="/tokenusage/webapp/index.html" data-k="token usage spend cost per call estimated consumption billing model calls">
       <div>
+        <svg class="fd-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 19V5"/><rect x="7" y="11" width="3" height="8"/><rect x="12" y="7" width="3" height="12"/><rect x="17" y="14" width="3" height="5"/></svg>
         <div class="fd-tile__title">Token Usage</div>
         <div class="fd-tile__subtitle">One row per model call. Estimated counts are flagged as such.</div>
       </div>
       <div class="fd-tile__footer">/odata/token</div>
     </a>
-    <a class="fd-tile" href="/modelroutes/webapp/index.html">
+    <a class="fd-tile" href="/modelroutes/webapp/index.html" data-k="model routes openrouter aicore light heavy intent provider llm gpt fallback rotation gen ai hub">
       <div>
+        <svg class="fd-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6H14a4 4 0 010 8h-4a4 4 0 000 4h5.5"/></svg>
         <div class="fd-tile__title">Model Routes</div>
         <div class="fd-tile__subtitle">Which model serves light, heavy and intent traffic.</div>
       </div>
       <div class="fd-tile__footer">/odata/token</div>
     </a>
   </div>
+  </div>
 
-  <h2 class="fd-group-title">Users and governance</h2>
+  <div class="group">
+  <h3 class="fd-group-title">Users and governance</h3>
   <div class="fd-tiles">
-    <a class="fd-tile" href="/users/webapp/index.html">
+    <a class="fd-tile" href="/users/webapp/index.html" data-k="users identity scopes warehouse read write access permissions roles people accounts plant">
       <div>
+        <svg class="fd-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0113 0"/><path d="M16 5.3a3.2 3.2 0 010 5.4M18.5 20a6.5 6.5 0 00-3-5.5"/></svg>
         <div class="fd-tile__title">Users</div>
         <div class="fd-tile__subtitle">Identity and per-warehouse read/write scopes.</div>
       </div>
       <div class="fd-tile__footer">/odata/admin</div>
     </a>
-    <a class="fd-tile" href="/approvalpolicies/webapp/index.html">
+    <a class="fd-tile" href="/approvalpolicies/webapp/index.html" data-k="approval policies autonomy unattended write ceiling second approver governance guardrails autopilot limits">
       <div>
+        <svg class="fd-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 3l7.5 3v5.5c0 4.3-3 8.2-7.5 9.5-4.5-1.3-7.5-5.2-7.5-9.5V6z"/><path d="M9 12l2 2 4-4"/></svg>
         <div class="fd-tile__title">Approval Policies</div>
         <div class="fd-tile__subtitle">When the agent may act unattended. Most restrictive layer wins.</div>
       </div>
       <div class="fd-tile__footer">/odata/admin</div>
     </a>
-    <a class="fd-tile" href="/orgsettings/webapp/index.html">
+    <a class="fd-tile" href="/orgsettings/webapp/index.html" data-k="org settings autopilot anomaly digest default warehouse organisation global defaults tenant">
       <div>
+        <svg class="fd-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.6 1.6 0 00-2.7 1.1V21a2 2 0 11-4 0v-.1A1.6 1.6 0 007.5 19.4l-.1.1a2 2 0 11-2.8-2.8l.1-.1A1.6 1.6 0 003 15H3a2 2 0 110-4h.1A1.6 1.6 0 004.6 8.5l-.1-.1a2 2 0 112.8-2.8l.1.1A1.6 1.6 0 009 4.6V3a2 2 0 114 0v.1a1.6 1.6 0 002.7 1.1l.1-.1a2 2 0 112.8 2.8l-.1.1A1.6 1.6 0 0021 11h.1a2 2 0 110 4H21"/></svg>
         <div class="fd-tile__title">Org Settings</div>
         <div class="fd-tile__subtitle">Autopilot, anomaly factor, digest hour, default warehouse.</div>
       </div>
       <div class="fd-tile__footer">/odata/admin</div>
     </a>
   </div>
+  </div>
 
-  <h2 class="fd-group-title">Background jobs</h2>
+  <div class="group">
+  <h3 class="fd-group-title">Background jobs</h3>
   <div class="fd-tiles">
-    <a class="fd-tile" href="/scheduledjobs/webapp/index.html">
+    <a class="fd-tile" href="/scheduledjobs/webapp/index.html" data-k="scheduled jobs cron digest overnight enable pause schedule automation batch nightly">
       <div>
+        <svg class="fd-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
         <div class="fd-tile__title">Scheduled Jobs<span class="fd-badge--beta">Beta</span></div>
         <div class="fd-tile__subtitle">The work that runs without being asked. Enable, reschedule or pause each job.</div>
       </div>
       <div class="fd-tile__footer">/odata/jobs</div>
     </a>
-    <a class="fd-tile" href="/watchers/webapp/index.html">
+    <a class="fd-tile" href="/watchers/webapp/index.html" data-k="watchers alerts thresholds standing questions notify monitor trigger breach warning">
       <div>
+        <svg class="fd-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
         <div class="fd-tile__title">Watchers<span class="fd-badge--beta">Beta</span></div>
         <div class="fd-tile__subtitle">Standing questions — alert me when a number crosses a line.</div>
       </div>
       <div class="fd-tile__footer">/odata/jobs</div>
     </a>
-    <a class="fd-tile" href="/jobruns/webapp/index.html">
+    <a class="fd-tile" href="/jobruns/webapp/index.html" data-k="job runs history failed overnight outcome execution log results">
       <div>
+        <svg class="fd-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 12a9 9 0 109-9"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/></svg>
         <div class="fd-tile__title">Job Runs<span class="fd-badge--beta">Beta</span></div>
         <div class="fd-tile__subtitle">Every run and what it did — including the ones that failed overnight.</div>
       </div>
       <div class="fd-tile__footer">/odata/jobs</div>
     </a>
   </div>
+  </div>
 
-  <h2 class="fd-group-title">Audit</h2>
+  <div class="group">
+  <h3 class="fd-group-title">Audit</h3>
   <div class="fd-tiles">
-    <a class="fd-tile" href="/sessionlogs/webapp/index.html">
+    <a class="fd-tile" href="/sessionlogs/webapp/index.html" data-k="session log requests grounded history questions audit trail who asked what">
       <div>
+        <svg class="fd-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 3h11l4 4v14H5z"/><path d="M15 3v5h5M9 13h7M9 17h7"/></svg>
         <div class="fd-tile__title">Session Log</div>
         <div class="fd-tile__subtitle">One row per request, and whether the answer was grounded in data.</div>
       </div>
       <div class="fd-tile__footer">/odata/audit</div>
     </a>
-    <a class="fd-tile" href="/agentruns/webapp/index.html">
+    <a class="fd-tile" href="/agentruns/webapp/index.html" data-k="agent runs tool rounds steps drill down trace reasoning debugging tool calls">
       <div>
+        <svg class="fd-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="8" width="16" height="11" rx="2"/><path d="M12 8V4M9 4h6"/><circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/></svg>
         <div class="fd-tile__title">Agent Runs</div>
         <div class="fd-tile__subtitle">Tool rounds per turn, drill down to each step.</div>
       </div>
       <div class="fd-tile__footer">/odata/audit</div>
     </a>
-    <a class="fd-tile" href="/pendingactions/webapp/index.html">
+    <a class="fd-tile" href="/pendingactions/webapp/index.html" data-k="approvals pending writes rejected expired confirm authorise sign off change requests">
       <div>
+        <svg class="fd-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 11l3 3 6-6"/><path d="M20 12v7a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h9"/></svg>
         <div class="fd-tile__title">Approvals</div>
         <div class="fd-tile__subtitle">Proposed writes: pending, approved, rejected, expired.</div>
       </div>
       <div class="fd-tile__footer">/odata/audit</div>
     </a>
-    <a class="fd-tile" href="/feedbacks/webapp/index.html">
+    <a class="fd-tile" href="/feedbacks/webapp/index.html" data-k="answer feedback thumbs up down quality provider model rating satisfaction good bad">
       <div>
+        <svg class="fd-tile__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 11v9H4a1 1 0 01-1-1v-7a1 1 0 011-1z"/><path d="M7 11l4-8a2 2 0 013 2l-1 5h5a2 2 0 012 2.3l-1.2 6A2 2 0 0117 20H7"/></svg>
         <div class="fd-tile__title">Answer Feedback<span class="fd-badge--beta">Beta</span></div>
         <div class="fd-tile__subtitle">Thumbs up/down, joined to the provider, model and grounding of the answer.</div>
       </div>
       <div class="fd-tile__footer">/odata/audit</div>
     </a>
   </div>
+  </div>
+  </div>
+
+  <div class="fd-empty" id="noMatch" hidden>No console matches that filter.</div>
 
 </main>
 
-<footer class="fd-footer">IntelliOps4 administration · eight CAP services, each separately scoped</footer>
+<footer class="fd-footer">IntelliOps4 administration · nine CAP services, each separately scoped</footer>
 
 <script>
 (() => {
   "use strict";
+  const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
     ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
   const num = (n) => (n == null ? "—" : Number(n).toLocaleString());
@@ -208,29 +360,153 @@
     } catch { return null; }
   }
 
+  async function getJson(url) {
+    const res = await fetch(url, { headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error(`${url} → HTTP ${res.status}`);
+    return res.json();
+  }
+
+  // --- who is signed in ----------------------------------------------------
+
   (async () => {
-    // Identify the signed-in user from the approuter, so the shell shows who
-    // you are rather than pretending to be single-user.
     try {
       const res = await fetch("/user-api/currentUser");
-      if (res.ok) {
-        const u = await res.json();
-        const name = u.name || u.email || "";
-        document.getElementById("who").textContent = name;
-        document.getElementById("initials").textContent =
-          ((u.firstname || name)[0] || "?").toUpperCase() + ((u.lastname || "")[0] || "").toUpperCase();
-      }
+      if (!res.ok) return;
+      const u = await res.json();
+      const name = u.name || u.email || "";
+      $("who").textContent = name;
+      $("initials").textContent =
+        ((u.firstname || name)[0] || "?").toUpperCase() + ((u.lastname || "")[0] || "").toUpperCase();
     } catch { /* running without the approuter locally */ }
+  })();
 
+  // --- configuration health ------------------------------------------------
+
+  const PILL = { ok: "fd-status--positive", warn: "fd-status--critical", missing: "fd-status--negative", error: "fd-status--negative" };
+  const WORD = { ok: "Ready", warn: "Review", missing: "Not set", error: "Error" };
+
+  function renderChecks(rows) {
+    const el = $("checks");
+    if (!rows.length) { el.innerHTML = `<div class="fd-empty">Nothing to report.</div>`; return; }
+
+    el.innerHTML = rows.map((c, i) => `
+      <div class="chk">
+        <button class="chk__row" type="button" aria-expanded="false" aria-controls="fix${i}">
+          <span><span class="fd-status ${PILL[c.status] || ""}">${esc(WORD[c.status] || c.status)}</span></span>
+          <span>
+            <span class="chk__area">${esc(c.area)}</span>
+            <span class="chk__name"> · ${esc(c.name)}</span>
+            <span class="chk__detail">${esc(c.detail)}</span>
+          </span>
+          <span class="chk__chev" aria-hidden="true">▾</span>
+        </button>
+        <div class="chk__fix" id="fix${i}" hidden>
+          ${c.fix ? `<div>What to do</div><code>${esc(c.fix)}</code>` : ""}
+          ${c.envVars ? `<div class="chk__env">Environment: ${esc(c.envVars)}</div>` : ""}
+        </div>
+      </div>`).join("");
+
+    el.querySelectorAll(".chk__row").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const fix = document.getElementById(btn.getAttribute("aria-controls"));
+        const open = btn.getAttribute("aria-expanded") === "true";
+        btn.setAttribute("aria-expanded", open ? "false" : "true");
+        fix.hidden = open;
+        btn.querySelector(".chk__chev").textContent = open ? "▾" : "▴";
+      });
+    });
+  }
+
+  function renderReady(rows) {
+    const blocked = rows.filter((c) => c.status === "missing" || c.status === "error");
+    const warn = rows.filter((c) => c.status === "warn");
+    const band = $("ready");
+
+    // "Missing" is only blocking when the thing itself is required. An
+    // optional check says so either in its name ("SAP Graph (optional)") or in
+    // its detail ("Optional — only needed for…"), so both have to be read:
+    // testing the detail alone counted Graph as a blocker and told an operator
+    // to go configure something they do not need.
+    const required = blocked.filter((c) => !/optional/i.test(`${c.name} ${c.detail}`));
+
+    band.classList.remove("ready--ok", "ready--warn", "ready--blocked");
+    if (required.length) {
+      band.classList.add("ready--blocked");
+      $("readyHead").textContent =
+        `${required.length} ${required.length === 1 ? "setting is" : "settings are"} missing`;
+      $("readySub").textContent =
+        `Starting with ${required[0].name}. Select it below for the exact command.`;
+    } else if (warn.length) {
+      band.classList.add("ready--warn");
+      $("readyHead").textContent = `Running, with ${warn.length} thing${warn.length === 1 ? "" : "s"} to review`;
+      $("readySub").textContent = warn.map((c) => c.name).join(" · ");
+    } else {
+      band.classList.add("ready--ok");
+      $("readyHead").textContent = "Fully configured";
+      $("readySub").textContent = "Every credential and binding this deployment needs is present.";
+    }
+  }
+
+  (async () => {
+    try {
+      const rows = (await getJson("/odata/admin/configHealth()")).value || [];
+      renderChecks(rows);
+      renderReady(rows);
+    } catch (e) {
+      $("checks").innerHTML =
+        `<div class="fd-message-strip fd-message-strip--error"><span>${esc(e.message)} — configuration health needs the AdminRead scope.</span></div>`;
+      $("readyHead").textContent = "Configuration could not be read";
+      $("readySub").textContent = e.message;
+      $("ready").classList.add("ready--warn");
+    }
+  })();
+
+  // --- live probe ----------------------------------------------------------
+
+  $("probeBtn").addEventListener("click", async () => {
+    const btn = $("probeBtn");
+    const out = $("probe");
+    $("probeSection").hidden = false;
+    btn.disabled = true;
+    const label = btn.textContent;
+    btn.innerHTML = `<span class="fd-busy"></span>Testing…`;
+    out.innerHTML = `<div class="fd-empty">Calling each endpoint…</div>`;
+    try {
+      const rows = (await getJson("/odata/admin/probeConnections()")).value || [];
+      out.innerHTML = rows.length
+        ? `<div class="fd-scroll"><table class="fd-table"><thead><tr>
+             <th>Endpoint</th><th>Kind</th><th>Result</th><th class="num">ms</th></tr></thead><tbody>${
+            rows.map((r) => `<tr>
+              <td>${esc(r.name)}</td>
+              <td>${esc(r.kind || "—")}</td>
+              <td style="white-space:normal">
+                <span class="fd-status ${PILL[r.status] || ""}">${esc(WORD[r.status] || r.status)}</span>
+                <div class="chk__detail">${esc(r.detail)}</div>
+              </td>
+              <td class="num">${num(r.elapsedMs)}</td>
+            </tr>`).join("")
+          }</tbody></table></div>`
+        : `<div class="fd-empty">No active endpoints to test.</div>`;
+    } catch (e) {
+      out.innerHTML = `<div class="fd-message-strip fd-message-strip--error"><span>${esc(e.message)} — the probe needs the AdminMaintain scope.</span></div>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
+  });
+
+  // --- KPIs ----------------------------------------------------------------
+
+  (async () => {
     const tiles = [
-      ["../../odata/config/BusinessObjects/$count?$filter=isActive eq true", "Active objects", "exposed as agent tools"],
-      ["../../odata/integration/Endpoints/$count?$filter=isActive eq true", "Endpoints", "backends registered"],
-      ["../../odata/audit/SessionLogs/$count", "Requests", "logged all time"],
-      ["../../odata/audit/PendingActions/$count?$filter=status eq 'PENDING'", "Awaiting approval", "proposed writes"],
-      ["../../odata/admin/Users/$count?$filter=isActive eq true", "Users", "active"],
+      ["/odata/config/BusinessObjects/$count?$filter=isActive eq true", "Active objects", "exposed as agent tools"],
+      ["/odata/integration/Endpoints/$count?$filter=isActive eq true", "Endpoints", "backends registered"],
+      ["/odata/audit/SessionLogs/$count", "Requests", "logged all time"],
+      ["/odata/audit/PendingActions/$count?$filter=status eq 'PENDING'", "Awaiting approval", "proposed writes"],
+      ["/odata/admin/Users/$count?$filter=isActive eq true", "Users", "active"],
     ];
     const values = await Promise.all(tiles.map(([u]) => count(u)));
-    document.getElementById("kpis").innerHTML = tiles.map(([, label, sub], i) => {
+    $("kpis").innerHTML = tiles.map(([, label, sub], i) => {
       const v = values[i];
       // "Awaiting approval" is the only one where a non-zero value deserves attention.
       const critical = label === "Awaiting approval" && Number(v) > 0;
@@ -242,6 +518,36 @@
         <div class="fd-tile__kpi ${critical ? "fd-tile__kpi--critical" : ""}">${v == null ? "—" : num(v)}</div>
       </div>`;
     }).join("");
+  })();
+
+  // --- console filter ------------------------------------------------------
+
+  // Nineteen screens is more than a person scans. Matching on the visible text
+  // plus a keyword list means "throttle" finds Quota Policies, which the label
+  // alone never would.
+  (() => {
+    const q = $("q");
+    const tiles = [...document.querySelectorAll("#groups .fd-tile")];
+    const groups = [...document.querySelectorAll("#groups .group")];
+    const hay = new Map(tiles.map((t) => [t, `${t.textContent} ${t.dataset.k || ""}`.toLowerCase()]));
+
+    const apply = () => {
+      const term = q.value.trim().toLowerCase();
+      let shown = 0;
+      tiles.forEach((t) => {
+        const hit = !term || hay.get(t).includes(term);
+        t.hidden = !hit;
+        if (hit) shown++;
+      });
+      // A group heading with nothing under it reads as a screen that failed to
+      // load rather than as one filtered out.
+      groups.forEach((g) => { g.hidden = !g.querySelector(".fd-tile:not([hidden])"); });
+      $("qcount").textContent = term ? `${shown} of ${tiles.length}` : `${tiles.length} consoles`;
+      $("noMatch").hidden = shown > 0;
+    };
+
+    q.addEventListener("input", apply);
+    apply();
   })();
 })();
 </script>

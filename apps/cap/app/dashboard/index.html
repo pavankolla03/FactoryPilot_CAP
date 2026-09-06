@@ -6,8 +6,31 @@
 <title>IntelliOps4 — Monitoring</title>
 <link rel="icon" href="../shared/logo.svg" type="image/svg+xml" />
 <link rel="stylesheet" href="../shared/fiori.css" />
+<script src="../shared/theme.js"></script>
 <style>
-  .kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: 0.75rem; }
+  /* --- toolbar ------------------------------------------------------------
+     The old page stamped the load time into the shellbar and never touched it
+     again, so a tab left open overnight showed yesterday's numbers under a
+     timestamp that looked current. This says how old the data is, and keeps
+     saying it. */
+  .toolbar {
+    display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;
+    padding: 0.625rem 0.875rem; margin-bottom: 1rem;
+    background: var(--sapGroupContentBackground);
+    border: 1px solid var(--sapList_BorderColor);
+    border-radius: var(--sapElement_BorderCornerRadius);
+    box-shadow: var(--sapShadow);
+  }
+  .toolbar__age { font-size: 0.8125rem; color: var(--sapContentLabelColor); flex: 1 1 auto; }
+  .toolbar__auto { display: flex; align-items: center; gap: 0.375rem; font-size: 0.8125rem; color: var(--sapContentLabelColor); }
+
+  /* --- KPI bands ---------------------------------------------------------- */
+  .band { margin-bottom: 1.25rem; }
+  .band__title {
+    font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--sapContentLabelColor); margin: 0 0 0.5rem;
+  }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); gap: 0.75rem; }
   .kpi {
     background: var(--sapTileBackground); border: 1px solid var(--sapList_BorderColor);
     border-radius: var(--sapElement_BorderCornerRadius); box-shadow: var(--sapShadow);
@@ -19,6 +42,11 @@
   .kpi--positive .kpi__n { color: var(--sapPositiveColor); }
   .kpi--critical .kpi__n { color: var(--sapCriticalColor); }
   .kpi--negative .kpi__n { color: var(--sapNegativeColor); }
+  /* A KPI that is only interesting when it is non-zero gets a border when it
+     is, so "3 failures" is findable without reading all ten numbers. */
+  .kpi--alert { border-color: var(--sapNegativeColor); }
+
+  .stale { opacity: .55; transition: opacity .15s ease; }
 </style>
 </head>
 <body>
@@ -33,19 +61,50 @@
     <a href="../admin/">Admin</a>
     <a href="../dashboard/" aria-current="page">Monitoring</a>
   </nav>
-  <span class="fd-shellbar__user"><span id="stamp"></span></span>
 </div>
 
 <main class="fd-page">
 
-  <h2 class="fd-group-title">Overview</h2>
-  <div class="kpis" id="kpis"><div class="kpi"><div class="kpi__n">—</div><div class="kpi__k">loading</div></div></div>
+  <div class="toolbar">
+    <span class="toolbar__age" id="age">Loading…</span>
+    <label class="toolbar__auto">
+      <input type="checkbox" id="auto" /> Refresh every 30s
+    </label>
+    <button class="fd-button fd-button--transparent" id="refresh" type="button">Refresh</button>
+  </div>
+
+  <div id="alert"></div>
+
+  <div class="band">
+    <h2 class="band__title">Traffic</h2>
+    <div class="kpis" id="bandTraffic"><div class="kpi"><div class="kpi__n">—</div><div class="kpi__k">loading</div></div></div>
+  </div>
+
+  <div class="band">
+    <h2 class="band__title">Answer quality</h2>
+    <div class="kpis" id="bandQuality"></div>
+  </div>
+
+  <div class="band">
+    <h2 class="band__title">Needs attention</h2>
+    <div class="kpis" id="bandAttention"></div>
+  </div>
 
   <h2 class="fd-group-title">Quota headroom</h2>
-  <section class="fd-card"><div class="fd-card__content fd-scroll" id="headroom"><div class="fd-empty">loading…</div></div></section>
+  <section class="fd-card">
+    <div class="fd-card__header">
+      <p class="fd-card__subtitle">Who is close to their daily cap. A user at 100% stops getting answers.</p>
+    </div>
+    <div class="fd-card__content fd-scroll" id="headroom"><div class="fd-empty">loading…</div></div>
+  </section>
 
   <h2 class="fd-group-title">By business object</h2>
-  <section class="fd-card"><div class="fd-card__content fd-scroll" id="byobject"><div class="fd-empty">loading…</div></div></section>
+  <section class="fd-card">
+    <div class="fd-card__header">
+      <p class="fd-card__subtitle">Which S/4 objects the questions actually reach, and what each one costs.</p>
+    </div>
+    <div class="fd-card__content fd-scroll" id="byobject"><div class="fd-empty">loading…</div></div>
+  </section>
 
   <h2 class="fd-group-title">Where the time goes</h2>
   <section class="fd-card">
@@ -56,10 +115,20 @@
   </section>
 
   <h2 class="fd-group-title">Most asked</h2>
-  <section class="fd-card"><div class="fd-card__content fd-scroll" id="questions"><div class="fd-empty">loading…</div></div></section>
+  <section class="fd-card">
+    <div class="fd-card__header">
+      <p class="fd-card__subtitle">Repeated questions are candidates for the saved library, and for a longer cache TTL.</p>
+    </div>
+    <div class="fd-card__content fd-scroll" id="questions"><div class="fd-empty">loading…</div></div>
+  </section>
 
   <h2 class="fd-group-title">Failures</h2>
-  <section class="fd-card"><div class="fd-card__content fd-scroll" id="failures"><div class="fd-empty">loading…</div></div></section>
+  <section class="fd-card">
+    <div class="fd-card__header">
+      <p class="fd-card__subtitle">Grouped by message. A credential that expired shows up here first, and repeats.</p>
+    </div>
+    <div class="fd-card__content fd-scroll" id="failures"><div class="fd-empty">loading…</div></div>
+  </section>
 </main>
 
 <footer class="fd-footer">Aggregated from the audit, token and cache planes. This page owns no data of its own.</footer>
@@ -67,6 +136,7 @@
 <script>
 (() => {
   "use strict";
+  const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
     ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
   const num = (n) => (n == null ? "—" : Number(n).toLocaleString());
@@ -93,40 +163,69 @@
   const fail = (el, err) =>
     (el.innerHTML = `<div class="fd-message-strip fd-message-strip--error"><span>${esc(err.message)}</span></div>`);
 
+  const card = (t) =>
+    `<div class="kpi ${t.cls || ""}"><div class="kpi__n">${esc(t.n)}</div>
+     <div class="kpi__k">${esc(t.k)}</div>${t.note ? `<div class="kpi__note">${esc(t.note)}</div>` : ""}</div>`;
+
   async function loadOverview() {
-    const el = document.getElementById("kpis");
     try {
-      const o = await get("../../odata/dashboard/overview()");
+      const o = await get("/odata/dashboard/overview()");
       // Ratios only mean something once there is traffic. Showing 0% on an
       // empty system reads as a fault rather than as "nothing has happened".
       const seen = o.requestsTotal > 0;
-      const kpis = [
+
+      $("bandTraffic").innerHTML = [
         { n: num(o.requestsToday), k: "requests today", note: `${num(o.requestsTotal)} all time` },
         { n: num(o.tokensToday), k: "tokens today", note: `${num(o.tokensTotal)} all time` },
+        { n: ms(o.avgResponseMs) + " ms", k: "avg response" },
+        { n: num(o.activeUsers), k: "active users" },
+        { n: num(o.activeObjects), k: "active objects" },
+      ].map(card).join("");
+
+      $("bandQuality").innerHTML = [
         { n: seen ? o.cacheHitRatio + "%" : "—", k: "cache hit rate",
           cls: seen ? (o.cacheHitRatio >= 20 ? "kpi--positive" : "kpi--critical") : "",
-          note: seen ? "" : "no traffic yet" },
+          note: seen ? "answers served without calling S/4" : "no traffic yet" },
         { n: seen ? o.groundedRatio + "%" : "—", k: "grounded answers",
           cls: seen ? (o.groundedRatio >= 90 ? "kpi--positive" : "kpi--critical") : "",
           note: "of answered requests" },
-        { n: ms(o.avgResponseMs) + " ms", k: "avg response" },
-        { n: num(o.quotaDenials), k: "quota denials", cls: o.quotaDenials > 0 ? "kpi--critical" : "" },
-        { n: num(o.failures), k: "failures", cls: o.failures > 0 ? "kpi--negative" : "kpi--positive" },
-        { n: num(o.pendingApprovals), k: "awaiting approval", cls: o.pendingApprovals > 0 ? "kpi--critical" : "" },
-        { n: num(o.activeUsers), k: "active users" },
-        { n: num(o.activeObjects), k: "active objects" },
-      ];
-      el.innerHTML = kpis.map((t) =>
-        `<div class="kpi ${t.cls || ""}"><div class="kpi__n">${esc(t.n)}</div>
-         <div class="kpi__k">${esc(t.k)}</div>${t.note ? `<div class="kpi__note">${esc(t.note)}</div>` : ""}</div>`
-      ).join("");
-    } catch (e) { fail(el, e); }
+      ].map(card).join("");
+
+      // Three numbers that should all be zero. Marked when they are not, so
+      // this band is either quiet or obviously not.
+      $("bandAttention").innerHTML = [
+        { n: num(o.failures), k: "failures",
+          cls: o.failures > 0 ? "kpi--negative kpi--alert" : "kpi--positive",
+          note: o.failures > 0 ? "see Failures below" : "none recorded" },
+        { n: num(o.quotaDenials), k: "quota denials",
+          cls: o.quotaDenials > 0 ? "kpi--critical kpi--alert" : "",
+          note: o.quotaDenials > 0 ? "someone was refused an answer" : "" },
+        { n: num(o.pendingApprovals), k: "awaiting approval",
+          cls: o.pendingApprovals > 0 ? "kpi--critical kpi--alert" : "",
+          note: o.pendingApprovals > 0 ? "proposed writes nobody has decided" : "" },
+      ].map(card).join("");
+
+      // One line at the top, so the state of the system does not depend on
+      // reading ten tiles.
+      const trouble = [];
+      if (o.failures > 0) trouble.push(`${o.failures} failure${o.failures === 1 ? "" : "s"}`);
+      if (o.quotaDenials > 0) trouble.push(`${o.quotaDenials} quota denial${o.quotaDenials === 1 ? "" : "s"}`);
+      if (o.pendingApprovals > 0) trouble.push(`${o.pendingApprovals} approval${o.pendingApprovals === 1 ? "" : "s"} waiting`);
+      $("alert").innerHTML = trouble.length
+        ? `<div class="fd-message-strip fd-message-strip--warning" style="margin-bottom:1.25rem">
+             <span><span class="fd-message-strip__title">Needs a look:</span> ${esc(trouble.join(" · "))}</span></div>`
+        : "";
+      return true;
+    } catch (e) {
+      fail($("bandTraffic"), e);
+      return false;
+    }
   }
 
   async function loadHeadroom() {
-    const el = document.getElementById("headroom");
+    const el = $("headroom");
     try {
-      const rows = (await get("../../odata/dashboard/quotaHeadroom()")).value || [];
+      const rows = (await get("/odata/dashboard/quotaHeadroom()")).value || [];
       table(el, rows, [
         { key: "userID", label: "User" },
         { label: "Used today", num: true, render: (r) => num(r.usedDay) },
@@ -142,7 +241,7 @@
   }
 
   async function loadTable(id, path, columns, emptyText, sort) {
-    const el = document.getElementById(id);
+    const el = $(id);
     try {
       let rows = (await get(path)).value || [];
       if (sort) rows = rows.sort(sort);
@@ -150,44 +249,83 @@
     } catch (e) { fail(el, e); }
   }
 
-  (async () => {
-    document.getElementById("stamp").textContent = new Date().toLocaleTimeString();
-    await loadOverview();
-    await loadHeadroom();
+  // --- refresh -------------------------------------------------------------
 
-    await loadTable("byobject", "../../odata/dashboard/ByObject", [
-      { label: "Object", render: (r) => esc(r.objectCode || "(unresolved)") },
-      { label: "Requests", num: true, render: (r) => num(r.requests) },
-      { label: "Cache hits", num: true, render: (r) => num(r.cacheHits) },
-      { label: "Grounded", num: true, render: (r) => num(r.grounded) },
-      { label: "Tokens", num: true, render: (r) => num(r.tokens) },
-      { label: "Avg ms", num: true, render: (r) => ms(r.avgMs) },
-    ], "No requests recorded yet.", (a, b) => (b.requests || 0) - (a.requests || 0));
+  let loadedAt = null;
 
-    await loadTable("latency", "../../odata/dashboard/LatencySplit", [
-      { label: "Object", render: (r) => esc(r.objectCode || "(unresolved)") },
-      { label: "Samples", num: true, render: (r) => num(r.samples) },
-      { label: "S/4 ms", num: true, render: (r) => ms(r.avgBackendMs) },
-      { label: "Total ms", num: true, render: (r) => ms(r.avgTotalMs) },
-      { label: "Model share", render: (r) => {
-          const total = r.avgTotalMs || 0, backend = r.avgBackendMs || 0;
-          const share = total ? Math.round(((total - backend) / total) * 100) : 0;
-          return `<div class="fd-bar"><i style="width:${Math.max(0, Math.min(100, share))}%"></i></div>`;
-        } },
-    ], "No latency samples yet.");
+  function paintAge() {
+    if (!loadedAt) return;
+    const secs = Math.round((Date.now() - loadedAt) / 1000);
+    const when =
+      secs < 10 ? "just now"
+      : secs < 60 ? `${secs} seconds ago`
+      : secs < 3600 ? `${Math.round(secs / 60)} min ago`
+      : `${Math.round(secs / 3600)} h ago`;
+    $("age").textContent = `Updated ${when} · ${new Date(loadedAt).toLocaleTimeString()}`;
+    // Past a few minutes the numbers are history, not a monitor. Fading them
+    // is honest about that without hiding anything.
+    document.querySelectorAll(".kpis").forEach((k) => k.classList.toggle("stale", secs > 180));
+  }
 
-    await loadTable("questions", "../../odata/dashboard/TopQuestions", [
-      { key: "userQuery", label: "Question" },
-      { label: "Asked", num: true, render: (r) => num(r.asked) },
-      { label: "Tokens", num: true, render: (r) => num(r.tokens) },
-    ], "Nobody has asked anything yet.", (a, b) => (b.asked || 0) - (a.asked || 0));
+  async function loadAll() {
+    const btn = $("refresh");
+    btn.disabled = true;
+    try {
+      await loadOverview();
+      await loadHeadroom();
 
-    await loadTable("failures", "../../odata/dashboard/Failures", [
-      { key: "errorDetail", label: "Error" },
-      { label: "Times", num: true, render: (r) => num(r.occurrences) },
-      { label: "Last seen", render: (r) => esc(String(r.lastSeen || "").replace("T", " ").slice(0, 19)) },
-    ], "No failures recorded.");
-  })();
+      await loadTable("byobject", "/odata/dashboard/ByObject", [
+        { label: "Object", render: (r) => esc(r.objectCode || "(unresolved)") },
+        { label: "Requests", num: true, render: (r) => num(r.requests) },
+        { label: "Cache hits", num: true, render: (r) => num(r.cacheHits) },
+        { label: "Grounded", num: true, render: (r) => num(r.grounded) },
+        { label: "Tokens", num: true, render: (r) => num(r.tokens) },
+        { label: "Avg ms", num: true, render: (r) => ms(r.avgMs) },
+      ], "No requests recorded yet.", (a, b) => (b.requests || 0) - (a.requests || 0));
+
+      await loadTable("latency", "/odata/dashboard/LatencySplit", [
+        { label: "Object", render: (r) => esc(r.objectCode || "(unresolved)") },
+        { label: "Samples", num: true, render: (r) => num(r.samples) },
+        { label: "S/4 ms", num: true, render: (r) => ms(r.avgBackendMs) },
+        { label: "Total ms", num: true, render: (r) => ms(r.avgTotalMs) },
+        { label: "Model share", render: (r) => {
+            const total = r.avgTotalMs || 0, backend = r.avgBackendMs || 0;
+            const share = total ? Math.round(((total - backend) / total) * 100) : 0;
+            return `<div class="fd-bar"><i style="width:${Math.max(0, Math.min(100, share))}%"></i></div>`;
+          } },
+      ], "No latency samples yet.");
+
+      await loadTable("questions", "/odata/dashboard/TopQuestions", [
+        { key: "userQuery", label: "Question" },
+        { label: "Asked", num: true, render: (r) => num(r.asked) },
+        { label: "Tokens", num: true, render: (r) => num(r.tokens) },
+      ], "Nobody has asked anything yet.", (a, b) => (b.asked || 0) - (a.asked || 0));
+
+      await loadTable("failures", "/odata/dashboard/Failures", [
+        // Failure messages are now sentences rather than truncated HTML, so
+        // this column has to be allowed to wrap.
+        { label: "Error", render: (r) => `<span style="white-space:normal">${esc(r.errorDetail)}</span>` },
+        { label: "Times", num: true, render: (r) => num(r.occurrences) },
+        { label: "Last seen", render: (r) => esc(String(r.lastSeen || "").replace("T", " ").slice(0, 19)) },
+      ], "No failures recorded.");
+
+      loadedAt = Date.now();
+      paintAge();
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  $("refresh").addEventListener("click", loadAll);
+
+  let timer = null;
+  $("auto").addEventListener("change", (e) => {
+    clearInterval(timer);
+    timer = e.target.checked ? setInterval(loadAll, 30000) : null;
+  });
+
+  setInterval(paintAge, 5000);
+  loadAll();
 })();
 </script>
 </body>
