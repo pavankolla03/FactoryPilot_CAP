@@ -54,6 +54,26 @@ function errorDetailFrom(text) {
 }
 
 /**
+ * Did the request get *past* the credential check and fail deeper in?
+ *
+ * A gateway that rejects our key answers in its own structured error format.
+ * Anything that reached a backend system and was refused there comes back as
+ * that system's own sign-in page — HTML, usually in the backend's language,
+ * never JSON. The shape of the body is therefore the tell, and it is the only
+ * one available: the status code is 401 either way.
+ */
+function isUpstreamRejection(body) {
+  const text = String(body ?? '').trim()
+  if (!text.startsWith('<')) return false
+  try {
+    JSON.parse(text)
+    return false
+  } catch {
+    return true
+  }
+}
+
+/**
  * Turn a failed HTTP response into a sentence naming whose problem it is.
  *
  * The status code is the unambiguous part: 401 is a credential nobody renewed,
@@ -67,6 +87,25 @@ function httpFailure({ system, status, what, body, fix }) {
   const said = detail ? ` ${system} said: “${detail}”.` : ''
 
   if (status === 401 || status === 403) {
+    // Two different 401s wear the same status code, and they send you to
+    // opposite places.
+    //
+    // The API gateway refusing our key answers in its own JSON:
+    //   {"fault":{"faultstring":"Invalid ApiKey", …}}
+    // The gateway *accepting* the key and the system behind it refusing
+    // answers with that system's HTML login page — for S/4 on api.sap.com,
+    // "Anmeldung fehlgeschlagen". Telling someone to fetch a new key in the
+    // second case wastes their afternoon: their key is fine and a new one
+    // fails identically. That is not hypothetical — it is what happened here,
+    // and the same key was returning live rows from another sandbox at the
+    // time.
+    if (isUpstreamRejection(body)) {
+      return (
+        `${system} accepted our credential, but the system behind it refused the request (HTTP ${status})${where}. ` +
+        `This is not our key and not our configuration — the upstream system is rejecting sign-in. ` +
+        `Check whether that backend is available before replacing any credential.${said}`
+      )
+    }
     return `${system} rejected our credentials (HTTP ${status})${where}. ${
       fix || 'Check the credential this endpoint is configured to use.'
     }${said}`

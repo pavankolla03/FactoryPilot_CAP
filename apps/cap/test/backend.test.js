@@ -123,7 +123,15 @@ describe('what a failure says to the person reading it', () => {
     '<title>Anmeldung fehlgeschlagen</title><style>body { background: #ffffff; text-align: center; ' +
     'width:100%; height:100%; }</style></head><body><h1>Anmeldung fehlgeschlagen</h1></body></html>'
 
-  test('an expired Hub key names the key, not the login page', async () => {
+  test('the login page becomes a sentence, and never reaches the user as markup', async () => {
+    // This test used to assert that the message names SAP_HUB_API_KEY and
+    // sends the reader to api.sap.com for a replacement. That was wrong, and
+    // wrong in the expensive direction: an HTML login page means the gateway
+    // *accepted* the key and the system behind it refused. The advice sent
+    // someone after a new key while the one they had was returning live rows
+    // from another SAP sandbox. Naming the key belongs to the gateway-fault
+    // case, which has its own test above; what belongs here is that the
+    // markup is gone and the one meaningful phrase survives.
     stubFetch(text(HUB_401_HTML, 401))
     const hub = new backend.HubBackend({ baseUrl: 'https://h', apiKey: 'stale' })
     await assert.rejects(
@@ -131,13 +139,44 @@ describe('what a failure says to the person reading it', () => {
       (err) => {
         assert.equal(err.statusCode, 401)
         assert.doesNotMatch(err.message, /<html|<head|<meta|<style|charset=/i, 'markup must never reach the user')
-        assert.match(err.message, /SAP_HUB_API_KEY/, 'name the variable that has to change')
-        assert.match(err.message, /api\.sap\.com/, 'say where a new one comes from')
-        assert.match(err.message, /rejected our credentials/i)
         // The page title is the one part of an HTML body that carries meaning.
         assert.match(err.message, /Anmeldung fehlgeschlagen/)
         return true
       }
+    )
+  })
+
+  test('a key the gateway accepted is not reported as a bad key', async () => {
+    // Two 401s that mean opposite things. api.sap.com refuses an unknown key
+    // with its own JSON fault; a key it *accepts* is forwarded, and when the
+    // S/4 sandbox behind it refuses, the reply is that system's HTML login
+    // page. Both arrive as 401. Telling someone to fetch a new key in the
+    // second case sends them to api.sap.com for an afternoon — the key is
+    // fine, and a new one fails identically. Exactly what happened here: the
+    // same key was returning live rows from another SAP sandbox at the time.
+    stubFetch(text(HUB_401_HTML, 401))
+    const hub = new backend.HubBackend({ baseUrl: 'https://h', apiKey: 'a-perfectly-good-key' })
+    await assert.rejects(
+      () => hub.query({ entitySet: 'A_PurchaseOrder' }),
+      (err) => {
+        assert.match(err.message, /accepted our credential/i)
+        assert.match(err.message, /system behind it refused/i)
+        assert.doesNotMatch(err.message, /SAP_HUB_API_KEY/, 'do not send them after the key — it is not the key')
+        assert.doesNotMatch(err.message, /api\.sap\.com/, 'and not after a replacement for it')
+        return true
+      }
+    )
+  })
+
+  test('a key the gateway itself refuses still names the key', async () => {
+    stubFetch(text('{"fault":{"faultstring":"Invalid ApiKey","detail":{"errorcode":"oauth.v2.InvalidApiKey"}}}', 401))
+    const hub = new backend.HubBackend({ baseUrl: 'https://h', apiKey: 'nonsense' })
+    await assert.rejects(
+      () => hub.query({ entitySet: 'A_PurchaseOrder' }),
+      (err) =>
+        /rejected our credentials/i.test(err.message) &&
+        /SAP_HUB_API_KEY/.test(err.message) &&
+        /Invalid ApiKey/.test(err.message)
     )
   })
 
@@ -709,3 +748,4 @@ describe('IflowBackend', () => {
     }
   })
 })
+
