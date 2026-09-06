@@ -327,3 +327,86 @@ describe('caching in the request path', () => {
     assert.ok(total >= 2, 'lookups should be recorded')
   })
 })
+
+/**
+ * Where the cache decides Redis *is*.
+ *
+ * This resolver is the difference between a working shared cache and a silent
+ * degrade to in-process, and every branch here corresponds to a real hosting
+ * arrangement: a bound Cloud Foundry service, and a client running their own
+ * Redis on AWS, GCP or Azure and handing us a URL. The CA branch exists
+ * because managed Redis usually presents a private certificate, and when node
+ * cannot verify it the socket simply never opens — which reads as a connect
+ * timeout and sends you hunting for a network problem that is not there.
+ */
+describe('resolving where Redis is', () => {
+  const OWNED = ['REDIS_URL', 'VCAP_SERVICES', 'REDIS_CA_CERT']
+  let saved
+  beforeEach(() => {
+    saved = Object.fromEntries(OWNED.map((k) => [k, process.env[k]]))
+    for (const k of OWNED) delete process.env[k]
+  })
+  afterEach(() => {
+    for (const [k, v] of Object.entries(saved)) {
+      if (v === undefined) delete process.env[k]
+      else process.env[k] = v
+    }
+  })
+
+  test('nothing bound resolves to nothing, rather than a bad guess', () => {
+    assert.equal(cache.resolveRedis(), null)
+  })
+
+  test('REDIS_URL is how a client points us at their own cloud', () => {
+    process.env.REDIS_URL = 'rediss://:pw@my-cache.aws.example:6380'
+    const t = cache.resolveRedis()
+    assert.equal(t.host, 'my-cache.aws.example')
+    assert.equal(t.port, '6380')
+    assert.equal(t.tls, true)
+    assert.equal(t.source, 'REDIS_URL')
+  })
+
+  test('a bound Cloud Foundry service is found by its credentials', () => {
+    process.env.VCAP_SERVICES = JSON.stringify({
+      'redis-cache': [{ credentials: { uri: 'rediss://:pw@bound.example:6380' } }],
+    })
+    const t = cache.resolveRedis()
+    assert.equal(t.host, 'bound.example')
+    assert.equal(t.source, 'VCAP_SERVICES.redis-cache')
+  })
+
+  test('a binding without a uri is assembled from its parts, TLS included', () => {
+    process.env.VCAP_SERVICES = JSON.stringify({
+      redis: [{ credentials: { hostname: 'h.example', port: 6380, password: 'p w/special', tls: true } }],
+    })
+    const t = cache.resolveRedis()
+    assert.equal(t.tls, true)
+    assert.equal(t.host, 'h.example')
+    // A password with characters that mean something in a URL must survive.
+    assert.ok(t.url.includes(encodeURIComponent('p w/special')))
+  })
+
+  test("a binding's CA certificate is picked up so TLS can actually verify", () => {
+    process.env.VCAP_SERVICES = JSON.stringify({
+      redis: [{ credentials: { uri: 'rediss://:pw@h.example:6380', ca_certificate: '-----BEGIN CERTIFICATE-----x' } }],
+    })
+    assert.match(cache.resolveRedis().ca, /BEGIN CERTIFICATE/)
+  })
+
+  test('REDIS_CA_CERT supplies the CA when the binding carries none', () => {
+    process.env.REDIS_URL = 'rediss://:pw@h.example:6380'
+    process.env.REDIS_CA_CERT = '-----BEGIN CERTIFICATE-----y'
+    assert.match(cache.resolveRedis().ca, /BEGIN CERTIFICATE/)
+  })
+
+  test('an explicit REDIS_URL wins over a bound service', () => {
+    process.env.REDIS_URL = 'redis://chosen.example:6379'
+    process.env.VCAP_SERVICES = JSON.stringify({ redis: [{ credentials: { uri: 'rediss://:pw@bound.example:6380' } }] })
+    assert.equal(cache.resolveRedis().host, 'chosen.example')
+  })
+
+  test('malformed VCAP is ignored rather than thrown', () => {
+    process.env.VCAP_SERVICES = '{not json'
+    assert.equal(cache.resolveRedis(), null)
+  })
+})

@@ -14,6 +14,7 @@ const policy = require('./policy')
 
 const MAX_ROUNDS = 8
 
+
 // Rounds are also bounded by wall-clock, not just by count. MAX_ROUNDS alone
 // permits eight model calls plus their tool calls, which comfortably outlasts
 // any gateway: the approuter gives up at its destination timeout and the caller
@@ -46,6 +47,13 @@ function systemPrompt(businessObjects, defaults = {}) {
     // cannot be read, sorted or copied — and its numbers can disagree with the
     // table above it. One format, two renderings, no second source of truth.
     '9. When asked for a chart, graph, dashboard or visualisation, still answer with a normal markdown table — the interface draws it. Never attempt ASCII art. Put the label in the first column and the number in the second, and sort by the number, largest first.',
+    // Without this the model answers "why did stock drop?" with the current
+    // stock level — which is what was asked about, not what was asked. The
+    // eight-round loop has always been able to chain calls; nothing had ever
+    // told it that a causal question is the case for doing so.
+    '10. WHY questions need more than one call. If asked why something changed, dropped, rose or is late, do not answer from a single reading: look at what moved over the period (goods movements), then at what was expected (purchase orders, deliveries), and answer with the connection between them. Say plainly if the data does not explain it — a plausible story that the rows do not support is worse than "the movements do not account for this".',
+    '11. COMPARISONS need two calls. For "versus last week", "trend", "more or less than", call the same tool twice with two datePreset values and report both figures and the difference. Never infer a trend from one reading.',
+    '12. Use the widest datePreset the question implies: a single day for "today", a range for anything about a period, a change, or a cause.',
     '',
     'Registered business objects:',
     ...businessObjects.map((b) => `- ${b.objectCode}: ${b.objectName || ''} (${b.keywords || ''})`),
@@ -210,7 +218,6 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
   let rung = 0
   let active = providers[0]
   let degradedFrom = null
-
   // How long is left before the caller's gateway gives up on us. Every model
   // call is capped by it, and a new round is only started if there is room for
   // one — otherwise the loop runs on past the deadline, the gateway returns
@@ -234,6 +241,26 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
         // reaching here means even that failed and the run genuinely cannot
         // continue.
         if (rung >= providers.length - 1) throw err
+
+        // Walking one rung at a time costs a full model call each. That was
+        // affordable when the chain was two rungs; with a rung per model *per
+        // key* it is not, and a question whose tools are all failing walked the
+        // whole chain every round and overran the gateway — 145 seconds against
+        // a 75-second budget, which the user sees as a 504 rather than as the
+        // partial answer this budget exists to guarantee.
+        //
+        // So once there is not enough left for a real attempt, skip straight to
+        // the last rung. It is the offline provider: it answers immediately
+        // from whatever tool output already landed, which is exactly what
+        // should happen when time has run out.
+        if (timeLeft() < MIN_ROUND_MS) {
+          rung = providers.length - 1
+          active = providers[rung]
+          degradedFrom = degradedFrom ? `${degradedFrom}; ${failure}` : failure
+          console.warn(`[agent] ${failure} — out of time, going straight to ${active.name}`)
+          continue
+        }
+
         active = providers[++rung]
         degradedFrom = degradedFrom ? `${degradedFrom}; ${failure}` : failure
         console.warn(`[agent] ${failure} — trying ${active.name}`)
@@ -326,6 +353,7 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
 
       if (tools.isWriteTool(call.name)) {
         // Stop here. The write is described, costed and audited, but not done.
+        //
         const decision = await policy.shouldAutoApprove({
           userID,
           warehouseID: call.arguments?.warehouseID || defaults.warehouse,

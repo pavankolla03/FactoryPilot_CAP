@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="2.5 1.9 57.7 57.7" width="64" height="64" color="#16307C" role="img" aria-label="IntelliOps4">
+  <title>IntelliOps4</title>
+  <!--
+    The mark alone, on no plate. Structure is `currentColor` so one copy works
+    on a light page, on a dark page and on the brand tile; only the two accent
+    nodes carry a literal colour, chosen to hold contrast on both grounds.
+
+    `color` on the root is the standalone default. Opened as a file or dropped
+    into a document there is nothing to inherit from and `currentColor` would
+    resolve to black, which is not the brand — so the navy is stated here. When
+    inlining this into a page, DELETE that attribute: it is set on the element
+    itself and so beats any colour inherited from the host, which is the whole
+    mechanism the inline copies rely on.
+
+    Identical path data to logo.svg. The inlined copies live in the MARK
+    constant in insights/assets/chat.js and in the shellbar of each of the
+    three pages — inlined rather than referenced here so a reply never waits on
+    a second request that can fail on its own.
+  -->
+  <g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M53.79 38.4 A21.5 21.5 0 0 1 25.94 49.93 L15 53 L17.06 43.24 A21.5 21.5 0 1 1 55.42 31.87" stroke-width="4.6"/>
+    <path d="M6.5 22 V42" stroke-width="6"/>
+    <circle cx="25.5" cy="34" r="6.3" stroke-width="4"/>
+    <path d="M48 15 L40 35 H57" stroke-width="4.4"/>
+    <path d="M48 15 V46" stroke-width="4.4"/>
+    <path d="M29.95 29.55 L36.5 21.5" stroke-width="3.2" stroke="#3B9AF8"/>
+  </g>
+  <circle cx="38" cy="20" r="3.3" fill="#3B9AF8"/>
+  <circle cx="25.5" cy="34" r="2.6" fill="#3B9AF8"/>
+</svg>

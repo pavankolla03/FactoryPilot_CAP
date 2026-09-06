@@ -18,7 +18,7 @@ pass() { ok "$*"; PASS=$((PASS+1)); }
 fail() { _c '0;31' "  ✗ $*"; FAIL=$((FAIL+1)); }
 
 step "Applications"
-for app in factorypilot-srv factorypilot-approuter; do
+for app in factorypilot-srv intelliops4-approuter; do
   state=$(cf app "$app" 2>/dev/null | awk '/^#0/{print $2}')
   [ "$state" = "running" ] && pass "$app running" || fail "$app is '${state:-missing}'"
 done
@@ -41,7 +41,7 @@ cf service factorypilot-redis >/dev/null 2>&1 \
   || warn "no Redis — the in-process cache will be used (single instance only)"
 
 step "Endpoints"
-AR=$(cf app factorypilot-approuter 2>/dev/null | awk '/routes:/{print $2}')
+AR=$(cf app intelliops4-approuter 2>/dev/null | awk '/routes:/{print $2}')
 if [ -n "$AR" ]; then
   code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "https://$AR/insights/index.html")
   # 200 means the shell is served; 302/401 means auth is enforcing. Both prove

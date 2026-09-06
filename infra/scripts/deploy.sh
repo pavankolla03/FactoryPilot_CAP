@@ -32,7 +32,7 @@ cf deploy "$ARCHIVE" -f || warn "cf deploy reported a failure; checking actual a
 step "Verifying app state"
 sleep 5
 FAILED=0
-for app in factorypilot-srv factorypilot-approuter; do
+for app in factorypilot-srv intelliops4-approuter; do
   state=$(cf app "$app" 2>/dev/null | awk '/^#0/{print $2}')
   if [ "$state" = "running" ]; then
     ok "$app running"
@@ -43,5 +43,5 @@ for app in factorypilot-srv factorypilot-approuter; do
 done
 [ "$FAILED" -eq 0 ] || die "Applications are not healthy. Check: cf logs factorypilot-srv --recent"
 
-APPROUTER_URL=$(cf app factorypilot-approuter 2>/dev/null | awk '/routes:/{print $2}')
+APPROUTER_URL=$(cf app intelliops4-approuter 2>/dev/null | awk '/routes:/{print $2}')
 [ -n "$APPROUTER_URL" ] && ok "https://$APPROUTER_URL"

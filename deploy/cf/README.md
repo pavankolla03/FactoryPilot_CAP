@@ -2,7 +2,7 @@
 
 The deployable is the MTA at [`apps/cap/mta.yaml`](../../apps/cap/mta.yaml) —
 three modules (`factorypilot-srv`, `factorypilot-db-deployer`,
-`factorypilot-approuter`) against XSUAA, PostgreSQL and an optional Redis.
+`intelliops4-approuter`) against XSUAA, PostgreSQL and an optional Redis.
 
 ```bash
 cd apps/cap && mbt build -p=cf && cf deploy mta_archives/*.mtar

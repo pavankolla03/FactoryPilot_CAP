@@ -18,17 +18,60 @@ function toolNameFor(objectCode) {
 /** Fill {today}/{warehouse} style placeholders; drop a clause whose value is
  *  unknown rather than emitting `eq ''`, which returns zero rows and reads as
  *  a genuine empty result. */
+/**
+ * Turn a preset into the window it means.
+ *
+ * Single days and ranges are the same shape — `{from, to}` — so a filter
+ * template never has to care which kind of preset it was given. "today" is
+ * simply the range whose ends are equal, which is what keeps every existing
+ * template working unchanged.
+ *
+ * Weeks start on Monday: an operations week does, and a Sunday-start week puts
+ * "last week" one day out from what the person asking meant.
+ */
+function dateRange(preset, now = new Date()) {
+  const day = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  const shift = (d, n) => { const c = day(d); c.setDate(c.getDate() + n); return c }
+  const today = day(now)
+  // getDay(): 0 is Sunday. Monday-based offset.
+  const mondayOffset = (today.getDay() + 6) % 7
+  const thisMonday = shift(today, -mondayOffset)
+
+  switch (String(preset || 'today').toLowerCase()) {
+    case 'yesterday':    return { from: shift(today, -1), to: shift(today, -1) }
+    case 'tomorrow':     return { from: shift(today, 1),  to: shift(today, 1) }
+    case 'last_7_days':  return { from: shift(today, -6), to: today }
+    case 'last_30_days': return { from: shift(today, -29), to: today }
+    case 'this_week':    return { from: thisMonday, to: today }
+    case 'last_week':    return { from: shift(thisMonday, -7), to: shift(thisMonday, -1) }
+    case 'this_month':   return { from: new Date(today.getFullYear(), today.getMonth(), 1), to: today }
+    case 'last_month': {
+      const first = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+      return { from: first, to: new Date(today.getFullYear(), today.getMonth(), 0) }
+    }
+    default:             return { from: today, to: today }
+  }
+}
+
 function buildFilter(template, args, apiVersion, defaults = {}) {
   if (!template) return ''
   const preset = String(args.datePreset || 'today').toLowerCase()
-  const day = new Date()
-  if (preset === 'yesterday') day.setDate(day.getDate() - 1)
-  if (preset === 'tomorrow') day.setDate(day.getDate() + 1)
-  const isoDay = day.toISOString().slice(0, 10)
+  const { from, to } = dateRange(preset)
+  // Local date parts, not toISOString(): that converts to UTC first, so
+  // anywhere east of Greenwich "today" became tomorrow's date after 00:00 local
+  // and every same-day filter silently asked about the wrong day.
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const asDate = (d) => (apiVersion === 'v2' ? `datetime'${iso(d)}T00:00:00'` : iso(d))
+  const isoDay = iso(to)
 
   const values = {
-    today: apiVersion === 'v2' ? `datetime'${isoDay}T00:00:00'` : isoDay,
-    date: apiVersion === 'v2' ? `datetime'${isoDay}T00:00:00'` : isoDay,
+    // `today` and `date` remain the *end* of the window, which is identical to
+    // the old behaviour for the single-day presets every existing template uses.
+    today: asDate(to),
+    date: asDate(to),
+    // New, for templates that want a window rather than a day.
+    fromDate: asDate(from),
+    toDate: asDate(to),
     warehouse: args.warehouseID || defaults.warehouse || '',
     plant: args.plant || args.warehouseID || defaults.warehouse || '',
   }
@@ -90,7 +133,17 @@ function buildDefinitions(businessObjects) {
         type: 'object',
         properties: {
           warehouseID: { type: 'string', description: 'Shipping point / plant, e.g. 1000' },
-          datePreset: { type: 'string', enum: ['today', 'yesterday', 'tomorrow'], description: 'Which day to report on' },
+          // Ranges as well as days, so a question about *why* something
+          // changed can look at the period it changed over, and a comparison
+          // can call this tool twice with two presets. Without a window, every
+          // question was implicitly "right now", which cannot answer "why".
+          datePreset: {
+            type: 'string',
+            enum: ['today', 'yesterday', 'tomorrow', 'last_7_days', 'last_30_days',
+                   'this_week', 'last_week', 'this_month', 'last_month'],
+            description: 'Which period to report on. Use a range for trends, comparisons, ' +
+              'or when asked why something changed. Call this tool twice with two presets to compare periods.',
+          },
           // Without this the model has nowhere to put a material the user
           // named, so "how much stock of P123" silently reported every
           // material. Clauses referencing it are dropped when it is absent, so
@@ -180,15 +233,67 @@ async function executeRead(toolName, args, { businessObjects, defaults, correlat
 /** Apply an approved write. The mock backend has no write endpoint, so this
  *  records the intent and returns it — the ledger pattern the web app uses
  *  against the read-only sandbox. */
+/**
+ * Apply a confirmed write.
+ *
+ * Today nothing reaches SAP: the Business Accelerator Hub sandbox this tenant
+ * reads from is read-only, so there is no endpoint to post to. That is a fact
+ * about the environment, not a decision, and the important thing is that it is
+ * never *reported* as though the write had landed.
+ *
+ * So the result distinguishes two things that were previously one:
+ *
+ *   `applied`     the action was consumed and recorded — always true on success
+ *   `postedToSap` a goods movement actually reached a backend — false today
+ *
+ * They were a single `applied: true`, which combined with an answer beginning
+ * "— done." read as a completed posting to anyone who did not reach the end of
+ * the sentence. An operator who believes stock moved when it did not is a worse
+ * outcome than an operator who is told plainly that it did not.
+ *
+ * When a writable endpoint exists, this is where it plugs in: resolve it the
+ * way `executeRead` does, post, and set `postedToSap` from the response.
+ */
 async function executeWrite(toolName, args) {
   if (toolName !== 'move_stock') throw new backend.BackendError(`Unknown write tool: ${toolName}`, 400)
+
+  const { IntegrationEndpoint } = cds.entities('factorypilot.integration')
+  let writable = null
+  try {
+    writable = await SELECT.one.from(IntegrationEndpoint)
+      .where({ isActive: true, httpMethod: 'POST' })
+  } catch {
+    /* no endpoint table, or nothing configured — handled as "not posted" below */
+  }
+
+  if (!writable) {
+    return {
+      applied: true,
+      postedToSap: false,
+      toolName,
+      ...args,
+      note:
+        'Recorded here and audited, but NOT posted to SAP — no writable endpoint is configured, ' +
+        'and the Accelerator Hub sandbox this tenant reads from is read-only. ' +
+        'Stock in SAP is unchanged.',
+    }
+  }
+
+  // A writable endpoint is configured but posting is not implemented yet.
+  // Saying so is the only honest option: silently treating it as posted is the
+  // failure this whole module is arranged to prevent.
   return {
     applied: true,
+    postedToSap: false,
     toolName,
     ...args,
-    note: 'Recorded against the local ledger. The Hub sandbox is read-only; against a real tenant this posts a goods movement.',
+    note:
+      `Recorded here and audited, but NOT posted to SAP. A writable endpoint ` +
+      `("${writable.name}") is configured; posting through it is not implemented yet. ` +
+      'Stock in SAP is unchanged.',
   }
 }
 
 module.exports = {
-  buildExpand, toolNameFor, buildDefinitions, buildFilter, isWriteTool, executeRead, executeWrite, WRITE_TOOLS }
+  buildExpand, toolNameFor, buildDefinitions, buildFilter, dateRange,
+  isWriteTool, executeRead, executeWrite, WRITE_TOOLS }

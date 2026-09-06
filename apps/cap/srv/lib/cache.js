@@ -57,18 +57,63 @@ function degrade(reason) {
   }
 }
 
-function redisUrlFromEnv() {
-  // Bound Redis on CF arrives in VCAP_SERVICES; locally REDIS_URL is enough.
-  if (process.env.REDIS_URL) return process.env.REDIS_URL
+/**
+ * Split a Redis URL into the parts worth logging — never the password.
+ *
+ * "Where was it even trying to connect?" is the first question asked about
+ * every cache failure, and until this existed the log could not answer it.
+ */
+function describeEndpoint(url, extra = {}) {
+  let host = '(unparseable)'
+  let port = ''
+  let tls = false
+  try {
+    const u = new URL(url)
+    host = u.hostname
+    port = u.port || '6379'
+    tls = u.protocol === 'rediss:'
+  } catch {
+    /* an unusable URL is reported as such rather than crashing the resolver */
+  }
+  return { url, host, port, tls, ...extra }
+}
+
+/**
+ * Where Redis is and how to speak to it, or null when nothing is bound.
+ *
+ * Three sources, in order of how explicit they are: `REDIS_URL` (which is also
+ * how a client points the product at Redis on AWS, GCP or Azure rather than a
+ * BTP service), then a bound Cloud Foundry service in `VCAP_SERVICES`, then
+ * nothing.
+ *
+ * The CA matters. Managed Redis — ElastiCache, Memorystore, Azure Cache, and
+ * SAP's own offering — commonly presents a certificate signed by a private CA
+ * that is not in the public trust store. Node then fails the handshake, and
+ * because the socket never finishes opening the symptom is a connect timeout
+ * rather than a certificate error, which sends you looking at the wrong thing
+ * entirely. If the binding carries a CA we trust that CA specifically, which
+ * is the fix; `REDIS_TLS_REJECT_UNAUTHORIZED=0` is the blunt escape hatch and
+ * is deliberately not the default.
+ */
+function resolveRedis() {
+  const envCa = process.env.REDIS_CA_CERT || undefined
+  if (process.env.REDIS_URL) {
+    return describeEndpoint(process.env.REDIS_URL, { ca: envCa, source: 'REDIS_URL' })
+  }
   try {
     const vcap = JSON.parse(process.env.VCAP_SERVICES || '{}')
-    for (const instances of Object.values(vcap)) {
-      for (const inst of instances) {
+    for (const [label, instances] of Object.entries(vcap)) {
+      for (const inst of instances || []) {
         const c = inst.credentials || {}
-        if (c.uri && /^rediss?:/.test(c.uri)) return c.uri
+        const ca = c.ca_certificate || c.tls_ca || c.cluster_ca_certificate || envCa
+        const source = `VCAP_SERVICES.${label}`
+        if (c.uri && /^rediss?:/.test(c.uri)) return describeEndpoint(c.uri, { ca, source })
         if (c.hostname && c.port && c.password) {
           const scheme = c.tls || c.ssl ? 'rediss' : 'redis'
-          return `${scheme}://:${encodeURIComponent(c.password)}@${c.hostname}:${c.port}`
+          return describeEndpoint(
+            `${scheme}://:${encodeURIComponent(c.password)}@${c.hostname}:${c.port}`,
+            { ca, source }
+          )
         }
       }
     }
@@ -86,16 +131,26 @@ async function init() {
 }
 
 async function connect() {
-  const url = redisUrlFromEnv()
-  if (!url) {
+  const target = resolveRedis()
+  if (!target) {
     givenUp = true
     cds.log('cache').info('no Redis bound — using in-process cache (single instance only)')
     return
   }
+  // Stated before the attempt, not after: when the attempt hangs, this line is
+  // the only evidence of what it was reaching for.
+  cds.log('cache').info(
+    `connecting to redis ${target.host}:${target.port} ` +
+      `(${target.tls ? 'TLS' : 'plaintext'}${target.ca ? ', pinned CA' : ''}, from ${target.source})`
+  )
+  // The socket's own error is far more specific than the timeout that follows
+  // it — ENOTFOUND, ECONNREFUSED, a certificate rejection, WRONGPASS — so keep
+  // the first one to report as the cause.
+  let firstSocketError = null
   try {
     const redis = require('redis')
     const c = redis.createClient({
-      url,
+      url: target.url,
       // Without this, a command issued while the socket is down is *queued*
       // rather than rejected (see @redis/client sendCommand: it only rejects
       // when the client is closed, or offline with the queue disabled). Since
@@ -108,6 +163,15 @@ async function connect() {
       pingInterval: 30000,
       socket: {
         connectTimeout: CONNECT_TIMEOUT_MS,
+        ...(target.tls
+          ? {
+              tls: true,
+              ...(target.ca ? { ca: [target.ca] } : {}),
+              ...(process.env.REDIS_TLS_REJECT_UNAUTHORIZED === '0'
+                ? { rejectUnauthorized: false }
+                : {}),
+            }
+          : {}),
         reconnectStrategy: (attempts) => {
           if (attempts > MAX_RECONNECTS) {
             degrade(`gave up after ${attempts} reconnect attempts`)
@@ -120,6 +184,7 @@ async function connect() {
     // One dead socket otherwise produces an unbounded stream of identical
     // warnings, which buries everything else in the log.
     c.on('error', (err) => {
+      if (!firstSocketError) firstSocketError = err
       socketErrors++
       if (socketErrors <= 3) cds.log('cache').warn('redis error:', err.message)
       else if (socketErrors === 4) cds.log('cache').warn('redis error: further socket errors suppressed')
@@ -132,7 +197,13 @@ async function connect() {
   } catch (err) {
     // A cache is an optimisation. Losing it must never take the app down, and
     // must not cost every later request another connect attempt either.
-    degrade(err.message)
+    //
+    // Report the socket's error alongside the timeout. "redis connect timed out
+    // after 4000ms" is true and useless: it is the same sentence whether the
+    // hostname does not resolve, the port is closed, the TLS certificate was
+    // rejected or the password is wrong — four problems with four different
+    // fixes, and no way to tell them apart from the log.
+    degrade(firstSocketError ? `${err.message} — socket reported: ${firstSocketError.message}` : err.message)
   }
 }
 
@@ -348,6 +419,7 @@ async function close() {
 module.exports = {
   init, get, set, purge, resolvePolicy, buildKey, effectiveTtl,
   normaliseQuestion, subjectFor, secondsUntilMidnight, isDateBound, recordStat, close,
+  resolveRedis,
   get backend() { return backend },
   _memory: memory,
   /**

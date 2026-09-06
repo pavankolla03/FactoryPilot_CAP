@@ -165,7 +165,7 @@ Nothing below blocks the **offline** demo. It is all for the deployed one.
 
 - Subaccount `674521f2trial`, org `674521f2trial`, space `dev`
 - API endpoint `https://api.cf.us10-003.hana.ondemand.com`
-- Apps: `factorypilot-srv`, `factorypilot-approuter`
+- Apps: `factorypilot-srv`, `intelliops4-approuter`
 - Role collections: `FactoryPilot_Administrator`, `FactoryPilot_ConfigAdmin`,
   `FactoryPilot_ReadOnly`, `FactoryPilot_BusinessUser`
 - Fixtures are **generated, not captured** — see the `_synthetic` block in each

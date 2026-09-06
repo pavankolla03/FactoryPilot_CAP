@@ -1,17 +1,41 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="FactoryPilot">
-  <title>FactoryPilot</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="IntelliOps4">
+  <title>IntelliOps4</title>
   <!--
-    Two ideas, one mark: the sawtooth roofline of a factory, and above it the
-    navigator's chevron that makes it a *pilot* rather than a dashboard.
+    The app icon: the mark in white on the brand gradient plate.
 
-    Drawn on a 32-unit grid with the roofline teeth on whole units, because the
-    mark is used at 24px in the shellbar and 26px as a chat avatar — at that
-    size a half-unit offset reads as a blurred edge, not as a detail.
-    `currentColor` on the plate lets one file sit on the brand tile in the
-    shellbar and on a tinted circle in the thread.
+    Self-contained on purpose — this file is the favicon and the tile, so it is
+    loaded as an image and cannot inherit anything from the page. Its twin,
+    logo-mark.svg, draws the same geometry in `currentColor` for use inline.
+    Change one and change the other; the path data is identical between them.
+
+    Reading left to right the mark is I · O · 4 inside a speech bubble: the
+    product name, the numeral people repeat (S/4), and the fact that you talk
+    to it. The ring is a node with a trace running to a second node — one
+    intelligence sitting between the question and the systems underneath.
+
+    Strokes rather than filled glyphs, so weight stays even at any size and
+    nothing depends on a font being installed. Geometry sits on a 64 grid and
+    was checked by rasterising at 16, 20, 24, 32, 48, 96 and 160px: below about
+    20px the I and the ring merge, which is why the 4 carries the identity at
+    shellbar size.
   -->
-  <rect width="32" height="32" rx="7.5" fill="currentColor"/>
-  <path d="M16 5 20.4 10.2 11.6 10.2 Z" fill="#fff"/>
-  <path d="M7 25 V17.5 L11 20 V17.5 L15 20 V17.5 L19 20 V15 H25 V25 Z"
-        fill="#fff" fill-opacity=".88"/>
+  <defs>
+    <linearGradient id="io4-plate" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#12307E"/>
+      <stop offset="1" stop-color="#2E86F0"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#io4-plate)"/>
+  <g transform="translate(32 32) scale(.85) translate(-31.35 -30.75)">
+    <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M53.79 38.4 A21.5 21.5 0 0 1 25.94 49.93 L15 53 L17.06 43.24 A21.5 21.5 0 1 1 55.42 31.87" stroke-width="4.6"/>
+      <path d="M6.5 22 V42" stroke-width="6"/>
+      <circle cx="25.5" cy="34" r="6.3" stroke-width="4"/>
+      <path d="M48 15 L40 35 H57" stroke-width="4.4"/>
+      <path d="M48 15 V46" stroke-width="4.4"/>
+      <path d="M29.95 29.55 L36.5 21.5" stroke-width="3.2" stroke="#8CC8FF"/>
+    </g>
+    <circle cx="38" cy="20" r="3.3" fill="#8CC8FF"/>
+    <circle cx="25.5" cy="34" r="2.6" fill="#8CC8FF"/>
+  </g>
 </svg>

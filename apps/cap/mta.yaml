@@ -66,7 +66,7 @@ modules:
   # ---------------------------------------------------------------------------
   # SSO front door. Everything the browser touches goes through here.
   # ---------------------------------------------------------------------------
-  - name: factorypilot-approuter
+  - name: intelliops4-approuter
     type: nodejs
     path: app/router
     parameters:

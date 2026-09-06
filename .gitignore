@@ -76,3 +76,6 @@ mta_archives/
 
 # Generated knowledge graph — rebuilt by `graphify update .`, never reviewed as source.
 graphify-out/
+
+# Session-local Claude Code config (permissions, task state) — not project code.
+.claude/

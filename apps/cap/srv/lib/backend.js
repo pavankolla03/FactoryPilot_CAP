@@ -241,6 +241,14 @@ class GraphBackend {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: 'application/json',
+          // Graph authenticates *us*, but it still has to authenticate itself
+          // to whatever sits behind each of its origin systems. On this tenant
+          // those are api.sap.com sandboxes, which want an APIKey — and Graph
+          // does not hold one, it forwards ours. Without this header Graph
+          // answers 401 with "Please provide a valid apikey header", which
+          // reads like our OAuth failed when in fact the token was fine and
+          // the hop *after* Graph is the one that was refused.
+          ...(process.env.SAP_HUB_API_KEY && { APIKey: process.env.SAP_HUB_API_KEY }),
           ...(correlationId && { 'X-Correlation-ID': correlationId }),
         },
         signal: controller.signal,

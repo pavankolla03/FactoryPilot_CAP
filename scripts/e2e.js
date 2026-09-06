@@ -90,10 +90,18 @@ async function scenario(name, fn) {
 
 const assert = (cond, message) => { if (!cond) throw new Error(message) }
 
+/** `metrics` arrives as a JSON string on some paths and an object on others. */
+function safeMeta(json) {
+  const m = json?.metadata ?? json?.metrics
+  if (!m) return null
+  if (typeof m === 'object') return m
+  try { return JSON.parse(m) } catch { return null }
+}
+
 // ---------------------------------------------------------------------------
 
 async function main() {
-  console.log(`\nFactoryPilot end-to-end — ${BASE}`)
+  console.log(`\nIntelliOps4 end-to-end — ${BASE}`)
   console.log(`${DIM}auth: ${TOKEN ? 'bearer token' : USER ? `basic (${USER})` : 'none (expects an unsecured or dummy-auth instance)'}${OFF}\n`)
 
   let demoMode = null
@@ -180,14 +188,20 @@ async function main() {
     return `card: ${res.json.pendingAction.summary || actionID}`
   })
 
-  await scenario('approving the write applies it', async () => {
+  await scenario('approving the write consumes it, and says what it did and did not do', async () => {
     if (!actionID) return 'SKIP: no confirmation card from the previous scenario'
     const res = await http('POST', '/insights/confirmAction', { actionID, approve: true })
     assert(res.ok, `HTTP ${res.status}: ${res.text.slice(0, 160)}`)
     assert(res.json.status === 'SUCCESS',
       `${res.json.errorCode || res.json.status}: ${res.json.message || ''}` +
       (res.json.errorCode === 'SCOPE_DENIED' ? ' — this caller has no write scope on warehouse 1000' : ''))
-    return `${(res.json.answer || '').slice(0, 70)}…`
+    // Nothing currently posts to SAP — the Hub sandbox is read-only. The one
+    // thing that must never happen is reporting it as though it had, so assert
+    // on the honesty rather than only on the status.
+    const answer = res.json.answer || ''
+    assert(/not posted to SAP|posts a goods movement|unchanged/i.test(answer),
+      `the answer should say whether SAP was actually changed — got: ${answer.slice(0, 120)}`)
+    return `${answer.slice(0, 70)}…`
   })
 
   await scenario('the same approval cannot be replayed', async () => {
@@ -239,6 +253,7 @@ async function main() {
       `nothing was grounded, yet the run reported ${res.json.status}`)
     return `reported honestly as ${res.json.status}`
   })
+
 
   // --- report ---------------------------------------------------------------
 

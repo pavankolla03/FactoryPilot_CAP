@@ -59,11 +59,26 @@ async function getToken(endpoint, { force = false } = {}) {
       signal: controller.signal,
     })
   } catch (err) {
-    throw new OAuthError(
+    // fetch() reports every network problem as the same flat "fetch failed",
+    // and puts the part that identifies it — ENOTFOUND, ECONNREFUSED, a
+    // certificate rejection — on err.cause. Reporting only err.message made
+    // every OAuth failure in the product look identical, whether the token host
+    // was misspelt, unreachable, or presenting a certificate we do not trust.
+    // Walk the chain and name the actual cause; keep the original on `cause`
+    // so a caller can still inspect it.
+    const chain = new Set()
+    for (let e = err; e; e = e.cause) {
+      if (e.code) chain.add(e.code)
+      else if (e.message && e.message !== 'fetch failed') chain.add(e.message)
+    }
+    const detail = chain.size ? [...chain].join(': ') : err.message
+    const oauthErr = new OAuthError(
       err.name === 'AbortError'
         ? `Token request timed out after ${endpoint.timeoutMs || 15000}ms`
-        : `Token request failed: ${err.message}`
+        : `Token request to ${endpoint.tokenUrl} failed: ${detail}`
     )
+    oauthErr.cause = err
+    throw oauthErr
   } finally {
     clearTimeout(timer)
   }

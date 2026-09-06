@@ -25,6 +25,40 @@
     ["Which physical inventory counts are still open?", "1710"],
   ];
 
+  // A vetted library, offered instead of typed. (BETA)
+  //
+  // Falls back to SUGGESTIONS until this loads (or if it never does), so the
+  // welcome screen is never empty on first paint waiting on a network call.
+  let savedQuestions = null;    // null = not loaded yet; [] = loaded, none to offer
+  let scopesCache = null;
+
+  async function myScopes() {
+    if (scopesCache) return scopesCache;
+    try {
+      const res = await fetch("../../insights/whoami()");
+      const body = res.ok ? JSON.parse((await res.json()).value ?? "{}") : {};
+      scopesCache = Array.isArray(body.scopes) ? body.scopes : [];
+    } catch { scopesCache = []; }
+    return scopesCache;
+  }
+
+  async function loadSavedQuestions() {
+    try {
+      const scopes = await myScopes();
+      const res = await fetch(
+        "../../odata/config/SavedQuestions?$filter=isActive eq true&$orderby=sortOrder asc" +
+        "&$select=ID,title,question,warehouseID,forRole&$top=50");
+      const rows = res.ok ? (await res.json()).value || [] : [];
+      // Empty forRole means everyone; otherwise it must name a scope this
+      // sign-in actually holds — a question aimed at Procurement should not
+      // clutter the welcome screen of someone who cannot act on it.
+      savedQuestions = rows.filter((r) => !r.forRole || scopes.includes(r.forRole));
+    } catch { savedQuestions = []; }
+    // Only repaint if still looking at the welcome screen — a question asked
+    // while this was loading must not be interrupted by a suggestions redraw.
+    if (threadEl.querySelector(".welcome")) welcome();
+  }
+
   // --- CSRF ---------------------------------------------------------------
   // The approuter rejects a POST without a token, before it ever reaches the
   // service. Locally there is no approuter and no token is issued, so the
@@ -220,14 +254,31 @@
   }
 
   // Inlined rather than fetched: it appears on every reply, and an <img> would
-  // be a second request that can fail independently of the page.
+  // be a second request that can fail independently of the page. Kept identical
+  // to shared/logo-mark.svg — that file is the reference copy.
+  //
+  // The trailing `io-orbit` path is a second tracing of the speech bubble,
+  // invisible until the mark is inside .thinking. Carrying it on every mark
+  // costs one hidden path and means the waiting state is a CSS class rather
+  // than a different piece of markup swapped in and out mid-turn.
+  const BUBBLE =
+    "M53.79 38.4 A21.5 21.5 0 0 1 25.94 49.93 L15 53 L17.06 43.24 A21.5 21.5 0 1 1 55.42 31.87";
   const MARK =
-    '<span class="turn__mark" aria-hidden="true"><svg viewBox="0 0 32 32">' +
-    '<path d="M16 5 20.4 10.2 11.6 10.2 Z" fill="currentColor"/>' +
-    '<path d="M7 25 V17.5 L11 20 V17.5 L15 20 V17.5 L19 20 V15 H25 V25 Z" fill="currentColor" fill-opacity=".88"/>' +
+    '<span class="turn__mark" aria-hidden="true"><svg viewBox="2.5 1.9 57.7 57.7">' +
+    '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">' +
+    `<path class="io-bubble" d="${BUBBLE}" stroke-width="4.6"/>` +
+    '<path d="M6.5 22 V42" stroke-width="6"/>' +
+    '<circle cx="25.5" cy="34" r="6.3" stroke-width="4"/>' +
+    '<path d="M48 15 L40 35 H57" stroke-width="4.4"/>' +
+    '<path d="M48 15 V46" stroke-width="4.4"/>' +
+    '<path class="io-accent-s" d="M29.95 29.55 L36.5 21.5" stroke-width="3.2" stroke="#3B9AF8"/>' +
+    `<path class="io-orbit" pathLength="100" d="${BUBBLE}" stroke-width="4.6"/>` +
+    "</g>" +
+    '<circle class="io-accent-f io-node" cx="38" cy="20" r="3.3" fill="#3B9AF8"/>' +
+    '<circle class="io-accent-f" cx="25.5" cy="34" r="2.6" fill="#3B9AF8"/>' +
     "</svg></span>";
 
-  const who = () => `<div class="turn__who">${MARK}<span class="turn__role">FactoryPilot</span></div>`;
+  const who = () => `<div class="turn__who">${MARK}<span class="turn__role">IntelliOps4</span></div>`;
 
   /**
    * The stages a question actually passes through, in order.
@@ -308,20 +359,7 @@
     return `<div class="badges">${b.join("")}</div>`;
   }
 
-  function welcome() {
-    threadEl.innerHTML = "";
-    inner().innerHTML =
-      '<div class="welcome"><h2>Ask about your operational data</h2>' +
-      "<p>Stock, goods movements, physical inventory, deliveries and purchase orders — " +
-      "answered from live S/4HANA. Ask for a write and it stops for your confirmation.</p>" +
-      '<div class="suggest">' +
-      SUGGESTIONS.map(([q, w]) => `<button data-q="${esc(q)}" data-w="${esc(w)}">${esc(q)}</button>`).join("") +
-      "</div></div>";
-    inner().querySelectorAll(".suggest button").forEach((btn) =>
-      btn.addEventListener("click", () => { whEl.value = btn.dataset.w; ask(btn.dataset.q); }));
-  }
-
-  /**
+    /**
    * Which view to open on.
    *
    * Asking "show me a chart" and getting a table is the system ignoring you.
@@ -701,4 +739,5 @@
   welcome();
   refreshUsage();
   loadSessions();
+  loadSavedQuestions();
 })();

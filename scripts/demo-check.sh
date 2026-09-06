@@ -185,7 +185,7 @@ if [ "$REMOTE" -eq 1 ]; then
     fail "not logged in to Cloud Foundry" "cf login --sso -a https://api.cf.us10-003.hana.ondemand.com"
   else
     pass "cf target: $(cf target | awk -F': +' '/^org|^space/{printf "%s ", $2}')"
-    for app in factorypilot-srv factorypilot-approuter; do
+    for app in factorypilot-srv intelliops4-approuter; do
       state=$(cf app "$app" 2>/dev/null | awk '/^#0/{print $2}')
       [ "$state" = "running" ] && pass "$app running" || fail "$app is '${state:-not found}'" "cf logs $app --recent"
     done

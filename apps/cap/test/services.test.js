@@ -255,7 +255,7 @@ describe('a data question that got no lookup is asked once more', () => {
       name: 'stub',
       complete: async () => {
         asked++
-        return { text: 'Hello — I am FactoryPilot.', toolCalls: [], promptTokens: 1, completionTokens: 1, totalTokens: 2, isEstimated: false }
+        return { text: 'Hello — I am IntelliOps4.', toolCalls: [], promptTokens: 1, completionTokens: 1, totalTokens: 2, isEstimated: false }
       },
     }
     const real = llm.getProviderChain

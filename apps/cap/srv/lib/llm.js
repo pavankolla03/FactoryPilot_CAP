@@ -9,12 +9,81 @@ const oauth = require('./oauth')
 
 class LLMError extends Error {}
 
+// --- OpenRouter keys ---------------------------------------------------------
+
+/**
+ * Every OpenRouter key this deployment may use, best first.
+ *
+ * More than one because the free tier is metered *per account per day*: a
+ * second key is a second day's allowance, and on a demo day that is the
+ * difference between answering and falling through to the offline provider at
+ * the worst possible moment. Set `OPENROUTER_API_KEY` and
+ * `OPENROUTER_API_KEY_2` (further keys as `_3`, `_4`, …), or list them all
+ * comma-separated in `OPENROUTER_API_KEYS`.
+ */
+function openRouterKeys() {
+  const listed = String(process.env.OPENROUTER_API_KEYS || '')
+    .split(',')
+    .map((k) => k.trim())
+  const numbered = [process.env.OPENROUTER_API_KEY]
+  for (let i = 2; i <= 8; i++) numbered.push(process.env[`OPENROUTER_API_KEY_${i}`])
+  return [...numbered, ...listed].map((k) => (k || '').trim()).filter(Boolean)
+}
+
+/**
+ * Keys known to be out of quota, and when they are worth trying again.
+ *
+ * A key that answered 429 once will answer 429 for every model behind it, so
+ * without this each question pays one dead round trip per model per key before
+ * reaching a rung that works. OpenRouter's free allowance resets daily, so the
+ * cooldown runs to the next UTC midnight.
+ *
+ * Held in process rather than in the database on purpose: it is a cache of an
+ * observation, not a fact worth surviving a restart, and a restart is exactly
+ * when it is worth re-checking.
+ */
+const keyCooldown = new Map()
+
+/** Never log a key. Enough to tell two apart in a log line, and no more. */
+const keyLabel = (key) => `…${String(key).slice(-4)}`
+
+function nextUtcMidnight(now = Date.now()) {
+  const d = new Date(now)
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1)
+}
+
+function markKeyExhausted(key) {
+  const until = nextUtcMidnight()
+  keyCooldown.set(key, until)
+  warnOnce(
+    `[llm] OpenRouter key ${keyLabel(key)} is out of free quota — skipping it until ` +
+      `${new Date(until).toISOString()}. Remaining keys: ${openRouterKeys().length - 1}.`
+  )
+}
+
+const keyIsCooling = (key) => (keyCooldown.get(key) || 0) > Date.now()
+
+/**
+ * The keys worth trying right now.
+ *
+ * If *every* key is cooling we return them all anyway. A cooldown is an
+ * inference from one failed response, and a wrong one must never be able to
+ * take the product offline for the rest of the day — better to spend one
+ * failed request discovering the key works than to refuse every question.
+ */
+function usableOpenRouterKeys() {
+  const all = openRouterKeys()
+  const live = all.filter((k) => !keyIsCooling(k))
+  return live.length ? live : all
+}
+
 /** OpenRouter chat-completions with tool calling. */
 class OpenRouterProvider {
   constructor({ apiKey, baseUrl = 'https://openrouter.ai/api/v1', model, timeoutMs = 30000 }) {
     if (!apiKey) throw new LLMError('OPENROUTER_API_KEY is not set')
     Object.assign(this, { apiKey, baseUrl: baseUrl.replace(/\/$/, ''), model, timeoutMs })
     this.name = 'openrouter'
+    this.keyLabel = keyLabel(apiKey)
   }
 
   async complete({ messages, tools, model, maxTokens = 800, temperature = 0.2, timeoutMs }) {
@@ -53,7 +122,7 @@ class OpenRouterProvider {
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
-          'X-Title': 'FactoryPilot',
+          'X-Title': 'IntelliOps4',
         },
         body: JSON.stringify(body),
         signal: controller.signal,
@@ -66,7 +135,18 @@ class OpenRouterProvider {
       clearTimeout(timer)
     }
 
-    if (!res.ok) throw new LLMError(`OpenRouter returned ${res.status}: ${(await res.text()).slice(0, 300)}`)
+    if (!res.ok) {
+      const detail = (await res.text()).slice(0, 300)
+      const err = new LLMError(`OpenRouter returned ${res.status} on key ${this.keyLabel}: ${detail}`)
+      // 402 is OpenRouter's "no credits", 429 its rate/quota limit. Either way
+      // this key is done for the day, and so is every other model behind it —
+      // record that so the next rung is not another dead call on the same key.
+      if (res.status === 429 || res.status === 402 || /rate.?limit|quota|credits?\b/i.test(detail)) {
+        err.quotaExhausted = true
+        markKeyExhausted(this.apiKey)
+      }
+      throw err
+    }
 
     return parseCompletion(await res.json(), { provider: this.name, model: body.model, vendor: 'OpenRouter' })
   }
@@ -470,7 +550,9 @@ function inferArgs(question, tool, original = question) {
       question.match(/\b(\d+(?:\.\d+)?)\s*(?:units?|pcs|pieces|ea\b|kg\b|litres?|l\b)/i)?.[1] ||
       question.match(/\bmove\s+(\d+(?:\.\d+)?)\b/i)?.[1] ||
       question.match(/\btransfer\s+(\d+(?:\.\d+)?)\b/i)?.[1]
-    if (stated) args.quantity = Number(stated)
+    if (stated) {
+      args.quantity = Number(stated)
+    }
   }
 
   if ('materialID' in props) {
@@ -505,6 +587,7 @@ function summarise(raw) {
   // which is a different and much more expensive statement than "I could
   // not check".
   if (parsed?.error) return `I could not reach the source system, so I have no data to answer that: ${parsed.error}`
+
   const rows = Array.isArray(parsed?.rows) ? parsed.rows : Array.isArray(parsed) ? parsed : []
 
   if (!rows.length) {
@@ -738,6 +821,32 @@ function getProvider(route = {}) {
 const DEFAULT_OPENROUTER_MODEL = 'nvidia/nemotron-3.5-lightning:free'
 
 /**
+ * Drop anything that is not a `:free` variant.
+ *
+ * OpenRouter bills the same model id with and without the suffix, and the
+ * difference is one word in a config field an administrator edits in a browser.
+ * A typo there is a silent bill, so the filter is here rather than in a review
+ * checklist. `OPENROUTER_ALLOW_PAID=1` is the deliberate way out.
+ *
+ * If filtering leaves nothing the default free model stands in — refusing to
+ * answer because the configured model was misspelt would be a worse failure
+ * than answering on the documented default.
+ */
+function onlyFreeModels(models) {
+  if (process.env.OPENROUTER_ALLOW_PAID === '1') return models
+  const free = []
+  for (const m of models) {
+    if (m.endsWith(':free')) free.push(m)
+    else
+      warnOnce(
+        `[llm] OpenRouter model "${m}" is not a :free variant — skipping it. ` +
+          'Set OPENROUTER_ALLOW_PAID=1 if a billed model is genuinely intended.'
+      )
+  }
+  return free.length ? free : [DEFAULT_OPENROUTER_MODEL]
+}
+
+/**
  * Every provider worth trying for one request, best first.
  *
  * A single provider is a single point of failure, and a *free* provider is the
@@ -760,7 +869,11 @@ function getProviderChain(route = {}) {
   // them into one.
   const add = (provider) => {
     if (!provider) return
-    const key = `${provider.name}:${provider.model || ''}`
+    // Provider, model *and* credential. The first two alone collapsed the two
+    // OpenRouter keys into a single rung — which quietly removed the whole
+    // point of configuring a second key, since the failover it exists for
+    // never got built into the chain.
+    const key = `${provider.name}:${provider.model || ''}:${provider.keyLabel || ''}`
     if (seen.has(key)) return
     seen.add(key)
     chain.push(provider)
@@ -771,17 +884,26 @@ function getProviderChain(route = {}) {
     // that is rate-limited should cost the next *free* model, not the paid
     // key — the point of leading with the free tier is to stay on it.
     openrouter: () => {
-      if (!process.env.OPENROUTER_API_KEY) return []
+      const keys = usableOpenRouterKeys()
+      if (!keys.length) return []
       // route.model only means something to the provider it was written for.
       // Handing `nvidia/nemotron...` to OpenAI, or `gpt-5-nano` to OpenRouter,
       // is a 400 on the rung that was supposed to be the safety net.
       const mine = pinned === 'openrouter' || route.provider === 'openrouter'
       const primary = (mine && route.model) || process.env.OPENROUTER_MODEL || DEFAULT_OPENROUTER_MODEL
       const alternates = mine ? String(route.fallbacks || '').split(',') : []
-      return [primary, ...alternates]
-        .map((m) => String(m).trim())
-        .filter(Boolean)
-        .map((model) => new OpenRouterProvider({ apiKey: process.env.OPENROUTER_API_KEY, model }))
+      const models = onlyFreeModels(
+        [primary, ...alternates].map((m) => String(m).trim()).filter(Boolean)
+      )
+      // Model-major, not key-major. A key that is out of quota is out for every
+      // model behind it, so the rung after a failure should be a *different
+      // key* on the same model — not the same key on the next model, which
+      // would spend one dead call per model before discovering the same thing.
+      const rungs = []
+      for (const model of models) {
+        for (const apiKey of keys) rungs.push(new OpenRouterProvider({ apiKey, model }))
+      }
+      return rungs
     },
     openai: () =>
       process.env.OPENAI_API_KEY &&
@@ -804,9 +926,12 @@ function getProviderChain(route = {}) {
       }),
   }
 
-  // Free first, then paid, then the customer's own tenant — cheapest capable
-  // rung leads. A pinned provider is promoted to the front of that order.
-  const order = ['openrouter', 'openai', 'aicore']
+  // Free first, then the customer's own tenant. OpenAI is deliberately not in
+  // this list: the product runs on OpenRouter's free tier plus, for a client
+  // who will not send questions to a third party, their own SAP AI Core. A
+  // paid third-party key is still reachable by pinning LLM_PROVIDER=openai —
+  // `build` keeps the rung — but nothing selects it on its own any more.
+  const order = ['openrouter', 'aicore']
   for (const name of [pinned, ...order]) {
     if (!build[name]) continue
     try {
@@ -840,4 +965,8 @@ function warnOnce(message) {
 module.exports = {
   LLMError, OpenRouterProvider, OpenAIProvider, AICoreProvider, FakeProvider,
   getProvider, getProviderChain, DEFAULT_OPENROUTER_MODEL, safeParse,
+  openRouterKeys, usableOpenRouterKeys, markKeyExhausted, onlyFreeModels,
+  /** Test seam: quota cooldowns are process-lifetime state, so a test that
+   *  exhausts a key would otherwise leak into every test after it. */
+  _resetKeyCooldowns: () => keyCooldown.clear(),
 }

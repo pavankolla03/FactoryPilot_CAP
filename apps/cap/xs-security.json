@@ -1,7 +1,7 @@
 {
   "xsappname": "factorypilot",
   "tenant-mode": "dedicated",
-  "description": "FactoryPilot \u2014 AI-assisted S/4HANA insights on CAP",
+  "description": "IntelliOps4 \u2014 intelligent operations for S/4HANA, on CAP",
   "oauth2-configuration": {
     "token-validity": 900,
     "refresh-token-validity": 1800,
@@ -135,28 +135,28 @@
   "role-collections": [
     {
       "name": "FactoryPilot_BusinessUser",
-      "description": "FactoryPilot business user",
+      "description": "IntelliOps4 business user",
       "role-template-references": [
         "$XSAPPNAME.BusinessUser"
       ]
     },
     {
       "name": "FactoryPilot_ReadOnly",
-      "description": "FactoryPilot read-only",
+      "description": "IntelliOps4 read-only",
       "role-template-references": [
         "$XSAPPNAME.Viewer"
       ]
     },
     {
       "name": "FactoryPilot_ConfigAdmin",
-      "description": "FactoryPilot configuration administrator",
+      "description": "IntelliOps4 configuration administrator",
       "role-template-references": [
         "$XSAPPNAME.ConfigAdministrator"
       ]
     },
     {
       "name": "FactoryPilot_Administrator",
-      "description": "FactoryPilot administrator",
+      "description": "IntelliOps4 administrator",
       "role-template-references": [
         "$XSAPPNAME.Administrator"
       ]

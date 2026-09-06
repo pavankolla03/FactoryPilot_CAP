@@ -9,6 +9,24 @@ Versioning follows [SemVer](https://semver.org/) for tagged releases (`v0.1.0-tr
 
 ### Added
 
+- **Feedback and saved questions reach the chat, not just the API.** (BETA)
+  `rateAnswer` and the saved-question library already existed at the service
+  layer with full test coverage but no way to reach either from Insights.
+  Every answered turn now carries a 👍/👎 control keyed to the audit row that
+  produced it; the welcome screen now offers the vetted, role-filtered
+  library from `ConfigService.SavedQuestions` instead of four hard-coded
+  suggestions, and a new `useSavedQuestion` action (`ConfigService`) counts a
+  question actually being asked rather than only listed. Admin gained two
+  screens: Saved Questions and Answer Feedback.
+
+### Fixed
+
+- **`srv/annotations/jobs.cds` was never loaded.** `srv/annotations.cds`
+  pulls in every domain's Fiori annotations except that one, so Scheduled
+  Jobs, Watchers and Job Runs have been rendering Fiori Elements' generic
+  every-field default since they were built, silently. One missing `using
+  from` line; no error, just a plainer screen than the annotations describe.
+
 - **A table and a chart are two views of one answer.** Any table with a label
   column and a comparable number column now carries a Table/Chart switch, and a
   question that asks for a chart, graph or dashboard opens on the chart. The

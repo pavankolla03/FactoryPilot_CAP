@@ -27,7 +27,7 @@
       "csrfProtection": true
     },
     {
-      "source": "^/(insights|admin|dashboard|businessobjects|quotapolicies|users|sessionlogs|cachepolicies|integrationendpoints|endpointtests|cachestats|tokenusage|modelroutes|approvalpolicies|orgsettings|agentruns|pendingactions)/(.*)$",
+      "source": "^/(insights|admin|dashboard|businessobjects|quotapolicies|users|sessionlogs|cachepolicies|integrationendpoints|endpointtests|cachestats|tokenusage|modelroutes|approvalpolicies|orgsettings|agentruns|pendingactions|scheduledjobs|jobruns|watchers|savedquestions|feedbacks)/(.*)$",
       "target": "/$1/$2",
       "destination": "srv-api",
       "authenticationType": "xsuaa"
