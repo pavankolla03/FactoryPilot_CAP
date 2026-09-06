@@ -38,4 +38,29 @@ service ConfigService {
           promptHints
     }
     where isActive = true and exposedAsTool = true;
+
+  /**
+   * A vetted library of questions, offered rather than typed. (BETA)
+   *
+   * `useCount` is exposed read-only and deliberately: a library nobody runs
+   * should be visible as unused rather than assumed to be helping.
+   */
+  @restrict: [
+    { grant: ['READ'], to: ['ConfigRead', 'ConfigMaintain', 'InsightsQuery'] },
+    { grant: ['*'],    to: ['ConfigMaintain'] }
+  ]
+  @odata.draft.enabled
+  entity SavedQuestions as projection on db.SavedQuestion;
+
+  /**
+   * Record that a saved question was actually asked, not just listed. (BETA)
+   *
+   * A separate action rather than a client-side PATCH to `useCount`: the chat
+   * surface holds `InsightsQuery`, not `ConfigMaintain`, and letting a reader
+   * of the library write to it directly would mean anyone who can *ask*
+   * questions can also edit the count of any other row, not just bump the one
+   * they used.
+   */
+  @requires: 'InsightsQuery'
+  action useSavedQuestion(ID : UUID) returns Boolean;
 }

@@ -3,6 +3,38 @@ const cds = require('@sap/cds')
 const CRITICALITY = { SUCCESS: 3, AWAITING_APPROVAL: 2, RATE_LIMITED: 2, RUNNING: 0, FAILED: 1 }
 
 module.exports = cds.service.impl(function () {
+  /**
+   * Rate an answer. (BETA)
+   *
+   * Upsert rather than insert: someone re-rating has changed their mind, and
+   * two rows would double-count them in every summary that follows.
+   */
+  this.on('rateAnswer', async (req) => {
+    const { sessionLogID, rating, comment } = req.data
+    const userID = req.user.id
+    const clean = String(rating || '').toUpperCase()
+    if (clean !== 'UP' && clean !== 'DOWN') {
+      return req.reject(400, 'Rating must be UP or DOWN.')
+    }
+
+    const { SessionLog, AnswerFeedback } = cds.entities('factorypilot.audit')
+    const log = await SELECT.one.from(SessionLog).where({ ID: sessionLogID })
+    if (!log) return req.reject(404, 'No answer with that id.')
+
+    const existing = await SELECT.one.from(AnswerFeedback).where({ sessionLog_ID: sessionLogID, userID })
+    if (existing) {
+      await UPDATE(AnswerFeedback)
+        .set({ rating: clean, comment: comment || null, createdAt: new Date() })
+        .where({ ID: existing.ID })
+      return { sessionLogID, rating: clean, replaced: true, message: 'Rating updated.' }
+    }
+    await INSERT.into(AnswerFeedback).entries({
+      ID: cds.utils.uuid(), sessionLog_ID: sessionLogID, userID,
+      rating: clean, comment: comment || null, createdAt: new Date(),
+    })
+    return { sessionLogID, rating: clean, replaced: false, message: 'Thanks — recorded.' }
+  })
+
   // Green / amber / red in the log explorer, so a failing run is visible
   // without reading the status column.
   this.after('READ', 'SessionLogs', (rows) => {

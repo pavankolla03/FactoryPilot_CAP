@@ -6,3 +6,4 @@ using from './annotations/admin';
 using from './annotations/audit';
 using from './annotations/cache';
 using from './annotations/integration';
+using from './annotations/jobs';

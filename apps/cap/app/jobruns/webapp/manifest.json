@@ -1,0 +1,115 @@
+{
+  "_version": "1.59.0",
+  "sap.app": {
+    "id": "factorypilot.jobruns",
+    "type": "application",
+    "title": "Job Runs (Beta)",
+    "description": "Every background run and what it did \u2014 including the ones that failed overnight.",
+    "applicationVersion": {
+      "version": "0.1.0"
+    },
+    "dataSources": {
+      "mainService": {
+        "uri": "/odata/jobs/",
+        "type": "OData",
+        "settings": {
+          "odataVersion": "4.0",
+          "localUri": "localService/metadata.xml"
+        }
+      }
+    },
+    "crossNavigation": {
+      "inbounds": {
+        "jobruns-manage": {
+          "semanticObject": "JobRun",
+          "action": "manage",
+          "title": "Job Runs (Beta)",
+          "signature": {
+            "parameters": {},
+            "additionalParameters": "allowed"
+          }
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "dependencies": {
+      "minUI5Version": "1.120.0",
+      "libs": {
+        "sap.fe.templates": {}
+      }
+    },
+    "models": {
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": {
+          "operationMode": "Server",
+          "autoExpandSelect": true,
+          "earlyRequests": true
+        }
+      }
+    },
+    "routing": {
+      "routes": [
+        {
+          "name": "JobRunsList",
+          "pattern": ":?query:",
+          "target": "JobRunsList"
+        },
+        {
+          "name": "JobRunsDetail",
+          "pattern": "JobRuns({key}):?query:",
+          "target": "JobRunsDetail"
+        }
+      ],
+      "targets": {
+        "JobRunsList": {
+          "type": "Component",
+          "id": "JobRunsList",
+          "name": "sap.fe.templates.ListReport",
+          "options": {
+            "settings": {
+              "entitySet": "JobRuns",
+              "variantManagement": "Page",
+              "navigation": {
+                "JobRuns": {
+                  "detail": {
+                    "route": "JobRunsDetail"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "JobRunsDetail": {
+          "type": "Component",
+          "id": "JobRunsDetail",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "entitySet": "JobRuns",
+              "navigation": {}
+            }
+          }
+        }
+      }
+    },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    }
+  },
+  "sap.fiori": {
+    "registrationIds": [],
+    "archeType": "transactional"
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "_version": "1.59.0",
+  "sap.app": {
+    "id": "factorypilot.scheduledjobs",
+    "type": "application",
+    "title": "Scheduled Jobs (Beta)",
+    "description": "The work that runs without being asked. Enable, reschedule or pause each job.",
+    "applicationVersion": {
+      "version": "0.1.0"
+    },
+    "dataSources": {
+      "mainService": {
+        "uri": "/odata/jobs/",
+        "type": "OData",
+        "settings": {
+          "odataVersion": "4.0",
+          "localUri": "localService/metadata.xml"
+        }
+      }
+    },
+    "crossNavigation": {
+      "inbounds": {
+        "scheduledjobs-manage": {
+          "semanticObject": "ScheduledJob",
+          "action": "manage",
+          "title": "Scheduled Jobs (Beta)",
+          "signature": {
+            "parameters": {},
+            "additionalParameters": "allowed"
+          }
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "dependencies": {
+      "minUI5Version": "1.120.0",
+      "libs": {
+        "sap.fe.templates": {}
+      }
+    },
+    "models": {
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": {
+          "operationMode": "Server",
+          "autoExpandSelect": true,
+          "earlyRequests": true
+        }
+      }
+    },
+    "routing": {
+      "routes": [
+        {
+          "name": "ScheduledJobsList",
+          "pattern": ":?query:",
+          "target": "ScheduledJobsList"
+        },
+        {
+          "name": "ScheduledJobsDetail",
+          "pattern": "ScheduledJobs({key}):?query:",
+          "target": "ScheduledJobsDetail"
+        }
+      ],
+      "targets": {
+        "ScheduledJobsList": {
+          "type": "Component",
+          "id": "ScheduledJobsList",
+          "name": "sap.fe.templates.ListReport",
+          "options": {
+            "settings": {
+              "entitySet": "ScheduledJobs",
+              "variantManagement": "Page",
+              "navigation": {
+                "ScheduledJobs": {
+                  "detail": {
+                    "route": "ScheduledJobsDetail"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "ScheduledJobsDetail": {
+          "type": "Component",
+          "id": "ScheduledJobsDetail",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "entitySet": "ScheduledJobs",
+              "navigation": {}
+            }
+          }
+        }
+      }
+    },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    }
+  },
+  "sap.fiori": {
+    "registrationIds": [],
+    "archeType": "transactional"
+  }
+}

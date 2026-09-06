@@ -266,7 +266,27 @@ body > .fd-shellbar { flex: none; }
 .badges .fd-status--positive { color: var(--sapPositiveColor, #256f3a); font-weight: 600; }
 .badges .fd-status--critical { color: var(--sapNegativeColor, #bb0000); font-weight: 600; }
 
+/* --- feedback ------------------------------------------------------------ */
 
+.feedback {
+  display: flex; align-items: center; gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--sapContentLabelColor);
+}
+.feedback__label { display: inline-flex; align-items: center; }
+.feedback button {
+  border: 1px solid var(--sapList_BorderColor);
+  background: var(--sapTileBackground);
+  border-radius: 1rem;
+  padding: 0.1875rem 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.feedback button:hover:not(:disabled) { border-color: var(--sapBrandColor); }
+.feedback button:disabled { opacity: 0.6; cursor: default; }
+.feedback__done { font-size: 0.75rem; }
 
 /* --- approval card ------------------------------------------------------ */
 

@@ -359,7 +359,75 @@
     return `<div class="badges">${b.join("")}</div>`;
   }
 
-    /**
+  /**
+   * Thumbs up/down against the audit row that produced this answer. (BETA)
+   *
+   * Absent on a replayed conversation and on anything that is not a plain
+   * answer: `meta.logID` only exists for a real SUCCESS turn, so a rating
+   * with nothing to join to is structurally impossible rather than merely
+   * discouraged.
+   */
+  function feedback(meta = {}) {
+    if (!meta.logID || meta.replayed) return "";
+    return `<div class="feedback" data-log="${esc(meta.logID)}">
+      <span class="feedback__label">Helpful? <span class="fd-badge--beta">Beta</span></span>
+      <button type="button" data-rating="UP" aria-label="Helpful" title="Helpful">👍</button>
+      <button type="button" data-rating="DOWN" aria-label="Not helpful" title="Not helpful">👎</button>
+    </div>`;
+  }
+
+  // One handler for every feedback control ever inserted, for the same reason
+  // the viz switch is delegated: rebinding after each answer is how this
+  // quietly stops working on whichever path nobody re-tested.
+  threadEl.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".feedback button[data-rating]");
+    if (!btn) return;
+    const wrap = btn.closest(".feedback");
+    const sessionLogID = wrap.dataset.log;
+    wrap.querySelectorAll("button").forEach((b) => (b.disabled = true));
+    try {
+      const { ok, data } = await call("../../odata/audit/rateAnswer", { sessionLogID, rating: btn.dataset.rating });
+      wrap.innerHTML = ok
+        ? `<span class="feedback__done">${btn.dataset.rating === "UP" ? "👍" : "👎"} ${esc(data.message || "Thanks — recorded.")}</span>`
+        : `<span class="feedback__done">Could not record that — please try again.</span>`;
+    } catch {
+      wrap.innerHTML = `<span class="feedback__done">Could not record that — please try again.</span>`;
+    }
+  });
+
+  function welcome() {
+    threadEl.innerHTML = "";
+    // Saved questions once loaded (even an empty vetted library — someone
+    // administered that on purpose); the static defaults only while still
+    // waiting to hear, or if the library could not be read at all.
+    const offered = savedQuestions === null
+      ? SUGGESTIONS.map(([question, warehouseID]) => ({ question, warehouseID }))
+      : savedQuestions.length ? savedQuestions
+        : SUGGESTIONS.map(([question, warehouseID]) => ({ question, warehouseID }));
+    inner().innerHTML =
+      '<div class="welcome">' +
+      // The lockup, not the small mark: this is the one place in the product
+      // with room to show the brand properly, and it is the first thing a new
+      // conversation shows. The light/dark swap is done in CSS because an
+      // <img> src cannot follow a theme.
+      '<div class="welcome__logo" role="img" aria-label="IntelliOps4"></div>' +
+      '<h2>Ask about your operational data</h2>' +
+      "<p>Stock, goods movements, physical inventory, deliveries and purchase orders — " +
+      "answered from live S/4HANA. Ask for a write and it stops for your confirmation.</p>" +
+      '<p class="suggest__label">Suggested questions <span class="fd-badge--beta">Beta</span></p>' +
+      '<div class="suggest">' +
+      offered.map((s) => `<button data-q="${esc(s.question)}" data-w="${esc(s.warehouseID || "")}"` +
+        `${s.ID ? ` data-id="${esc(s.ID)}"` : ""}>${esc(s.title || s.question)}</button>`).join("") +
+      "</div></div>";
+    inner().querySelectorAll(".suggest button").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        if (btn.dataset.w) whEl.value = btn.dataset.w;
+        if (btn.dataset.id) call("../../odata/config/useSavedQuestion", { ID: btn.dataset.id });
+        ask(btn.dataset.q);
+      }));
+  }
+
+  /**
    * Which view to open on.
    *
    * Asking "show me a chart" and getting a table is the system ignoring you.
@@ -421,7 +489,7 @@
         pending.innerHTML = strip("error", "Could not answer.", data.message, meta);
       } else {
         pending.innerHTML = `${who()}
-          <div class="turn__body">${sources(meta)}<div class="md">${md(data.answer, preferredView(question))}</div>${badges(meta)}</div>`;
+          <div class="turn__body">${sources(meta)}<div class="md">${md(data.answer, preferredView(question))}</div>${badges(meta)}${feedback(meta)}</div>`;
       }
       refreshUsage();
       // Not loadSessions(): refetching re-sorts by modifiedAt, so the chat you

@@ -1,0 +1,115 @@
+{
+  "_version": "1.59.0",
+  "sap.app": {
+    "id": "factorypilot.feedbacks",
+    "type": "application",
+    "title": "Answer Feedback (Beta)",
+    "description": "Ratings joined back to the provider, model and grounding of the answer they refer to.",
+    "applicationVersion": {
+      "version": "0.1.0"
+    },
+    "dataSources": {
+      "mainService": {
+        "uri": "/odata/audit/",
+        "type": "OData",
+        "settings": {
+          "odataVersion": "4.0",
+          "localUri": "localService/metadata.xml"
+        }
+      }
+    },
+    "crossNavigation": {
+      "inbounds": {
+        "feedbacks-display": {
+          "semanticObject": "AnswerFeedback",
+          "action": "display",
+          "title": "Answer Feedback (Beta)",
+          "signature": {
+            "parameters": {},
+            "additionalParameters": "allowed"
+          }
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "dependencies": {
+      "minUI5Version": "1.120.0",
+      "libs": {
+        "sap.fe.templates": {}
+      }
+    },
+    "models": {
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": {
+          "operationMode": "Server",
+          "autoExpandSelect": true,
+          "earlyRequests": true
+        }
+      }
+    },
+    "routing": {
+      "routes": [
+        {
+          "name": "AnswerFeedbacksList",
+          "pattern": ":?query:",
+          "target": "AnswerFeedbacksList"
+        },
+        {
+          "name": "AnswerFeedbacksDetail",
+          "pattern": "AnswerFeedbacks({key}):?query:",
+          "target": "AnswerFeedbacksDetail"
+        }
+      ],
+      "targets": {
+        "AnswerFeedbacksList": {
+          "type": "Component",
+          "id": "AnswerFeedbacksList",
+          "name": "sap.fe.templates.ListReport",
+          "options": {
+            "settings": {
+              "entitySet": "AnswerFeedbacks",
+              "variantManagement": "Page",
+              "navigation": {
+                "AnswerFeedbacks": {
+                  "detail": {
+                    "route": "AnswerFeedbacksDetail"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "AnswerFeedbacksDetail": {
+          "type": "Component",
+          "id": "AnswerFeedbacksDetail",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "entitySet": "AnswerFeedbacks",
+              "navigation": {}
+            }
+          }
+        }
+      }
+    },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    }
+  },
+  "sap.fiori": {
+    "registrationIds": [],
+    "archeType": "analytical"
+  }
+}

@@ -1,0 +1,8 @@
+ID;title;question;warehouseID;forRole;sortOrder;useCount;isActive
+sq000000-0000-0000-0000-000000000001;Stock on hand;How much stock do we have?;;;10;0;true
+sq000000-0000-0000-0000-000000000002;Open purchase orders;What purchase orders are still open?;;;20;0;true
+sq000000-0000-0000-0000-000000000003;Deliveries today;How many deliveries are there today?;;;30;0;true
+sq000000-0000-0000-0000-000000000004;Open inventory counts;Which physical inventory counts are still open?;;;40;0;true
+sq000000-0000-0000-0000-000000000005;This week vs last;Compare goods movements this week against last week;;;50;0;true
+sq000000-0000-0000-0000-000000000006;Why did stock change;Why did stock change over the last 7 days?;;;60;0;true
+sq000000-0000-0000-0000-000000000007;What if we move stock;What if we move 500 units out of this plant - would anything run short?;;;70;0;true

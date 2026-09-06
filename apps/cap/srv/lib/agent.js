@@ -1,6 +1,7 @@
 const cds = require('@sap/cds')
 const llm = require('./llm')
 const tools = require('./tools')
+const simulate = require('./simulate')
 const policy = require('./policy')
 
 /**
@@ -14,6 +15,8 @@ const policy = require('./policy')
 
 const MAX_ROUNDS = 8
 
+/** Rounds of tool calling after which a question has proved it is not a lookup. */
+const ESCALATE_AFTER_ROUNDS = Number(process.env.FACTORYPILOT_ESCALATE_AFTER_ROUNDS || 2)
 
 // Rounds are also bounded by wall-clock, not just by count. MAX_ROUNDS alone
 // permits eight model calls plus their tool calls, which comfortably outlasts
@@ -180,8 +183,10 @@ function matchesRegisteredObject(question, businessObjects = []) {
 /**
  * @returns {{status, answer, toolsCalled, rounds, grounded, usage, steps, pendingAction}}
  */
-async function run({ question, userID, roles, warehouseID, conversationID, correlationId, businessObjects, route, orgSettings, deadlineAt }) {
-  const providers = llm.getProviderChain(route || {})
+async function run({ question, userID, roles, warehouseID, conversationID, correlationId, businessObjects, route, escalationRoute, orgSettings, deadlineAt }) {
+  // `let`, because difficulty is discovered rather than predicted — see the
+  // escalation below.
+  let providers = llm.getProviderChain(route || {})
   const definitions = tools.buildDefinitions(businessObjects)
   // No literal fallback. A hardcoded plant silently redirects every question
   // to a site that may not exist in this tenant, and the only symptom is an
@@ -218,6 +223,36 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
   let rung = 0
   let active = providers[0]
   let degradedFrom = null
+  let escalatedTo = null
+
+  /**
+   * Promote to the heavier model once a question turns out to be hard.
+   *
+   * `route.pick` chooses light or heavy from a regex over the question text,
+   * before anything has been read. That is a guess, and it is wrong in the
+   * expensive direction for exactly the questions Tier 2 made possible: "why
+   * did stock drop in 1710" reads like a lookup, then needs three or four
+   * rounds of chained tool calls to answer — the case where the stronger model
+   * earns its keep, decided by the moment when nobody could yet know.
+   *
+   * So difficulty is observed instead. A run still going after a couple of
+   * rounds has demonstrated it is not a lookup, whatever it looked like, and
+   * the remaining rounds get the better model. Escalation happens at most once
+   * and is recorded, so an operator asking why two similar questions cost
+   * differently has an answer rather than a mystery.
+   */
+  const escalate = () => {
+    if (escalatedTo || !escalationRoute) return
+    const heavier = llm.getProviderChain(escalationRoute)
+    // A chain of nothing but the offline provider is not an upgrade.
+    if (!heavier.length || heavier.every((p) => p.name === 'fake')) return
+    providers = heavier
+    rung = 0
+    active = providers[0]
+    escalatedTo = escalationRoute.route || 'heavy'
+    console.warn(`[agent] ${rounds} rounds in — escalating to the ${escalatedTo} route`)
+  }
+
   // How long is left before the caller's gateway gives up on us. Every model
   // call is capped by it, and a new round is only started if there is room for
   // one — otherwise the loop runs on past the deadline, the gateway returns
@@ -269,6 +304,11 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
   }
 
   while (rounds < MAX_ROUNDS) {
+    // Two rounds in and still going: whatever the question looked like, it is
+    // not a lookup. Escalate before spending the next model call rather than
+    // after, so the heavier model does the work that is left.
+    if (rounds >= ESCALATE_AFTER_ROUNDS) escalate()
+
     // Starting a round we cannot finish spends the remaining budget and then
     // gets cut off mid-flight by the gateway. Stopping here means the user
     // sees what we did manage to find out, and why it stopped.
@@ -351,9 +391,81 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
     for (const call of completion.toolCalls) {
       toolsCalled.push(call.name)
 
+      // A projection, handled before both other branches. It reads real data
+      // but returns arithmetic, so it must not set `grounded` — the inputs are
+      // grounded, the output is not, and conflating them would put a made-up
+      // number behind the same badge that certifies real ones. It must also
+      // never reach the approval queue: "what if" is a question, and a question
+      // somebody could approve by accident is a trap.
+      if (tools.isSimulationTool(call.name)) {
+        let content
+        try {
+          const projection = await simulate.stockChange({
+            materialID: call.arguments?.materialID,
+            warehouseID: call.arguments?.warehouseID || defaults.warehouse,
+            quantity: call.arguments?.quantity,
+            businessObjects,
+            defaults,
+            correlationId,
+          })
+          content = JSON.stringify(projection)
+          steps.push({
+            toolName: call.name,
+            arguments: JSON.stringify(call.arguments || {}),
+            result: content.slice(0, 2000),
+            durationMs: 0,
+          })
+        } catch (err) {
+          content = JSON.stringify({ projection: true, error: err.message })
+          toolErrors.push(`${call.name}: ${err.message}`)
+          steps.push({
+            toolName: call.name,
+            arguments: JSON.stringify(call.arguments || {}),
+            result: '',
+            durationMs: 0,
+            error: err.message.slice(0, 300),
+          })
+        }
+        messages.push({ role: 'tool', tool_call_id: call.id, name: call.name, content })
+        continue
+      }
+
       if (tools.isWriteTool(call.name)) {
         // Stop here. The write is described, costed and audited, but not done.
         //
+        // Every write in the round, not just the first. The model can ask for
+        // several — "rebalance these five materials" is one question and five
+        // moves — and returning on the first silently discarded the rest: the
+        // user saw a single card, approved it, and had every reason to believe
+        // all five had happened. A partial action nobody was told about is the
+        // worst outcome this approval gate can produce.
+        const writeCalls = completion.toolCalls.filter((c) => tools.isWriteTool(c.name))
+        const proposals = []
+        for (const w of writeCalls) {
+          // Judged individually. Batching must not become a way to launder an
+          // anomalous or over-ceiling move past the checks by burying it among
+          // ordinary ones.
+          const d = await policy.shouldAutoApprove({
+            userID,
+            warehouseID: w.arguments?.warehouseID || defaults.warehouse,
+            args: w.arguments,
+            recentQuantities: [],
+            anomalyFactor: Number(orgSettings?.anomalyFactor || 5),
+          })
+          proposals.push({
+            toolName: w.name,
+            arguments: w.arguments || {},
+            warehouseID: w.arguments?.warehouseID || defaults.warehouse,
+            summary: describeWrite(w.arguments),
+            anomalous: d.anomaly.anomalous === true,
+            anomalyReason: d.anomaly.reason || '',
+            autoApprovable: d.autoApprove,
+            policyReason: d.reason,
+            expiresAt: new Date(Date.now() + PENDING_TTL_MS),
+          })
+        }
+        toolsCalled.push(...writeCalls.slice(1).map((w) => w.name))
+
         const decision = await policy.shouldAutoApprove({
           userID,
           warehouseID: call.arguments?.warehouseID || defaults.warehouse,
@@ -362,6 +474,9 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
           anomalyFactor: Number(orgSettings?.anomalyFactor || 5),
         })
         return {
+          // Every proposal. `pendingAction` below stays for the single-action
+          // path so nothing that reads it has to change at once.
+          pendingActions: proposals,
           status: 'AWAITING_APPROVAL',
           answer: completion.text || '',
           toolsCalled,
@@ -501,6 +616,9 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
     if (degradedFrom) {
       outcome = { ...outcome, degradedFrom, usage: { ...outcome.usage, degradedFrom } }
     }
+    // Carried out so the audit row can say it. Two similar questions costing
+    // different amounts is otherwise a mystery an operator cannot resolve.
+    if (escalatedTo) outcome = { ...outcome, escalatedTo }
     if (outcome.grounded || !toolErrors.length) return outcome
     // Running out of time is its own failure with its own remedy. Reporting it
     // as an unreachable backend sends the reader to the wrong problem.
@@ -522,4 +640,4 @@ function describeWrite(args = {}) {
   return `Move ${quantity ?? '?'} of ${materialID ?? '?'} ${where} in warehouse ${warehouseID ?? '?'}`.replace(/\s+/g, ' ').trim()
 }
 
-module.exports = { run, matchesRegisteredObject, sanitiseHistory, systemPrompt, describeWrite, stripDeliberation, MAX_ROUNDS, PENDING_TTL_MS }
+module.exports = { run, matchesRegisteredObject, sanitiseHistory, systemPrompt, describeWrite, stripDeliberation, MAX_ROUNDS, ESCALATE_AFTER_ROUNDS, PENDING_TTL_MS }

@@ -1,0 +1,313 @@
+<meta charset="utf-8">
+<title>IntelliOps4 — what it is and what it does</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm; }
+  :root { --ink:#1b2229; --soft:#46545f; --faint:#77858f; --rule:#d6dee3;
+          --navy:#16307C; --accent:#2E86F0; --good:#1c6b3f; --warn:#8a5a00; --stop:#9e3226 }
+  * { box-sizing:border-box }
+  body { margin:0; color:var(--ink); background:#fff;
+         font-family:"Helvetica Neue",Helvetica,Arial,sans-serif; font-size:10.5pt; line-height:1.55 }
+  .shell { max-width:52rem; margin:0 auto; padding:0 0 2rem }
+  h1 { font-size:26pt; letter-spacing:-.02em; margin:0 0 .2rem; color:var(--navy) }
+  h1 .a { color:var(--accent) }
+  .stand { font-size:12pt; color:var(--soft); margin:0 0 .4rem; max-width:40rem }
+  .meta { font-family:"Courier New",monospace; font-size:8.5pt; color:var(--faint); margin:.7rem 0 1.8rem }
+  h2 { font-size:15pt; margin:1.8rem 0 .4rem; padding-bottom:.25rem;
+       border-bottom:2px solid var(--navy); color:var(--navy); page-break-after:avoid }
+  h3 { font-size:11.5pt; margin:1.1rem 0 .2rem; page-break-after:avoid }
+  p { margin:.45rem 0; max-width:42rem }
+  ul, ol { margin:.4rem 0 .7rem; padding-left:1.1rem; max-width:42rem }
+  li { margin:.18rem 0 }
+  table { border-collapse:collapse; width:100%; font-size:9.5pt; margin:.6rem 0 1rem }
+  th { text-align:left; font-size:8.5pt; text-transform:uppercase; letter-spacing:.05em;
+       color:var(--soft); border-bottom:1.5px solid var(--ink); padding:.3rem .5rem .3rem 0 }
+  td { padding:.34rem .5rem .34rem 0; border-bottom:1px solid var(--rule); vertical-align:top }
+  code { font-family:"Courier New",monospace; font-size:.9em; background:#f2f5f7; padding:.05em .3em; border-radius:2px }
+  .box { border:1px solid var(--rule); background:#f7f9fa; padding:.6rem .8rem; margin:.7rem 0; border-radius:3px }
+  .box.warn { background:#fffaf0; border-color:#e0c48a }
+  .box.stop { background:#fff5f4; border-color:#e6b3ac }
+  .box h4 { margin:0 0 .25rem; font-size:10pt }
+  .pill { display:inline-block; font-size:7.5pt; font-weight:700; letter-spacing:.06em;
+          text-transform:uppercase; padding:.05em .4em; border-radius:.6em; vertical-align:.12em;
+          color:var(--accent); background:#e8f2fd; border:1px solid var(--accent); margin-left:.35rem }
+  .scene { border-left:3px solid var(--accent); padding:.1rem 0 .1rem .8rem; margin:.8rem 0 }
+  .scene .t { font-family:"Courier New",monospace; font-size:8.5pt; color:var(--accent); font-weight:700 }
+  .q { font-style:italic; color:var(--navy) }
+  .pagebreak { page-break-before:always }
+  footer { margin-top:2rem; padding-top:.6rem; border-top:1px solid var(--rule);
+           font-size:8.5pt; color:var(--faint) }
+</style>
+
+<div class="shell">
+
+<h1>Intelli<span class="a">Ops4</span></h1>
+<p class="stand">Intelligent operations for SAP S/4HANA. A chat window over live SAP data that
+answers in plain language, watches for what you did not ask about, and refuses to change anything
+without you.</p>
+<p class="meta">Product and capability reference &nbsp;·&nbsp; 6 September 2026</p>
+
+<h2>1 · The problem</h2>
+
+<p>A supervisor needs one number. How much of a material is on hand. Whether a purchase order has
+been received. Which inventory counts are still open.</p>
+
+<p>That number already exists. It is in S/4HANA and always has been. The difficulty was never
+missing data — it is that reaching it costs a transaction code, a screen someone was trained on,
+and often a colleague who knows which of fourteen fields matters.</p>
+
+<p>So the number gets asked for instead of looked up. A message. A phone call. A spreadsheet that
+was accurate on Tuesday. And the decision waits.</p>
+
+<table>
+  <tr><th style="width:38%">Pain</th><th>What IntelliOps4 does about it</th></tr>
+  <tr><td><strong>Data is behind a training barrier</strong></td>
+      <td>Ask in your own words. No transaction code, no screen to learn.</td></tr>
+  <tr><td><strong>Nobody trusts an answer they cannot check</strong></td>
+      <td>Every answer carries its sources: which system replied, how many rows, and the exact query sent.</td></tr>
+  <tr><td><strong>An AI that guesses is worse than no AI</strong></td>
+      <td>Every answer is marked <em>grounded</em> or not. Grounded means a real SAP query returned rows.</td></tr>
+  <tr><td><strong>Nobody will let software change stock</strong></td>
+      <td>A write is described and stopped. A person approves it as a separate step.</td></tr>
+  <tr><td><strong>You only find out after it has gone wrong</strong></td>
+      <td>It watches on a schedule and tells you — the morning digest, thresholds, anomalies.</td></tr>
+  <tr><td><strong>Nobody can predict the bill</strong></td>
+      <td>Per-user quota checked before anything is spent; repeated questions served from cache.</td></tr>
+  <tr><td><strong>Procurement asks where the data goes</strong></td>
+      <td>Runs on SAP BTP with your identity, and can route to your own SAP AI Core tenant.</td></tr>
+</table>
+
+<h2>2 · What it does</h2>
+
+<h3>Answering</h3>
+<ul>
+  <li><strong>Ask in plain language.</strong> Five business objects live today — material stock, goods
+      movements, physical inventory, deliveries, purchase orders. Extending to another area of S/4
+      is a configuration row, not a project.</li>
+  <li><strong>Table or chart, one click.</strong> Same figures, two renderings, no second source of truth.</li>
+  <li><strong>Sources on every answer.</strong> Which system replied, how many rows came back, and the
+      query that was sent — so an empty answer can be told apart from a wrong plant.</li>
+  <li><strong>Grounded / not grounded.</strong> Correct for a greeting; a red flag on a stock question.</li>
+  <li><strong>Conversation memory.</strong> Follow-up questions work without repeating yourself.</li>
+  <li><strong>Periods, not just today.</strong> <span class="pill">Beta</span> Nine presets — last 7 days,
+      this week, last month and so on.</li>
+  <li><strong>Why, not only what.</strong> <span class="pill">Beta</span> A causal question chains several
+      queries — what moved, then what was expected — and says plainly when the data does not explain it.</li>
+  <li><strong>Comparison.</strong> <span class="pill">Beta</span> This week against last, two queries and
+      the difference. Never a trend inferred from one reading.</li>
+  <li><strong>What-if.</strong> <span class="pill">Beta</span> “If I move 500 out, what runs short?” —
+      always labelled a projection, never presented as a figure from SAP.</li>
+  <li><strong>Questions that take minutes.</strong> <span class="pill">Beta</span> Queue a slow question,
+      collect the answer later, instead of hitting the 75-second request ceiling.</li>
+</ul>
+
+<h3>Acting — always behind a human</h3>
+<ul>
+  <li><strong>A write is proposed, never executed.</strong> It is described, costed and audited, and stops.</li>
+  <li><strong>Incomplete instructions are questioned.</strong> A missing quantity is asked for, not defaulted to 1.</li>
+  <li><strong>Anomalous moves are held.</strong> A quantity far outside recent norms goes to a human whatever the policy says.</li>
+  <li><strong>Write ceilings and second approvers.</strong> Configurable per user, warehouse or organisation.</li>
+  <li><strong>Several writes, one approval.</strong> <span class="pill">Beta</span> Each keeps its own
+      checks; the flagged count is shown on the batch.</li>
+</ul>
+
+<h3>Watching — the part that acts on its own <span class="pill">Beta</span></h3>
+<ul>
+  <li><strong>Morning digest.</strong> Open orders, counts, deliveries and yesterday’s activity, at an hour you choose.</li>
+  <li><strong>Watchers.</strong> “Tell me if stock of P123 drops below 500.” Alerts on <em>entering</em>
+      breach, not while it lasts — so it never becomes noise you mute.</li>
+  <li><strong>Anomaly detection.</strong> Compares each object against its own 14-day median, in both
+      directions. Silent until it has five observations, so it does not cry wolf.</li>
+  <li><strong>Delivery.</strong> One webhook that Teams, Slack and any custom endpoint all accept.</li>
+</ul>
+
+<h3>Governing</h3>
+<ul>
+  <li><strong>Quota per user, role or default</strong> — daily, weekly and monthly, checked before spending.</li>
+  <li><strong>Answer cache</strong> with per-object freshness and a midnight clamp for date-bound answers.</li>
+  <li><strong>Full audit.</strong> One row per request on every path, including refusals.</li>
+  <li><strong>14 admin screens</strong> for business objects, endpoints, cache, quotas, model routes,
+      users, approvals, audit — plus four new ones for background work.</li>
+  <li><strong>Feedback.</strong> <span class="pill">Beta</span> Thumbs up or down, keyed to the audit row
+      so a rating joins to the model, tools and grounding that produced the answer.</li>
+  <li><strong>Saved questions.</strong> <span class="pill">Beta</span> A vetted library per role.</li>
+  <li><strong>Preferences.</strong> <span class="pill">Beta</span> Remembers your plant — from an
+      allowlisted set of structured values only, never free text.</li>
+  <li><strong>Scheduled exports.</strong> <span class="pill">Beta</span> Usage, quality and failures as CSV.</li>
+</ul>
+
+<div class="pagebreak"></div>
+<h2>3 · One day, every feature</h2>
+
+<p>A single working day at a manufacturer running S/4HANA. Every capability above appears once, in
+the order someone would actually meet it.</p>
+
+<div class="scene">
+  <p class="t">06:00 — before anyone arrives</p>
+  <p>The <strong>scheduler</strong> wakes on one instance only — the database lease decides which — and runs
+  the <strong>morning digest</strong>. It reads through the same tools the chat uses, so it cannot disagree
+  with what the chat would say. The <strong>webhook</strong> posts it into the team’s Teams channel:</p>
+  <p class="q">“3 purchase orders open · 2 physical inventory documents still open · 41 goods movements
+  recorded · Yesterday: 27 questions asked, 24 answered from data, 6 served from cache, none failed.”</p>
+  <p>One section could not be read this morning, and says so rather than showing zero — because an
+  empty result and a broken connection lead to opposite actions.</p>
+</div>
+
+<div class="scene">
+  <p class="t">07:15 — Priya opens the chat</p>
+  <p>The <strong>saved question library</strong> offers her role’s usual starting points. She picks
+  <span class="q">“How much stock do we have?”</span> Her <strong>preference</strong> already holds plant 1710,
+  so she does not restate it. The answer arrives as a <strong>table</strong>; she switches to a
+  <strong>chart</strong> with one click. It is marked <strong>grounded</strong>, and expanding
+  <strong>Sources</strong> shows SAP Graph, 214 rows, and the exact query.</p>
+</div>
+
+<div class="scene">
+  <p class="t">07:20 — the same question again</p>
+  <p>A colleague asks it too. The <strong>cache</strong> serves it in 3 milliseconds instead of 900 —
+  no model call, no SAP call. The entry expires on that object’s own policy, and a date-bound answer
+  cannot outlive the day it describes.</p>
+</div>
+
+<div class="scene">
+  <p class="t">09:40 — a watcher fires</p>
+  <p>Stock of P123 crosses below 500. The <strong>watcher</strong> alerts <em>once</em>, on entering breach.
+  It stays breached for the rest of the morning and says nothing more — which is why the alert is
+  still trusted a month later.</p>
+</div>
+
+<div class="scene">
+  <p class="t">10:05 — “why?”</p>
+  <p>Priya asks <span class="q">“Why did stock drop in 1710 over the last 7 days?”</span> The router reads it
+  as a lookup and starts on the light model. Two rounds in, the question is still going — so
+  <strong>adaptive escalation</strong> promotes the remaining rounds to the heavier model, because difficulty
+  is discovered, not predicted. The <strong>root-cause chain</strong> queries goods movements over the
+  <strong>date range</strong>, then purchase orders, and connects them. The audit row records the escalation,
+  so “why did that one cost more?” has an answer.</p>
+</div>
+
+<div class="scene">
+  <p class="t">10:30 — a projection</p>
+  <p>She asks <span class="q">“What if I move 500 out of 1710 — would anything run short?”</span> The
+  <strong>simulation</strong> reads real stock and does arithmetic on it. The answer leads with
+  <em>“Projection — arithmetic on the current reading, not a figure from SAP”</em>, shows the table, and
+  says what it does not model: reservations, safety stock, open orders, lead times. It is
+  <strong>not marked grounded</strong>, and it never reaches the approval queue — a question nobody can
+  approve by accident.</p>
+</div>
+
+<div class="scene">
+  <p class="t">11:00 — a change</p>
+  <p>She asks to rebalance five materials. All five <strong>writes are collected</strong>, each judged on
+  its own for ceiling and anomaly, and presented as one <strong>batch</strong> with the flagged count on
+  it. One is unusually large and is marked. She approves. Each is executed through the same
+  single-action path — consumed exactly once — and the answer says plainly whether SAP actually changed.</p>
+</div>
+
+<div class="scene">
+  <p class="t">11:40 — a slow question</p>
+  <p>She asks for a month of movements across every plant. That is legitimately slower than a browser
+  will wait, so it is <strong>queued</strong>. A run id comes back immediately, a background worker claims it
+  conditionally, runs the <em>same</em> agent with a ten-minute budget, and reconciles the quota. If the
+  container is recycled mid-run, the run is expired and the quota returned rather than leaving a
+  spinner that never resolves.</p>
+</div>
+
+<div class="scene">
+  <p class="t">13:00 — anomaly</p>
+  <p>The <strong>anomaly sweep</strong> compares each object against its own 14-day median. Deliveries are
+  a third of normal. It alerts in <em>both</em> directions — a collapse matters as much as a spike — using a
+  median so that one freak day does not teach it that freak days are normal.</p>
+</div>
+
+<div class="scene">
+  <p class="t">14:00 — quality</p>
+  <p>Priya marks one answer down. The <strong>rating</strong> is keyed to the audit row, so it joins to the
+  provider, model, tools and grounding of that answer. “83% positive” tells nobody anything;
+  “every negative rating this week was ungrounded” is a finding.</p>
+</div>
+
+<div class="scene">
+  <p class="t">16:00 — the quota holds</p>
+  <p>A heavy user reaches their daily limit. They are refused before anything is spent, with the
+  window that was breached and when it resets. Two OpenRouter keys mean a free tier exhausted at
+  noon fails over rather than collapsing to the offline provider mid-demo.</p>
+</div>
+
+<div class="scene">
+  <p class="t">Friday 07:00 — the export</p>
+  <p>The <strong>weekly export</strong> builds three CSVs — usage, quality, failures — and posts them on.
+  It is off until someone asks for it, because a weekly file nobody requested is the definition of noise.</p>
+</div>
+
+<div class="pagebreak"></div>
+<h2>4 · How it refuses to be wrong</h2>
+
+<p>Most of the engineering is not in answering. It is in the difference between an answer and a
+confident guess.</p>
+
+<div class="box">
+  <h4>Grounded means a real system did something</h4>
+  <p>A read from SAP grounds an answer. A projection does not. A write recorded locally but not
+  posted to SAP does not. All three would otherwise sit behind the same badge.</p>
+</div>
+
+<div class="box">
+  <h4>Unreadable is never treated as fine</h4>
+  <p>A digest section that could not be read says so rather than showing zero. A watcher that cannot
+  be read stays breached rather than clearing a live alert. A failed observation is not stored as a
+  zero, because that would distort what counts as normal from then on.</p>
+</div>
+
+<div class="box stop">
+  <h4>Nothing changes a real system unattended</h4>
+  <p>Writes stop for approval. Batches do not weaken the per-action checks. Background jobs never
+  execute a write at all — nobody is watching them.</p>
+</div>
+
+<div class="box warn">
+  <h4>Remembering is not the same as remembering what you said</h4>
+  <p>Preferences are an allowlisted set of structured values with a validator each. Nothing free-text
+  can be stored, so nothing a user writes can reach the system prompt — where grounding and
+  write-refusal live.</p>
+</div>
+
+<h2>5 · What it runs on</h2>
+
+<table>
+  <tr><th style="width:30%">Layer</th><th>Choice</th></tr>
+  <tr><td>Platform</td><td>SAP BTP, Cloud Foundry</td></tr>
+  <tr><td>Application</td><td>SAP Cloud Application Programming model (CAP), Node.js</td></tr>
+  <tr><td>Screens</td><td>SAP Fiori elements, Horizon theme</td></tr>
+  <tr><td>Identity</td><td>XSUAA — the sign-on and role collections your administrators already assign</td></tr>
+  <tr><td>SAP data</td><td>SAP Graph on your own tenant; Business Accelerator Hub for the rest</td></tr>
+  <tr><td>System of record</td><td>PostgreSQL — users, quotas, config, audit, chat history</td></tr>
+  <tr><td>Cache</td><td>Redis. Optional: without it, an in-process cache</td></tr>
+  <tr><td>Models</td><td>Free OpenRouter models with two-key failover; SAP AI Core for a client who needs it</td></tr>
+  <tr><td>Portability</td><td>Postgres and Redis run on AWS, GCP or Azure — probes verify a client instance before deploying</td></tr>
+</table>
+
+<h2>6 · Status, honestly</h2>
+
+<p>Everything in section 2 is built, tested and deployed. Features marked <span class="pill">Beta</span>
+were added in the agentic build of September 2026 and are new surface: they work and are covered by
+tests, but have not yet run for months in front of users.</p>
+
+<p><strong>Two roadmap items were deliberately not built</strong>, each with a written trigger for revisiting:</p>
+<ul>
+  <li><strong>Domain agents</strong> — all business objects currently sit in one domain, so a router
+      would choose between one option. Build it when objects span two or more domains, or the tool
+      count passes roughly 15–20.</li>
+  <li><strong>Additional write-backs</strong> — no write currently reaches SAP, because the Accelerator
+      Hub sandbox this tenant reads from is read-only. Adding more would add tools that report
+      success and change nothing. Unblocks with a writable tenant.</li>
+</ul>
+
+<p><strong>Multi-tenancy</strong> is not built. The product is single-tenant: one deployment per client.
+That is a deliberate open decision, not an oversight.</p>
+
+<footer>
+IntelliOps4 · intelligent operations for SAP S/4HANA · this document describes the system as deployed
+on 6 September 2026 · 382 automated tests and 24 end-to-end scenarios passing
+</footer>
+
+</div>

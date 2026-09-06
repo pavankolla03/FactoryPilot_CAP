@@ -93,4 +93,21 @@ async function pick({ question, forced = process.env.LLM_ROUTE, load } = {}) {
   return { route, chosen: route?.route || chosen, why, complexity: wanted }
 }
 
-module.exports = { pick, complexityOf, recentLoad, ANALYTICAL, BUSY_THRESHOLD }
+/**
+ * The heavier route, for a question that turns out to be harder than it looked.
+ *
+ * Returns null when there is nothing heavier to promote to — a deployment with
+ * one model configured should not pay a chain rebuild to arrive at the same
+ * place it started.
+ */
+async function heavyRoute() {
+  try {
+    const { ModelRoute } = cds.entities('factorypilot.token')
+    const rows = await SELECT.from(ModelRoute).where({ isActive: true, route: 'heavy' })
+    return rows[0] || null
+  } catch {
+    return null
+  }
+}
+
+module.exports = { pick, complexityOf, recentLoad, heavyRoute, ANALYTICAL, BUSY_THRESHOLD }

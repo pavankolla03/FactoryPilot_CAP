@@ -551,7 +551,22 @@ function inferArgs(question, tool, original = question) {
       question.match(/\bmove\s+(\d+(?:\.\d+)?)\b/i)?.[1] ||
       question.match(/\btransfer\s+(\d+(?:\.\d+)?)\b/i)?.[1]
     if (stated) {
-      args.quantity = Number(stated)
+      let qty = Number(stated)
+      // Direction matters and is easy to lose. `simulate_stock_change` takes a
+      // signed change — negative removes — and a question phrased "move 500
+      // OUT" that arrives as +500 produces a confident answer to the opposite
+      // question: "nothing would go negative" when removing that much might be
+      // exactly what causes a shortfall. A wrong sign here is worse than no
+      // answer, so removal language is read explicitly.
+      if (tool?.function?.name === 'simulate_stock_change') {
+        const removes = /\b(out of|out|remove|removing|take|taking|issue|issuing|consume|consuming|ship|shipping|deduct|less|reduce|reducing)\b/i.test(question)
+        const adds = /\b(add|adding|into|receive|receiving|inbound|top up|topping up|increase|increasing|more)\b/i.test(question)
+        // Ambiguous phrasing keeps the stated sign rather than guessing; the
+        // rendered projection states the direction, so the reader can see it.
+        if (removes && !adds) qty = -Math.abs(qty)
+        else if (adds && !removes) qty = Math.abs(qty)
+      }
+      args.quantity = qty
     }
   }
 
@@ -580,6 +595,33 @@ function missingRequired(tool, args) {
 }
 
 
+/**
+ * Render a what-if projection.
+ *
+ * The caveat leads and is not optional. A projected figure reads exactly like
+ * a reading — a confident number, in a table, from the same assistant that has
+ * been quoting real stock all morning — so the sentence that says it is not
+ * one has to come first, not as a footnote after the number.
+ */
+function summariseProjection(parsed) {
+  if (!parsed.lines || !parsed.lines.length) {
+    return parsed.message || 'There was nothing to project from, so no projection was made.'
+  }
+  const head = 'Projection — arithmetic on the current reading, not a figure from SAP.'
+  const table = [
+    '| Material | Now | Change | Projected |',
+    '| --- | --- | --- | --- |',
+    ...parsed.lines.map((l) =>
+      `| ${l.material} | ${l.current} | ${l.change > 0 ? '+' : ''}${l.change} | ${l.projected}${l.goesNegative ? ' ⚠' : ''} |`),
+  ].join('\n')
+  const tail = parsed.shortfalls
+    ? `${parsed.shortfalls} material${parsed.shortfalls === 1 ? '' : 's'} would go negative on this reading alone. ` +
+      'This does not consider reservations, safety stock, open orders or lead times.'
+    : 'Nothing would go negative on this reading alone. This does not consider ' +
+      'reservations, safety stock, open orders or lead times.'
+  return `${head}\n\n${table}\n\n${tail}`
+}
+
 function summarise(raw) {
   const parsed = safeParse(raw)
   // A failed fetch is not an empty result. Saying "no records" when the
@@ -587,6 +629,16 @@ function summarise(raw) {
   // which is a different and much more expensive statement than "I could
   // not check".
   if (parsed?.error) return `I could not reach the source system, so I have no data to answer that: ${parsed.error}`
+
+  // A projection is neither an error nor a set of rows, and it must be
+  // recognised *before* the empty-rows branch below. It was not: a what-if
+  // question ran the simulation, produced a correct projection, and then came
+  // back to the user as "No records matched that question." — a projection
+  // rendered as an empty reading, which is precisely the conflation the whole
+  // simulation path is arranged to prevent. The unit tests missed it because
+  // they exercised the projection function directly rather than the answer a
+  // person actually sees.
+  if (parsed?.projection === true) return summariseProjection(parsed)
 
   const rows = Array.isArray(parsed?.rows) ? parsed.rows : Array.isArray(parsed) ? parsed : []
 

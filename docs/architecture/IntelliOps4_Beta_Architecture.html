@@ -1,0 +1,308 @@
+<meta charset="utf-8">
+<title>IntelliOps4 — Beta feature architecture</title>
+<style>
+  :root {
+    --ink:#1b2229; --soft:#46545f; --faint:#6d7d8a; --rule:#ccd6dc;
+    --sched:#0f6b62;   /* background work */
+    --guard:#9e3226;   /* a gate a human must pass */
+    --proj:#7a6320;    /* a projection, not a fact */
+    --model:#4a5b8c;   /* the language model */
+    --data:#144691;    /* SAP */
+  }
+  * { box-sizing:border-box }
+  body { margin:0; background:#fff; color:var(--ink);
+         font-family:"Helvetica Neue",Helvetica,Arial,sans-serif; font-size:11pt; line-height:1.5 }
+  .shell { max-width:56rem; margin:0 auto; padding:1.5rem 1rem 3rem }
+  h1 { font-size:21pt; margin:0 0 .2rem; letter-spacing:-.01em }
+  .stand { color:var(--soft); margin:0 0 1.4rem; max-width:42rem }
+  h2 { font-size:14pt; margin:2rem 0 .3rem; padding-bottom:.3rem; border-bottom:2px solid var(--ink) }
+  p { margin:.5rem 0; max-width:44rem }
+  figure { margin:.8rem 0 0 }
+  figcaption { font-size:9.5pt; color:var(--soft); margin-top:.5rem; max-width:44rem }
+  svg { max-width:100%; height:auto; display:block }
+  code { font-family:"Courier New",monospace; font-size:.88em }
+  .legend { display:flex; flex-wrap:wrap; gap:.3rem 1.2rem; font-size:9pt; color:var(--soft); margin:.6rem 0 0 }
+  .legend span { display:inline-flex; align-items:center; gap:.35rem }
+  .legend i { width:.65rem; height:.65rem; border-radius:2px; display:inline-block }
+</style>
+
+<div class="shell">
+<h1>IntelliOps4 — architecture of the beta features</h1>
+<p class="stand">Five drawings covering everything added in the agentic build: background work,
+the proactive jobs, projection, batched approval, and questions that outlive a request. Drawn from
+the code as deployed on 6 September 2026.</p>
+
+<div class="legend">
+  <span><i style="background:var(--sched)"></i> background work</span>
+  <span><i style="background:var(--guard)"></i> a gate a human must pass</span>
+  <span><i style="background:var(--proj)"></i> a projection, not a fact</span>
+  <span><i style="background:var(--model)"></i> language model</span>
+  <span><i style="background:var(--data)"></i> SAP</span>
+</div>
+
+<h2>1 · The scheduler, and why the lock is the feature</h2>
+<p>Cloud Foundry runs several copies of the application. A plain timer fires in every one of them,
+so a daily digest would be delivered three times and a threshold alert would page someone in
+triplicate — a fault invisible on one machine. The database decides the winner, because it is the
+only thing all instances share.</p>
+
+<figure>
+<svg viewBox="0 0 900 380" role="img" aria-label="Three application instances each tick every minute and issue the same conditional UPDATE against a shared lease row; exactly one succeeds and runs the job, the other two see zero rows changed and move on.">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1b2229"/></marker>
+    <marker id="ag" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0f6b62"/></marker>
+  </defs>
+  <g font-family="Helvetica,Arial,sans-serif" font-size="12">
+    <g fill="#fff" stroke="#1b2229" stroke-width="1.1">
+      <rect x="20" y="30"  width="180" height="52" rx="4"/>
+      <rect x="20" y="104" width="180" height="52" rx="4"/>
+      <rect x="20" y="178" width="180" height="52" rx="4"/>
+    </g>
+    <g fill="#1b2229">
+      <text x="34" y="52">instance 1</text><text x="34" y="126">instance 2</text><text x="34" y="200">instance 3</text>
+    </g>
+    <g fill="#6d7d8a" font-size="10" font-family="Courier New,monospace">
+      <text x="34" y="68">tick every 60s</text><text x="34" y="142">tick every 60s</text><text x="34" y="216">tick every 60s</text>
+    </g>
+
+    <g stroke="#1b2229" stroke-width="1.1" fill="none" marker-end="url(#a)">
+      <path d="M200 56 H330"/><path d="M200 130 H330"/><path d="M200 204 H330"/>
+    </g>
+
+    <rect x="330" y="30" width="250" height="200" rx="4" fill="#fff" stroke="#0f6b62" stroke-width="1.6"/>
+    <text x="346" y="54" fill="#0f6b62" font-weight="bold">ScheduledJob — the lease</text>
+    <g font-family="Courier New,monospace" font-size="10" fill="#1b2229">
+      <text x="346" y="78">UPDATE ScheduledJob</text>
+      <text x="346" y="94">  SET lockedUntil = now+5m</text>
+      <text x="346" y="110">WHERE jobName = ?</text>
+      <text x="346" y="126">  AND (lockedUntil IS NULL</text>
+      <text x="346" y="142">   OR lockedUntil &lt; now)</text>
+    </g>
+    <text x="346" y="170" fill="#46545f" font-size="10">The database evaluates this under its own</text>
+    <text x="346" y="184" fill="#46545f" font-size="10">row lock. Exactly one UPDATE changes a row.</text>
+    <text x="346" y="212" fill="#9e3226" font-size="10">A lease, not a flag: an instance that dies</text>
+    <text x="346" y="212" fill="#9e3226" font-size="10" dy="14">stops renewing and the job frees itself.</text>
+
+    <path d="M580 90 H700" stroke="#0f6b62" stroke-width="1.6" fill="none" marker-end="url(#ag)"/>
+    <rect x="700" y="64" width="180" height="52" rx="4" fill="#fff" stroke="#0f6b62" stroke-width="1.6"/>
+    <text x="714" y="86" fill="#0f6b62">1 row changed</text>
+    <text x="714" y="103" fill="#6d7d8a" font-size="10">runs the job</text>
+
+    <path d="M580 170 H700" stroke="#6d7d8a" stroke-width="1.1" stroke-dasharray="4 3" fill="none" marker-end="url(#a)"/>
+    <rect x="700" y="144" width="180" height="52" rx="4" fill="#fff" stroke="#ccd6dc"/>
+    <text x="714" y="166" fill="#6d7d8a">0 rows changed</text>
+    <text x="714" y="183" fill="#6d7d8a" font-size="10">moves on, silently</text>
+
+    <rect x="20" y="272" width="860" height="86" rx="4" fill="#f4f6f7" stroke="#ccd6dc"/>
+    <text x="36" y="296" font-weight="bold">Every run is recorded</text>
+    <text x="36" y="316" font-size="11" fill="#46545f">JobRun holds start, finish, duration, outcome and which instance ran it — for failures as much as successes.</text>
+    <text x="36" y="336" font-size="11" fill="#46545f">A job that has thrown every night for a week is seven rows, not an absence of evidence.</text>
+  </g>
+</svg>
+<figcaption>Figure 1 — the scheduler lease. The conditional UPDATE is the whole guarantee: read-then-write would let two instances both see an expired lease and both believe they had won.</figcaption>
+</figure>
+
+<h2>2 · What runs on its own</h2>
+<p>Four jobs, all reading through the same tools the chat uses. A digest that disagreed with what the
+chat says about the same data would make both untrustworthy, and the divergence would be invisible
+until someone checked by hand.</p>
+
+<figure>
+<svg viewBox="0 0 900 400" role="img" aria-label="Four scheduled jobs — daily digest, watcher sweep, anomaly sweep and the async question worker — read through the shared tool layer to SAP and deliver through one webhook.">
+  <defs><marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1b2229"/></marker></defs>
+  <g font-family="Helvetica,Arial,sans-serif" font-size="12">
+    <g fill="#fff" stroke="#0f6b62" stroke-width="1.4">
+      <rect x="20" y="30" width="200" height="62" rx="4"/>
+      <rect x="20" y="106" width="200" height="62" rx="4"/>
+      <rect x="20" y="182" width="200" height="62" rx="4"/>
+      <rect x="20" y="258" width="200" height="62" rx="4"/>
+    </g>
+    <g fill="#1b2229">
+      <text x="34" y="52">daily-digest</text>
+      <text x="34" y="128">watcher-sweep</text>
+      <text x="34" y="204">anomaly-sweep</text>
+      <text x="34" y="280">async-questions</text>
+    </g>
+    <g fill="#6d7d8a" font-size="10">
+      <text x="34" y="70">at OrgSettings.digestHour</text>
+      <text x="34" y="84">open orders, counts, deliveries, activity</text>
+      <text x="34" y="146">every 15 min</text>
+      <text x="34" y="160">alerts on the EDGE, not the state</text>
+      <text x="34" y="222">every 3 h</text>
+      <text x="34" y="236">median of 14 days, both directions</text>
+      <text x="34" y="298">every 5 min</text>
+      <text x="34" y="312">questions too slow for a request</text>
+    </g>
+
+    <g stroke="#1b2229" stroke-width="1.1" fill="none" marker-end="url(#b)">
+      <path d="M220 60 H280 V150 H340"/>
+      <path d="M220 136 H340"/>
+      <path d="M220 212 H280 V200 H340"/>
+      <path d="M220 288 H280 V218 H340"/>
+    </g>
+
+    <rect x="340" y="120" width="190" height="110" rx="4" fill="#fff" stroke="#1b2229" stroke-width="1.4"/>
+    <text x="356" y="146" font-weight="bold">tools.executeRead</text>
+    <text x="356" y="166" font-size="10" fill="#46545f">the same tools the</text>
+    <text x="356" y="180" font-size="10" fill="#46545f">chat uses — one path,</text>
+    <text x="356" y="194" font-size="10" fill="#46545f">so the two cannot</text>
+    <text x="356" y="208" font-size="10" fill="#46545f">disagree about the</text>
+    <text x="356" y="222" font-size="10" fill="#46545f">same data</text>
+
+    <path d="M530 175 H650" stroke="#144691" stroke-width="1.4" fill="none" marker-end="url(#b)"/>
+    <rect x="650" y="148" width="230" height="54" rx="4" fill="#fff" stroke="#144691" stroke-width="1.4"/>
+    <text x="666" y="170" fill="#144691" font-weight="bold">SAP Graph / Accelerator Hub</text>
+    <text x="666" y="188" font-size="10" fill="#6d7d8a">live S/4HANA</text>
+
+    <path d="M440 230 V300 H650" stroke="#0f6b62" stroke-width="1.4" fill="none" marker-end="url(#b)"/>
+    <rect x="650" y="274" width="230" height="54" rx="4" fill="#fff" stroke="#0f6b62" stroke-width="1.4"/>
+    <text x="666" y="296" fill="#0f6b62" font-weight="bold">OrgSettings.webhookUrl</text>
+    <text x="666" y="314" font-size="10" fill="#6d7d8a">Teams, Slack, or any endpoint</text>
+
+    <rect x="20" y="342" width="860" height="46" rx="4" fill="#fff5f4" stroke="#9e3226"/>
+    <text x="36" y="362" fill="#9e3226" font-weight="bold">Unreadable is never treated as fine.</text>
+    <text x="36" y="379" font-size="11" fill="#46545f">A section, watcher or observation that could not be read says so. It is never recorded as zero, and never clears a live alert.</text>
+  </g>
+</svg>
+<figcaption>Figure 2 — the four background jobs. Every one degrades per item rather than all-or-nothing, because a failure at 6am reaches someone who is not reading logs.</figcaption>
+</figure>
+
+<h2>3 · Three kinds of tool</h2>
+<p>The agent loop used to know two kinds of tool: a read, and a write that stops for approval.
+Projection is a third, and it needed to be third rather than a variant of either — its inputs are
+grounded and its output is not.</p>
+
+<figure>
+<svg viewBox="0 0 900 340" role="img" aria-label="The agent loop branches three ways on a tool call: a simulation returns a labelled projection and never sets grounded, a write stops at the approval gate, and a read fetches from SAP and sets grounded.">
+  <defs><marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1b2229"/></marker></defs>
+  <g font-family="Helvetica,Arial,sans-serif" font-size="12">
+    <rect x="330" y="20" width="240" height="50" rx="4" fill="#fff" stroke="#4a5b8c" stroke-width="1.6"/>
+    <text x="348" y="42" fill="#4a5b8c" font-weight="bold">model asks for a tool</text>
+    <text x="348" y="60" font-size="10" fill="#6d7d8a">up to 8 rounds, bounded by the clock</text>
+
+    <g stroke="#1b2229" stroke-width="1.1" fill="none" marker-end="url(#c)">
+      <path d="M400 70 V100 H150 V130"/>
+      <path d="M450 70 V130"/>
+      <path d="M500 70 V100 H760 V130"/>
+    </g>
+
+    <rect x="20" y="130" width="260" height="150" rx="4" fill="#fffdf5" stroke="#7a6320" stroke-width="1.6"/>
+    <text x="36" y="154" fill="#7a6320" font-weight="bold">simulate_stock_change</text>
+    <text x="36" y="176" font-size="10" fill="#46545f">reads real stock, returns arithmetic</text>
+    <text x="36" y="194" font-size="10" fill="#7a6320">projection: true travels INSIDE</text>
+    <text x="36" y="208" font-size="10" fill="#7a6320">the result — the caveat cannot</text>
+    <text x="36" y="222" font-size="10" fill="#7a6320">be detached from the number</text>
+    <text x="36" y="246" font-size="10" fill="#9e3226">never sets grounded</text>
+    <text x="36" y="262" font-size="10" fill="#9e3226">never reaches the approval queue</text>
+
+    <rect x="330" y="130" width="240" height="150" rx="4" fill="#fff5f4" stroke="#9e3226" stroke-width="1.6"/>
+    <text x="346" y="154" fill="#9e3226" font-weight="bold">move_stock — a write</text>
+    <text x="346" y="176" font-size="10" fill="#46545f">described, costed, audited</text>
+    <text x="346" y="190" font-size="10" fill="#46545f">— and not done</text>
+    <text x="346" y="212" font-size="10" fill="#9e3226">every write in the round is</text>
+    <text x="346" y="226" font-size="10" fill="#9e3226">collected, not just the first</text>
+    <text x="346" y="250" font-size="10" fill="#46545f">each judged on its own:</text>
+    <text x="346" y="264" font-size="10" fill="#46545f">ceiling, anomaly, second approver</text>
+
+    <rect x="620" y="130" width="260" height="150" rx="4" fill="#fff" stroke="#144691" stroke-width="1.6"/>
+    <text x="636" y="154" fill="#144691" font-weight="bold">query_* — a read</text>
+    <text x="636" y="176" font-size="10" fill="#46545f">SAP Graph, nine date presets</text>
+    <text x="636" y="194" font-size="10" fill="#144691">sets grounded = true</text>
+    <text x="636" y="216" font-size="10" fill="#46545f">a failed fetch is never</text>
+    <text x="636" y="230" font-size="10" fill="#46545f">answered as an empty result</text>
+
+    <rect x="20" y="296" width="860" height="34" rx="4" fill="#f4f6f7" stroke="#ccd6dc"/>
+    <text x="36" y="318" font-size="11" fill="#46545f">Grounded means “backed by what a real system actually did”. A projection, and a write recorded but not posted, are both excluded from it.</text>
+  </g>
+</svg>
+<figcaption>Figure 3 — three tool categories. Making projection a third branch rather than a read is what keeps a computed figure from inheriting the badge that certifies real ones.</figcaption>
+</figure>
+
+<h2>4 · Batched approval</h2>
+<p>One question can propose several writes. The loop used to return on the first and discard the
+rest, so a user approved one card and had every reason to believe all five had happened.</p>
+
+<figure>
+<svg viewBox="0 0 900 300" role="img" aria-label="A question proposing five moves creates five pending actions sharing one batch id; each keeps its own policy and anomaly verdict, and confirmBatch loops over the single-action handler.">
+  <defs><marker id="d" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1b2229"/></marker></defs>
+  <g font-family="Helvetica,Arial,sans-serif" font-size="12">
+    <rect x="20" y="30" width="200" height="50" rx="4" fill="#fff" stroke="#1b2229" stroke-width="1.1"/>
+    <text x="36" y="52">“rebalance these five”</text>
+    <text x="36" y="70" font-size="10" fill="#6d7d8a">one question</text>
+
+    <path d="M220 55 H300" stroke="#1b2229" stroke-width="1.1" fill="none" marker-end="url(#d)"/>
+
+    <g fill="#fff5f4" stroke="#9e3226" stroke-width="1.3">
+      <rect x="300" y="20" width="230" height="34" rx="3"/>
+      <rect x="300" y="60" width="230" height="34" rx="3"/>
+      <rect x="300" y="100" width="230" height="34" rx="3"/>
+      <rect x="300" y="140" width="230" height="34" rx="3"/>
+      <rect x="300" y="180" width="230" height="34" rx="3"/>
+    </g>
+    <g fill="#1b2229" font-size="11">
+      <text x="314" y="42">PendingAction · batchSeq 0</text>
+      <text x="314" y="82">PendingAction · batchSeq 1</text>
+      <text x="314" y="122">PendingAction · batchSeq 2</text>
+      <text x="314" y="162">PendingAction · batchSeq 3</text>
+      <text x="314" y="202">PendingAction · batchSeq 4 ⚠</text>
+    </g>
+    <text x="300" y="234" font-size="10" fill="#9e3226">one batchID · each keeps its OWN ceiling and anomaly verdict</text>
+    <text x="300" y="250" font-size="10" fill="#9e3226">flagged count surfaced on the batch, so one button cannot bury one</text>
+
+    <path d="M530 117 H620" stroke="#1b2229" stroke-width="1.1" fill="none" marker-end="url(#d)"/>
+    <rect x="620" y="70" width="260" height="94" rx="4" fill="#fff" stroke="#9e3226" stroke-width="1.6"/>
+    <text x="636" y="94" fill="#9e3226" font-weight="bold">confirmBatch</text>
+    <text x="636" y="114" font-size="10" fill="#46545f">a LOOP over confirmAction —</text>
+    <text x="636" y="128" font-size="10" fill="#46545f">not a parallel bulk path</text>
+    <text x="636" y="148" font-size="10" fill="#46545f">consumed-once, expiry and audit</text>
+    <text x="636" y="162" font-size="10" fill="#46545f">live in one place only</text>
+
+    <rect x="20" y="256" width="860" height="34" rx="4" fill="#f4f6f7" stroke="#ccd6dc"/>
+    <text x="36" y="278" font-size="11" fill="#46545f">Sequential, because these are movements against the same plant: firing them at once makes the landing order unpredictable.</text>
+  </g>
+</svg>
+<figcaption>Figure 4 — batched approval. A second bulk implementation would be a second place for consumed-once, expiry and audit to be true, and therefore a second place for them to stop being true.</figcaption>
+</figure>
+
+<h2>5 · A question that outlives its request</h2>
+<p>Every synchronous question is bounded at about 75 seconds because a browser is waiting and the
+gateway gives up at two minutes. A root-cause chain across a month of movements is legitimately
+slower than that.</p>
+
+<figure>
+<svg viewBox="0 0 900 320" role="img" aria-label="askAsync reserves quota and queues a run, returning a run id immediately; a background worker claims it conditionally, runs the same agent with a ten minute budget, reconciles quota and records the answer; a stale run is expired and its quota returned.">
+  <defs><marker id="e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1b2229"/></marker></defs>
+  <g font-family="Helvetica,Arial,sans-serif" font-size="12">
+    <rect x="20" y="30" width="180" height="60" rx="4" fill="#fff" stroke="#1b2229" stroke-width="1.1"/>
+    <text x="34" y="52">askAsync</text>
+    <text x="34" y="70" font-size="10" fill="#6d7d8a">returns a run id at once</text>
+    <text x="34" y="84" font-size="10" fill="#9e3226">quota reserved HERE</text>
+
+    <path d="M200 60 H300" stroke="#1b2229" stroke-width="1.1" fill="none" marker-end="url(#e)"/>
+    <rect x="300" y="30" width="170" height="60" rx="4" fill="#fff" stroke="#0f6b62" stroke-width="1.4"/>
+    <text x="316" y="52" fill="#0f6b62">AsyncRun · QUEUED</text>
+    <text x="316" y="72" font-size="10" fill="#6d7d8a">question, plant, reservation</text>
+
+    <path d="M385 90 V130" stroke="#0f6b62" stroke-width="1.4" fill="none" marker-end="url(#e)"/>
+    <rect x="250" y="130" width="270" height="76" rx="4" fill="#fff" stroke="#0f6b62" stroke-width="1.4"/>
+    <text x="266" y="154" fill="#0f6b62" font-weight="bold">worker claims it conditionally</text>
+    <text x="266" y="174" font-size="10" fill="#46545f">UPDATE … WHERE status='QUEUED'</text>
+    <text x="266" y="190" font-size="10" fill="#46545f">two workers cannot take the same run</text>
+
+    <path d="M520 168 H620" stroke="#1b2229" stroke-width="1.1" fill="none" marker-end="url(#e)"/>
+    <rect x="620" y="130" width="260" height="76" rx="4" fill="#fff" stroke="#4a5b8c" stroke-width="1.6"/>
+    <text x="636" y="154" fill="#4a5b8c" font-weight="bold">the SAME agent.run</text>
+    <text x="636" y="174" font-size="10" fill="#46545f">same tools, quota, grounding, audit</text>
+    <text x="636" y="190" font-size="10" fill="#46545f">10-minute budget instead of 75s</text>
+
+    <rect x="20" y="228" width="860" height="36" rx="4" fill="#fff5f4" stroke="#9e3226"/>
+    <text x="36" y="251" font-size="11" fill="#9e3226">A write is never executed here. The agent stops at one and records the proposal — nobody is watching a background job.</text>
+
+    <rect x="20" y="274" width="860" height="36" rx="4" fill="#f4f6f7" stroke="#ccd6dc"/>
+    <text x="36" y="297" font-size="11" fill="#46545f">A run left RUNNING for 30 minutes is EXPIRED and its quota returned — the agent keeps no intermediate state, so it cannot be resumed.</text>
+  </g>
+</svg>
+<figcaption>Figure 5 — asynchronous questions. The worker calls the same agent as the request path; a second implementation would be a second place for grounding, quota and audit to stop being true.</figcaption>
+</figure>
+
+</div>

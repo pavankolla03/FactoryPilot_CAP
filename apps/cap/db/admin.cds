@@ -88,3 +88,36 @@ entity OrgSettings : cuid, managed {
   @title: 'Default Warehouse'
   defaultWarehouse  : String(20) default '1000';
 }
+
+/**
+ * What this person has told us about how they work. (BETA)
+ *
+ * "I look after plant 1710" should not need saying twice. But remembering it
+ * is not the same as remembering *whatever they said*, and the difference
+ * matters more here than it looks.
+ *
+ * Free-text memory injected into a system prompt is two problems at once. It
+ * is a prompt-injection surface — anything a user can store, they can use to
+ * instruct the model, including instructing it to ignore the rules above it.
+ * And it is a correctness risk: a sentence remembered in March is presented to
+ * the model in September with the same confidence as a fact read from SAP,
+ * with nothing to say it has expired.
+ *
+ * So this stores **structured preferences with an allowlisted key set** and
+ * nothing else. `defaultPlant` becomes a plant number that flows through the
+ * same `defaults.warehouse` path a dropdown selection uses; it never becomes a
+ * sentence in the prompt. A preference cannot say anything the schema does not
+ * already permit, which is the property that makes it safe to remember.
+ */
+entity UserPreference : cuid, managed {
+  @title: 'User'
+  userID : String(100) not null;
+
+  /** One of the allowlisted keys — see PREFERENCE_KEYS in srv/lib/prefs.js.
+   *  A key outside that set is refused rather than stored and ignored. */
+  @title: 'Preference'
+  prefKey : String(40) not null;
+
+  @title: 'Value'
+  prefValue : String(100);
+}

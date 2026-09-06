@@ -1,5 +1,7 @@
 const cds = require('@sap/cds')
 const agent = require('./lib/agent')
+const asyncrun = require('./lib/asyncrun')
+const prefs = require('./lib/prefs')
 const quota = require('./lib/quota')
 const tools = require('./lib/tools')
 const policy = require('./lib/policy')
@@ -352,15 +354,30 @@ module.exports = cds.service.impl(function () {
     let status = 'SUCCESS'
     let errorDetail = ''
     try {
+      // Most specific wins: the plant chosen in the UI now, then the one this
+      // person told us once, then the organisation default. A remembered
+      // preference is a standing answer to a question nobody asked this time —
+      // it must never override a choice made this time.
+      const preferences = await prefs.forUser(userID)
+      const effectiveWarehouse = prefs.resolveWarehouse({
+        requested: warehouseID,
+        preferences,
+        orgDefault: orgSettings?.defaultWarehouse,
+      })
+
       result = await agent.run({
         question,
         userID,
         roles,
-        warehouseID,
+        warehouseID: effectiveWarehouse,
         conversationID,
         correlationId,
         businessObjects,
         route,
+        // The route to promote to if the question turns out to need more than
+        // a lookup. Resolved here rather than in the agent so the agent keeps
+        // knowing nothing about ModelRoute rows.
+        escalationRoute: routing.chosen === 'heavy' ? null : await router.heavyRoute(),
         orgSettings,
         // Whatever is left of this request's budget, minus room to record the
         // outcome. The approuter gives up at its own destination timeout and
@@ -411,32 +428,62 @@ module.exports = cds.service.impl(function () {
     await persistTurns(conversationID, produced, startSeq)
 
     let pendingCard = null
+    let pendingBatch = null
     if (result.status === 'AWAITING_APPROVAL' && result.pendingAction) {
       const { PendingAction } = cds.entities('factorypilot.audit')
-      const actionID = uuid()
-      await INSERT.into(PendingAction).entries({
-        ID: actionID,
-        createdAt: new Date(),
-        expiresAt: result.pendingAction.expiresAt,
+      // Every write the model proposed this turn, not just the first. A single
+      // proposal keeps batchID null so nothing that predates batching changes
+      // shape; several get one batchID so they can be decided together rather
+      // than the user approving one card and assuming the rest went with it.
+      const proposals = result.pendingActions?.length
+        ? result.pendingActions
+        : [result.pendingAction]
+      const batchID = proposals.length > 1 ? uuid() : null
+      const now = new Date()
+
+      const rows = proposals.map((p, i) => ({
+        ID: uuid(),
+        createdAt: now,
+        expiresAt: p.expiresAt,
         userID,
         conversationID,
-        toolName: result.pendingAction.toolName,
-        arguments: JSON.stringify(result.pendingAction.arguments),
-        warehouseID: result.pendingAction.warehouseID,
-        summary: result.pendingAction.summary,
-        anomalous: result.pendingAction.anomalous,
-        anomalyReason: result.pendingAction.anomalyReason,
+        toolName: p.toolName,
+        arguments: JSON.stringify(p.arguments),
+        warehouseID: p.warehouseID,
+        summary: p.summary,
+        anomalous: p.anomalous,
+        anomalyReason: p.anomalyReason,
+        batchID,
+        batchSeq: batchID ? i : null,
         status: 'PENDING',
+      }))
+      await INSERT.into(PendingAction).entries(rows)
+
+      const card = (row, p) => ({
+        actionID: row.ID,
+        toolName: p.toolName,
+        summary: p.summary,
+        arguments: JSON.stringify(p.arguments),
+        warehouseID: p.warehouseID,
+        anomalous: p.anomalous,
+        anomalyReason: p.anomalyReason,
+        expiresAt: p.expiresAt,
       })
-      pendingCard = {
-        actionID,
-        toolName: result.pendingAction.toolName,
-        summary: result.pendingAction.summary,
-        arguments: JSON.stringify(result.pendingAction.arguments),
-        warehouseID: result.pendingAction.warehouseID,
-        anomalous: result.pendingAction.anomalous,
-        anomalyReason: result.pendingAction.anomalyReason,
-        expiresAt: result.pendingAction.expiresAt,
+      pendingCard = card(rows[0], proposals[0])
+
+      if (batchID) {
+        // Anything flagged is surfaced on the batch itself. Approving many
+        // actions at once must not be a way to wave an anomalous one through
+        // among ordinary ones — the count is what a reader checks before
+        // pressing a single button that moves stock several times.
+        const flagged = proposals.filter((p) => p.anomalous).length
+        pendingBatch = {
+          batchID,
+          count: rows.length,
+          flagged,
+          actions: rows.map((r, i) => card(r, proposals[i])),
+          expiresAt: proposals[0].expiresAt,
+        }
       }
     }
 
@@ -489,6 +536,7 @@ module.exports = cds.service.impl(function () {
         sources: sourcesFrom(result.steps),
       }),
       pendingAction: pendingCard,
+      pendingBatch,
       metadata: {
         conversationID,
         logID,
@@ -515,6 +563,111 @@ module.exports = cds.service.impl(function () {
    * in PENDING and is refused. Checking-then-updating would let a double-click
    * post the same goods movement twice.
    */
+  /**
+   * Decide a whole batch. (BETA)
+   *
+   * Deliberately a loop over `confirmAction` rather than a bulk path of its
+   * own. Every guarantee that matters here — consumed exactly once, audited,
+   * expiry respected, second approver enforced — lives in that handler, and a
+   * parallel implementation would be a second place for those to be true, which
+   * is a second place for them to stop being true.
+   *
+   * Sequential, not parallel: these are stock movements against the same
+   * plant, and firing them at once would make the order in which they land
+   * unpredictable. Slower is the right trade for a handful of writes a person
+   * is watching.
+   */
+  this.on('askAsync', async (req) => {
+    const { question, warehouseID, conversationID } = req.data
+    if (!question || !String(question).trim()) return req.reject(400, 'A question is required.')
+    try {
+      const { runID } = await asyncrun.submit({
+        userID: req.user.id,
+        roles: rolesOf(req),
+        question: String(question).trim(),
+        warehouseID,
+        conversationID,
+      })
+      return {
+        runID, status: 'QUEUED',
+        message: 'Queued. It will be picked up within a few minutes — ask for it with asyncResult.',
+      }
+    } catch (err) {
+      // Quota is checked at submit rather than in the worker, so the person
+      // asking is told now rather than by a background job they cannot see.
+      if (err.code === 'QUOTA_EXCEEDED') return req.reject(429, err.message)
+      throw err
+    }
+  })
+
+  this.on('asyncResult', async (req) => {
+    const { AsyncRun } = cds.entities('factorypilot.jobs')
+    const run = await SELECT.one.from(AsyncRun).where({ ID: req.data.runID })
+    if (!run) return req.reject(404, 'No such run.')
+    // Scoped to the submitter. An async answer is as private as the question
+    // that produced it, and a run id is guessable enough to matter.
+    if (run.userID !== req.user.id) return req.reject(404, 'No such run.')
+    return {
+      runID: run.ID, status: run.status, progress: run.progress, answer: run.answer,
+      grounded: run.grounded, rounds: run.rounds, tokensUsed: run.tokensUsed,
+      queuedAt: run.queuedAt, finishedAt: run.finishedAt, errorDetail: run.errorDetail,
+    }
+  })
+
+  this.on('confirmBatch', async (req) => {
+    const { batchID, approve } = req.data
+    const userID = req.user.id
+    const { PendingAction } = cds.entities('factorypilot.audit')
+
+    const actions = await SELECT.from(PendingAction)
+      .where({ batchID, userID })
+      .orderBy('batchSeq')
+    if (!actions.length) {
+      return req.reject(404, 'No pending batch with that id for this user.')
+    }
+
+    const outcomes = []
+    let approved = 0, rejected = 0, failed = 0, skipped = 0
+    for (const a of actions) {
+      if (a.status !== 'PENDING') {
+        // Already decided — by an earlier press of the same button, or by
+        // someone else. Skipping is right; re-running it would be the double
+        // execution the single-action path exists to prevent.
+        skipped++
+        outcomes.push({ actionID: a.ID, summary: a.summary, status: a.status,
+          message: 'Already decided; left as it was.' })
+        continue
+      }
+      try {
+        const r = await this.send('confirmAction', { actionID: a.ID, approve })
+        const ok = r?.status !== 'ERROR'
+        if (!approve) rejected++
+        else if (ok) approved++
+        else failed++
+        outcomes.push({ actionID: a.ID, summary: a.summary,
+          status: approve ? (ok ? 'APPROVED' : 'FAILED') : 'REJECTED',
+          message: (r?.answer || r?.message || '').slice(0, 500) })
+      } catch (err) {
+        // One failure does not abandon the rest. Stopping halfway would leave
+        // a batch in a state nobody asked for and nobody can see the shape of;
+        // every action gets an outcome, and the summary says what happened.
+        failed++
+        outcomes.push({ actionID: a.ID, summary: a.summary, status: 'FAILED',
+          message: String(err.message || err).slice(0, 500) })
+      }
+    }
+
+    const parts = []
+    if (approved) parts.push(`${approved} applied`)
+    if (rejected) parts.push(`${rejected} rejected`)
+    if (failed) parts.push(`${failed} failed`)
+    if (skipped) parts.push(`${skipped} already decided`)
+    return {
+      batchID, approved, rejected, failed, skipped, outcomes,
+      message: parts.length ? parts.join(', ') : 'nothing to do',
+    }
+  })
+
   this.on('confirmAction', async (req) => {
     const startedAt = Date.now()
     const { actionID, approve } = req.data
@@ -580,7 +733,12 @@ module.exports = cds.service.impl(function () {
     }
 
     const { logID } = await writeAudit({
-      result: { toolsCalled: [action.toolName], steps: [], answer: outcome.note, usage: {}, grounded: true, rounds: 0 },
+      // `grounded` means "backed by what a real system actually did". A write
+      // that was recorded here but never reached SAP is not that, and marking
+      // it grounded would put it behind the same badge that certifies real
+      // readings — the same conflation the simulation path is careful to avoid.
+      result: { toolsCalled: [action.toolName], steps: [], answer: outcome.note, usage: {},
+        grounded: outcome.postedToSap === true, rounds: 0 },
       userID,
       channel: 'Web',
       question: `confirm: ${action.summary}`,
@@ -593,7 +751,12 @@ module.exports = cds.service.impl(function () {
 
     return {
       status: 'SUCCESS',
-      answer: `${action.summary} — done. ${outcome.note}`,
+      // Leads with what actually happened. "— done." first read as a completed
+      // posting to anyone who did not reach the end of the sentence, which is
+      // most people most of the time.
+      answer: outcome.postedToSap
+        ? `${action.summary} — done. ${outcome.note}`
+        : `${action.summary} — recorded, not posted to SAP. ${outcome.note}`,
       metrics: JSON.stringify(outcome),
       metadata: { logID, correlationId: actionID, totalResponseTimeMs: Date.now() - startedAt },
     }

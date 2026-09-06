@@ -1,5 +1,13 @@
 using { factorypilot.audit as db } from '../db/audit';
 
+/** What happened to a rating. */
+type FeedbackResult {
+  sessionLogID : UUID;
+  rating       : String(10);
+  replaced     : Boolean;
+  message      : String(300);
+}
+
 /**
  * Read-only history. Nothing here is writable over OData — rows are produced
  * by the insights pipeline, so an editable audit trail would not be one.
@@ -60,4 +68,21 @@ service AuditService {
           sum(case when quotaResult = 'DENIED' then 1 else 0 end) as denied : Integer
     }
     group by userID;
+
+  /**
+   * Rate an answer. (BETA)
+   *
+   * Keyed on the audit row, so a rating is joinable to the provider, model,
+   * tools and grounding of the answer it refers to. A rating that cannot be
+   * joined to those is a number nobody can act on.
+   *
+   * Re-rating replaces: changing your mind is not a second opinion.
+   */
+  @requires: 'InsightsQuery'
+  action rateAnswer(sessionLogID : UUID, rating : String(10), comment : String(1000)) returns FeedbackResult;
+
+  /** Ratings joined to what produced them — the view worth having. */
+  @readonly
+  @restrict: [{ grant: ['READ'], to: ['AuditRead', 'AdminRead', 'AdminMaintain', 'DashboardAdmin'] }]
+  entity AnswerFeedbacks as projection on db.AnswerFeedback;
 }

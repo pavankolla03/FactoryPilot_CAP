@@ -3,6 +3,16 @@ const cds = require('@sap/cds')
 module.exports = cds.service.impl(function () {
   const { BusinessObjects } = this.entities
 
+  // Increments against the active row only — a use of a question counts
+  // toward what is actually offered, not toward a draft nobody can see yet.
+  this.on('useSavedQuestion', async (req) => {
+    const { SavedQuestion } = cds.entities('factorypilot.config')
+    const row = await SELECT.one.from(SavedQuestion).where({ ID: req.data.ID, isActive: true })
+    if (!row) return false
+    await UPDATE(SavedQuestion).set({ useCount: { '+=': 1 } }).where({ ID: req.data.ID })
+    return true
+  })
+
   /**
    * objectCode is what the agent resolves a question to, and the OData path is
    * what it builds a query from. Both must exist before a row goes live, or the

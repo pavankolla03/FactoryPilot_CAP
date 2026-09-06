@@ -155,6 +155,37 @@ function buildDefinitions(businessObjects) {
     },
   }))
 
+  // Projection, not a reading and not an action. Declared separately because
+  // it is governed differently from both: it reads real stock but returns
+  // arithmetic, so it must not set `grounded`, and it must never reach the
+  // approval queue — "what if" is a question, and a question a person could
+  // approve by accident is a trap.
+  defs.push({
+    type: 'function',
+    function: {
+      name: 'simulate_stock_change',
+      description:
+        'Project what current stock WOULD become after a hypothetical quantity change. ' +
+        'Read-only and reversible: it changes nothing and proposes nothing. Use it for ' +
+        '"what if", "if I move", "would we run short", "can we afford to release". ' +
+        'The result is arithmetic on a real reading, NOT a figure from SAP — say so when reporting it.\n' +
+        'keywords: what if, simulate, project, would we, run short, shortfall, impact of moving',
+      parameters: {
+        type: 'object',
+        properties: {
+          materialID: { type: 'string', description: 'Material to project, e.g. P123' },
+          warehouseID: { type: 'string', description: 'Plant, e.g. 1710' },
+          quantity: {
+            type: 'number',
+            description: 'The change to apply. Negative to remove stock, positive to add. ' +
+              'A question about moving stock OUT is a negative number.',
+          },
+        },
+        required: ['quantity'],
+      },
+    },
+  })
+
   // The one write tool. Declared separately because it is governed differently:
   // it never executes inline, only through confirmAction.
   defs.push({
@@ -294,6 +325,11 @@ async function executeWrite(toolName, args) {
   }
 }
 
+/** Projection tools: neither a reading nor an action, and governed as neither. */
+const SIMULATION_TOOLS = new Set(['simulate_stock_change'])
+const isSimulationTool = (name) => SIMULATION_TOOLS.has(name)
+
 module.exports = {
   buildExpand, toolNameFor, buildDefinitions, buildFilter, dateRange,
-  isWriteTool, executeRead, executeWrite, WRITE_TOOLS }
+  isWriteTool, isSimulationTool, executeRead, executeWrite,
+  WRITE_TOOLS, SIMULATION_TOOLS }

@@ -40,5 +40,42 @@ annotate ConfigService.BusinessObjects with @(
   }
 );
 
+/**
+ * The vetted question library, offered on the Insights welcome screen. (BETA)
+ *
+ * `useCount` leads the object page rather than hiding at the bottom: whether
+ * anyone actually asks a saved question is the one fact that says whether the
+ * library is worth curating, and it should not take a second click to see.
+ */
+annotate ConfigService.SavedQuestions with @(
+  UI: {
+    HeaderInfo: {
+      TypeName      : 'Saved Question',
+      TypeNamePlural: 'Saved Questions',
+      Title         : { Value: title },
+      Description   : { Value: question }
+    },
+    SelectionFields: [ forRole, warehouseID, isActive ],
+    LineItem: [
+      { $Type: 'UI.DataField', Value: sortOrder,   Label: 'Order' },
+      { $Type: 'UI.DataField', Value: title,       Label: 'Title' },
+      { $Type: 'UI.DataField', Value: question,    Label: 'Question' },
+      { $Type: 'UI.DataField', Value: warehouseID, Label: 'Plant' },
+      { $Type: 'UI.DataField', Value: forRole,     Label: 'For Role' },
+      { $Type: 'UI.DataField', Value: useCount,    Label: 'Times Asked' },
+      { $Type: 'UI.DataField', Value: isActive,    Label: 'Active' }
+    ],
+    Facets: [ { $Type: 'UI.ReferenceFacet', Label: 'Question', Target: '@UI.FieldGroup#Q' } ],
+    FieldGroup#Q: { Data: [
+      { Value: title }, { Value: question }, { Value: warehouseID }, { Value: forRole },
+      { Value: sortOrder }, { Value: isActive }, { Value: useCount }
+    ]}
+  }
+);
+
+annotate ConfigService.SavedQuestions with {
+  useCount @readonly;
+};
+
 
 

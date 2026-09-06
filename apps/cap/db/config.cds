@@ -77,3 +77,38 @@ entity BusinessObjectConfig : cuid, managed, ActiveFlag {
 // different job from registering OData services, and giving it its own scope
 // means a client can hand cache tuning to someone without also handing them
 // the ability to repoint a business object at a different backend.
+
+/**
+ * A vetted question, offered rather than typed. (BETA)
+ *
+ * Two jobs. It shortens the distance from opening the product to getting an
+ * answer, which is most of what onboarding is. And it lets an organisation
+ * decide what *good* questions look like for a role, instead of every new user
+ * rediscovering the phrasing that works.
+ *
+ * Scoped by role rather than by user: a shift lead and a buyer should be
+ * offered different starting points, and maintaining that per person does not
+ * scale past the pilot.
+ */
+entity SavedQuestion : cuid, managed, ActiveFlag {
+  @title: 'Title'
+  title       : String(120) not null;
+
+  @title: 'Question'
+  question    : String(500) not null;
+
+  @title: 'Plant / Warehouse'
+  warehouseID : String(20);
+
+  /** Empty means everyone. Otherwise an XSUAA scope name. */
+  @title: 'For Role'
+  forRole     : String(60);
+
+  @title: 'Sort Order'
+  sortOrder   : Integer default 100;
+
+  /** Incremented when someone runs it, so an unused library is visible as
+   *  unused rather than assumed to be helping. */
+  @title: 'Times Used'
+  useCount    : Integer default 0;
+}

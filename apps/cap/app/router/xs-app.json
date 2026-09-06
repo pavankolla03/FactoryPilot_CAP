@@ -20,7 +20,7 @@
       "csrfProtection": true
     },
     {
-      "source": "^/odata/(config|token|admin|audit|cache|integration|dashboard)/(.*)$",
+      "source": "^/odata/(config|token|admin|audit|cache|integration|dashboard|jobs)/(.*)$",
       "target": "/odata/$1/$2",
       "destination": "srv-api",
       "authenticationType": "xsuaa",

@@ -1,7 +1,38 @@
 const cds = require('@sap/cds')
+
+const prefs = require('./lib/prefs')
 const policy = require('./lib/policy')
 
 module.exports = cds.service.impl(function () {
+  /**
+   * Remember one preference for the caller. (BETA)
+   *
+   * `req.user.id` decides whose preference this is — never a parameter. A
+   * userID parameter would let anyone set anyone else's default plant, which
+   * silently redirects their questions to a site they do not work at.
+   */
+  this.on('setPreference', async (req) => {
+    const { prefKey, prefValue } = req.data
+    try {
+      const r = await prefs.set(req.user.id, prefKey, prefValue)
+      return {
+        ...r,
+        message: r.cleared ? `Forgot ${prefKey}.` : `Will remember ${prefKey} = ${r.prefValue}.`,
+      }
+    } catch (err) {
+      if (err.code === 'INVALID_PREFERENCE') return req.reject(400, err.message)
+      throw err
+    }
+  })
+
+  this.on('myPreferences', async (req) => {
+    const stored = await prefs.forUser(req.user.id)
+    return Object.entries(stored).map(([prefKey, prefValue]) => ({
+      prefKey, prefValue, cleared: false,
+      message: prefs.PREFERENCE_KEYS[prefKey]?.description || '',
+    }))
+  })
+
   this.on('effectivePolicy', async (req) => {
     const { userID, warehouseID } = req.data
     return await policy.effectivePolicy(userID || req.user.id, warehouseID)

@@ -163,6 +163,22 @@ entity PendingAction : cuid {
   @title: 'Anomaly Reason'
   anomalyReason  : String(300);
 
+  /**
+   * Groups actions proposed in the same turn. (BETA)
+   *
+   * Null for a single action, which is every action created before batching
+   * existed. Present when one question produced several writes — "rebalance
+   * these five materials" — so they can be shown and decided together instead
+   * of the user approving one card and believing all five happened.
+   */
+  @title: 'Batch'
+  batchID        : UUID;
+
+  /** Position within the batch, so the confirmation card lists them in the
+   *  order the model proposed rather than whatever order the rows come back. */
+  @title: 'Position In Batch'
+  batchSeq       : Integer;
+
   @title: 'Status'
   status         : String(20) default 'PENDING';  // PENDING | APPROVED | REJECTED | EXPIRED | CONSUMED
 
@@ -188,4 +204,37 @@ entity Feedback : cuid {
 
   @title: 'Comment'
   comment        : String(1000);
+}
+
+/**
+ * What a person thought of an answer. (BETA)
+ *
+ * Deliberately attached to the SessionLog rather than standing alone, because
+ * a rating on its own is a vanity metric. Joined to the audit row it becomes
+ * answerable: which provider, which model, which tools, grounded or not, how
+ * long — the things that would have to change for the next rating to be
+ * better. "83% positive" tells you nothing; "every negative rating this week
+ * was ungrounded" tells you what to do on Monday.
+ *
+ * One rating per person per answer. A second submission replaces the first —
+ * changing your mind is not a new opinion.
+ */
+entity AnswerFeedback : cuid {
+  @title: 'Created'
+  createdAt     : Timestamp;
+
+  /** The audit row for the answer being rated. */
+  @title: 'Session Log'
+  sessionLog_ID : UUID not null;
+
+  @title: 'User'
+  userID        : String(100) not null;
+
+  /** UP or DOWN. Deliberately not a 1–5 scale: nobody agrees what 3 means, and
+   *  the only decision this feeds is "look at these answers". */
+  @title: 'Rating'
+  rating        : String(10) not null;
+
+  @title: 'Comment'
+  comment       : String(1000);
 }

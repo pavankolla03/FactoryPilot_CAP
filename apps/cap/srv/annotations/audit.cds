@@ -70,6 +70,31 @@ annotate AuditService.AgentSteps with @(
   }
 );
 
+/**
+ * Ratings joined to what produced them. (BETA)
+ *
+ * Read-only, like the rest of this service: a rating is filed once, through
+ * `rateAnswer`, from the answer it refers to — this screen is for reviewing
+ * the resulting pattern, not for editing entries after the fact.
+ */
+annotate AuditService.AnswerFeedbacks with @(
+  UI: {
+    HeaderInfo: { TypeName: 'Feedback', TypeNamePlural: 'Answer Feedback', Title: { Value: rating } },
+    SelectionFields: [ userID, rating ],
+    LineItem: [
+      { $Type: 'UI.DataField', Value: createdAt,     Label: 'When' },
+      { $Type: 'UI.DataField', Value: userID,        Label: 'User' },
+      { $Type: 'UI.DataField', Value: rating,        Label: 'Rating' },
+      { $Type: 'UI.DataField', Value: comment,       Label: 'Comment' },
+      { $Type: 'UI.DataField', Value: sessionLog_ID, Label: 'Answer' }
+    ],
+    Facets: [ { $Type: 'UI.ReferenceFacet', Label: 'Feedback', Target: '@UI.FieldGroup#F' } ],
+    FieldGroup#F: { Data: [
+      { Value: rating }, { Value: comment }, { Value: userID }, { Value: createdAt }, { Value: sessionLog_ID }
+    ]}
+  }
+);
+
 annotate AuditService.PendingActions with @(
   UI: {
     HeaderInfo: { TypeName: 'Pending Action', TypeNamePlural: 'Approvals', Title: { Value: summary } },

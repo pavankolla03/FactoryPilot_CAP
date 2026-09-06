@@ -1,0 +1,115 @@
+{
+  "_version": "1.59.0",
+  "sap.app": {
+    "id": "factorypilot.watchers",
+    "type": "application",
+    "title": "Watchers (Beta)",
+    "description": "Standing questions \u2014 alert me when a number crosses a line.",
+    "applicationVersion": {
+      "version": "0.1.0"
+    },
+    "dataSources": {
+      "mainService": {
+        "uri": "/odata/jobs/",
+        "type": "OData",
+        "settings": {
+          "odataVersion": "4.0",
+          "localUri": "localService/metadata.xml"
+        }
+      }
+    },
+    "crossNavigation": {
+      "inbounds": {
+        "watchers-manage": {
+          "semanticObject": "Watcher",
+          "action": "manage",
+          "title": "Watchers (Beta)",
+          "signature": {
+            "parameters": {},
+            "additionalParameters": "allowed"
+          }
+        }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "dependencies": {
+      "minUI5Version": "1.120.0",
+      "libs": {
+        "sap.fe.templates": {}
+      }
+    },
+    "models": {
+      "": {
+        "dataSource": "mainService",
+        "preload": true,
+        "settings": {
+          "operationMode": "Server",
+          "autoExpandSelect": true,
+          "earlyRequests": true
+        }
+      }
+    },
+    "routing": {
+      "routes": [
+        {
+          "name": "WatchersList",
+          "pattern": ":?query:",
+          "target": "WatchersList"
+        },
+        {
+          "name": "WatchersDetail",
+          "pattern": "Watchers({key}):?query:",
+          "target": "WatchersDetail"
+        }
+      ],
+      "targets": {
+        "WatchersList": {
+          "type": "Component",
+          "id": "WatchersList",
+          "name": "sap.fe.templates.ListReport",
+          "options": {
+            "settings": {
+              "entitySet": "Watchers",
+              "variantManagement": "Page",
+              "navigation": {
+                "Watchers": {
+                  "detail": {
+                    "route": "WatchersDetail"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "WatchersDetail": {
+          "type": "Component",
+          "id": "WatchersDetail",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "entitySet": "Watchers",
+              "navigation": {}
+            }
+          }
+        }
+      }
+    },
+    "contentDensities": {
+      "compact": true,
+      "cozy": true
+    }
+  },
+  "sap.fiori": {
+    "registrationIds": [],
+    "archeType": "transactional"
+  }
+}
