@@ -205,6 +205,12 @@ async function executeRead(toolName, args, { businessObjects, defaults, correlat
   const filter = buildFilter(bo.defaultFilters, args, bo.apiVersion, defaults)
   const expand = buildExpand(bo.expandPath, args, bo.apiVersion, defaults)
 
+  // The page size is reported alongside the rows, because the caller cannot
+  // otherwise tell "there are exactly this many" from "this is as many as we
+  // asked for". Every bundled fixture is smaller than this, so the difference
+  // is invisible until a real tenant answers.
+  const PAGE = 200
+
   const result = await client.query({
     destinationName: endpoint?.destinationName,
     servicePath: bo.odataServicePath,
@@ -213,7 +219,7 @@ async function executeRead(toolName, args, { businessObjects, defaults, correlat
     select: bo.selectFields,
     expand,
     apiVersion: bo.apiVersion,
-    top: 200,
+    top: PAGE,
     correlationId,
   })
 
@@ -227,7 +233,10 @@ async function executeRead(toolName, args, { businessObjects, defaults, correlat
     `${bo.objectCode} via ${client.name} → ${result.rows.length} row(s) in ${result.elapsedMs}ms · ${result.url}`
   )
 
-  return { objectCode: bo.objectCode, filter, ...result }
+  // A full page means the total is unknown, not that it equals the page size.
+  // Reported rather than inferred downstream, so the one place that knows the
+  // page size is the one that says whether it was reached.
+  return { objectCode: bo.objectCode, filter, ...result, pageSize: PAGE, atPageLimit: result.rows.length >= PAGE }
 }
 
 /** Apply an approved write. The mock backend has no write endpoint, so this

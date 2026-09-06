@@ -35,7 +35,7 @@ function systemPrompt(businessObjects, defaults = {}) {
     '1. Reply with the answer only. Never narrate your thinking, restate the question, or describe what you are about to do.',
     '2. Open with the figure or finding. No preamble such as "Based on the data" or "We have a large dataset".',
     '3. Use the tools to fetch real data. Never invent record counts, material numbers, quantities or supplier names.',
-    '4. When a tool result says `truncated: true`, the rows are a sample — quote `rowCount` as the real total and say the detail is a sample.',
+    '4. When a tool result says `truncated: true`, the rows are a sample — quote `rowCount` as the real total and say the detail is a sample. But when it also says `rowCountIsAtLeast: true`, `rowCount` is a page limit and not a total: say "at least N" and never present it as the count.',
     '5. If a tool returns no rows, say which filter was used — quote `queriedWith` — so the reader can see whether the plant or material was the problem rather than the data.',
     '6. Only call a tool when the question is about the registered business objects below. Anything else — a greeting, a general question, something outside SAP — answer directly and do not call a tool.',
     defaults.warehouse
@@ -430,6 +430,17 @@ async function run({ question, userID, roles, warehouseID, conversationID, corre
         const askedFilter = (result.url || '').match(/\$filter=([^&]*)/)?.[1] || ''
         content = JSON.stringify({
           rowCount: result.rows.length,
+          // A query that comes back exactly full did not necessarily find
+          // exactly that many. Every bundled fixture is smaller than the page,
+          // so rowCount has always been the true total in testing — and the
+          // prompt tells the model to quote it as one. Against a plant with
+          // five thousand open deliveries that becomes "there are 200",
+          // asserted with the same confidence as a real count.
+          ...(result.atPageLimit && {
+            rowCountIsAtLeast: true,
+            pageSize: result.pageSize,
+            note: `The query returned a full page of ${result.pageSize} rows, so the true total is at least ${result.rows.length} and may be far larger. Do not state rowCount as the total — say "at least" and offer to narrow the filter.`,
+          }),
           returned: sample.length,
           truncated: result.rows.length > sample.length,
           queriedWith: decodeURIComponent(askedFilter) || '(no filter)',
