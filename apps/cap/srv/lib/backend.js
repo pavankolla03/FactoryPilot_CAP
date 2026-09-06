@@ -218,7 +218,11 @@ class MockBackend {
 
   async query({ filter, select, top = 200, apiVersion = 'v2', entitySet }) {
     const started = Date.now()
-    let rows = applyFilter(this.load(entitySet), filter)
+    // The fixtures are verbatim captures of live v2 responses, so they carry
+    // `__metadata` exactly as the Hub does. Stripping it here keeps the demo
+    // paying the same token cost as production rather than a different one —
+    // and demo mode is where the row budget is judged.
+    let rows = applyFilter(stripAnnotations(this.load(entitySet)), filter)
     if (select) {
       const wanted = select.split(',').map((s) => s.trim()).filter(Boolean)
       rows = rows.map((r) => Object.fromEntries(wanted.map((k) => [k, r[k]])))
@@ -372,10 +376,25 @@ function flattenExpanded(rows, navName) {
  */
 function stripAnnotations(rows) {
   return rows.map((row) => {
+    if (!row || typeof row !== 'object') return row
     let touched = false
     const clean = {}
     for (const [key, value] of Object.entries(row)) {
-      if (key.startsWith('@')) { touched = true; continue }
+      // v4 spells its bookkeeping with a leading @ (`@odata.etag`); v2 puts it
+      // all in one `__metadata` object. Only the first was handled, so on the
+      // v2 path — which is every S/4 API behind the Hub — nothing was removed
+      // at all. In the delivery fixture `__metadata` is 315 of a row's 582
+      // characters: more than half of what reached the model was the row's own
+      // URI repeated back at it, and a live tenant's URIs are longer still.
+      if (key.startsWith('@') || key === '__metadata') { touched = true; continue }
+      // An unexpanded navigation property arrives as `{"__deferred":{"uri":…}}`
+      // — a link to data we did not ask for. It answers no question and reads
+      // to the model like a field whose value went missing.
+      if (value && typeof value === 'object' && !Array.isArray(value) &&
+          Object.keys(value).length === 1 && '__deferred' in value) {
+        touched = true
+        continue
+      }
       clean[key] = value
     }
     return touched ? clean : row
@@ -423,7 +442,12 @@ class HubBackend {
           res.status
         )
       }
-      return { rows: extractRows(await res.json()), url, statusCode: res.status, elapsedMs: Date.now() - started }
+      return {
+        rows: stripAnnotations(extractRows(await res.json())),
+        url,
+        statusCode: res.status,
+        elapsedMs: Date.now() - started,
+      }
     } catch (err) {
       if (err instanceof BackendError) throw err
       throw new BackendError(err.name === 'AbortError' ? `Hub timed out after ${this.timeoutMs}ms` : `Hub request failed: ${err.message}`)
@@ -470,7 +494,7 @@ class CpiBackend {
       const body = await res.json()
       if (body.errorCode) throw new BackendError(`${body.errorCode}: ${body.message || ''}`)
       return {
-        rows: extractRows(body.body ?? body),
+        rows: stripAnnotations(extractRows(body.body ?? body)),
         url: `${this.baseUrl}#${entitySet}`,
         statusCode: body.statusCode || res.status,
         elapsedMs: body.elapsedMs ?? Date.now() - started,
@@ -605,7 +629,7 @@ class IflowBackend {
     // Tolerate both a bare OData payload and the thin-CPI envelope.
     const inner = body && typeof body === 'object' && body.body ? body.body : body
     return {
-      rows: extractRows(inner),
+      rows: stripAnnotations(extractRows(inner)),
       url: out.url,
       statusCode: out.status,
       elapsedMs: Date.now() - started,

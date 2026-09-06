@@ -64,6 +64,54 @@ const V2 = { d: { results: [{ Material: 'P123', Plant: '1000' }] } }
 
 // ---------------------------------------------------------------------------
 
+describe('protocol bookkeeping never reaches the model', () => {
+  // stripAnnotations knew only the v4 spelling (`@odata.etag`) and was called
+  // only by the Graph adapter. Every S/4 API behind the Hub answers v2, which
+  // puts its bookkeeping in `__metadata` — so on the path the product actually
+  // uses, nothing was removed. In the bundled delivery fixture `__metadata` is
+  // 315 of a row's 582 characters: more than half of what was sent to the
+  // model was the row's own URI read back to it, 25 rows at a time.
+  const V2_ROW = {
+    __metadata: {
+      id: "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata/sap/API_OUTBOUND_DELIVERY_SRV/A_OutbDeliveryHeader('80001000')",
+      uri: "https://sandbox.api.sap.com/s4hanacloud/sap/opu/odata/sap/API_OUTBOUND_DELIVERY_SRV/A_OutbDeliveryHeader('80001000')",
+      type: 'API_OUTBOUND_DELIVERY_SRV.A_OutbDeliveryHeaderType',
+    },
+    DeliveryDocument: '80001000',
+    ShippingPoint: '1000',
+    ToItem: { __deferred: { uri: 'https://sandbox.api.sap.com/…/to_DeliveryDocumentItem' } },
+  }
+
+  test('v2 __metadata and unfetched navigation links are dropped', () => {
+    const [row] = backend.stripAnnotations([V2_ROW])
+    assert.deepEqual(Object.keys(row), ['DeliveryDocument', 'ShippingPoint'])
+  })
+
+  test('v4 annotations are still dropped', () => {
+    const [row] = backend.stripAnnotations([{ '@odata.etag': 'W/"x"', Plant: '1710' }])
+    assert.deepEqual(Object.keys(row), ['Plant'])
+  })
+
+  test('a clean row is returned untouched, not rebuilt', () => {
+    const clean = { Plant: '1710', Material: 'P123' }
+    assert.equal(backend.stripAnnotations([clean])[0], clean, 'same object, so nothing is copied needlessly')
+  })
+
+  test('the Hub adapter strips too — not only Graph', async () => {
+    stubFetch(json({ d: { results: [V2_ROW] } }))
+    const hub = new backend.HubBackend({ baseUrl: 'https://h', apiKey: 'k' })
+    const out = await hub.query({ entitySet: 'A_OutbDeliveryHeader' })
+    assert.deepEqual(Object.keys(out.rows[0]), ['DeliveryDocument', 'ShippingPoint'])
+  })
+
+  test('the bundled fixture itself comes back clean', async () => {
+    const mock = new backend.MockBackend()
+    const out = await mock.query({ entitySet: 'A_OutbDeliveryHeader' })
+    const withMeta = out.rows.filter((r) => '__metadata' in r)
+    assert.equal(withMeta.length, 0, `${withMeta.length} of ${out.rows.length} fixture rows still carry __metadata`)
+  })
+})
+
 describe('what a failure says to the person reading it', () => {
   // The Hub answers an expired API key with a full HTML login page in German.
   // That body was sliced to 200 characters and used as the error message, so
